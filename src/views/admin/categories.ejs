@@ -1,0 +1,932 @@
+<% const _sort = sort || 'desc'; %>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Admin Categories | ElectroHub</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100">
+
+<header class="bg-white shadow-sm">
+  <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+    <div class="flex items-center gap-2">
+      <span class="text-xl font-bold">ElectroHub</span>
+      <span class="text-xs text-gray-500 ml-2">Next-Gen Electronics</span>
+    </div>
+    <nav class="flex items-center gap-6 text-sm font-medium">
+      <a href="#" class="hover:text-black text-gray-600">Home</a>
+      <a href="#" class="hover:text-black text-gray-600">Contact</a>
+      <a href="#" class="hover:text-black text-gray-600">About</a>
+      <a href="/admin/logout" class="text-red-600 hover:underline">Logout</a>
+    </nav>
+  </div>
+</header>
+
+<div class="flex">
+  <aside class="w-64 min-h-[calc(100vh-64px)] bg-white border-r flex flex-col justify-between">
+    <div>
+      <div class="p-6 font-semibold">ElectroHub Admin</div>
+      <nav class="px-4 space-y-1 text-sm">
+        <a href="/admin/dashboard"    class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 text-gray-700"><i class="bi bi-house"></i> Dashboard</a>
+        <a href="/admin/orders"       class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 text-gray-700"><i class="bi bi-bag"></i> Orders</a>
+        <a href="/admin/products"     class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 text-gray-700"><i class="bi bi-box"></i> Products</a>
+        <a href="/admin/category"     class="flex items-center gap-2 px-3 py-2 rounded bg-gray-100 font-semibold text-gray-900"><i class="bi bi-tags"></i> Category</a>
+        <a href="/admin/offers"       class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 text-gray-700"><i class="bi bi-percent"></i> Offers</a>
+        <a href="/admin/coupons"      class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 text-gray-700"><i class="bi bi-ticket"></i> Coupons</a>
+        <a href="/admin/banners"      class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 text-gray-700"><i class="bi bi-image"></i> Banners</a>
+        <a href="/admin/customers"    class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 text-gray-700"><i class="bi bi-people"></i> Customers</a>
+        <a href="/admin/sales-report" class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 text-gray-700"><i class="bi bi-graph-up"></i> Sales Report</a>
+      </nav>
+    </div>
+    <div class="px-4 pb-6">
+      <a href="/admin/logout" class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 text-gray-700 text-sm">
+        <i class="bi bi-box-arrow-left"></i> Logout
+      </a>
+    </div>
+  </aside>
+
+  <main class="flex-1 p-8 min-w-0">
+
+    <!-- ══════════ LIST VIEW ══════════ -->
+    <div id="listView">
+      <div class="flex items-center justify-between mb-6">
+        <h1 class="text-2xl font-semibold">Categories</h1>
+        <button onclick="openForm('create')"
+          class="bg-gray-800 hover:bg-gray-900 text-white text-sm px-4 py-2 rounded flex items-center gap-2 transition">
+          <i class="bi bi-plus-lg"></i> Add Category
+        </button>
+      </div>
+
+      <div class="bg-white p-4 rounded shadow mb-5 flex flex-wrap gap-3 items-center">
+        <div class="relative flex-1 min-w-[200px] max-w-sm">
+          <i class="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+          <input id="searchInput" type="text" value="<%= query || '' %>"
+            placeholder="Search categories…" autocomplete="off"
+            class="w-full pl-9 pr-8 py-2 border border-gray-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 transition"/>
+          <i id="searchSpinner" class="bi bi-arrow-repeat animate-spin absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm hidden"></i>
+          <!-- Suggestions Dropdown -->
+          <div id="searchSuggestions" class="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 hidden max-h-60 overflow-y-auto"></div>
+        </div>
+        <div class="relative">
+          <i class="bi bi-sort-down absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none"></i>
+          <select id="sortSelect"
+            class="appearance-none pl-9 pr-8 py-2 border border-gray-200 rounded bg-white text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-300 transition cursor-pointer">
+            <option value="desc" <%= (_sort==='desc')?'selected':'' %>>Latest First</option>
+            <option value="asc"  <%= (_sort==='asc') ?'selected':'' %>>Oldest First</option>
+          </select>
+          <i class="bi bi-chevron-down absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none"></i>
+        </div>
+        <button id="clearBtn" onclick="clearSearch()"
+          class="px-4 py-2 border border-gray-200 bg-white hover:bg-gray-50 rounded text-gray-600 text-sm transition <%= query ? '' : 'hidden' %>">Clear</button>
+        <button onclick="exportCSV()"
+          class="flex items-center gap-2 px-4 py-2 border border-gray-200 bg-white hover:bg-gray-50 rounded text-sm text-gray-700 transition">
+          <i class="bi bi-download"></i> Export
+        </button>
+      </div>
+
+      <div class="bg-white rounded shadow overflow-hidden mb-5">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="bg-gray-50 border-b border-gray-200">
+              <th class="text-left px-5 py-3.5 font-semibold text-gray-600 w-[40%]">Category Name</th>
+              <th class="text-left px-5 py-3.5 font-semibold text-gray-600 w-[20%]">Added Date</th>
+              <th class="text-left px-5 py-3.5 font-semibold text-gray-600 w-[15%]">Status</th>
+              <th class="text-left px-5 py-3.5 font-semibold text-gray-600 w-[25%]">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="categoryTableBody" class="divide-y divide-gray-100">
+            <% if (categories.length === 0) { %>
+              <tr><td colspan="4" class="px-5 py-12 text-center text-gray-400">
+                <i class="bi bi-tags text-3xl block mb-2"></i>No categories found.
+              </td></tr>
+            <% } %>
+            <% categories.forEach(cat => { %>
+                
+              <tr class="hover:bg-gray-50 transition" data-id="<%= cat._id %>">
+                <td class="px-5 py-3.5 font-medium text-gray-800"><%= cat.categoryName %></td>
+                <td class="px-5 py-3.5 text-gray-600"><%= cat.createdAt.toISOString().split('T')[0] %></td>
+                <td class="px-5 py-3.5">
+                  <% if (cat.isActive) { %>
+                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                      <span class="w-1.5 h-1.5 rounded-full bg-green-500 mr-1.5"></span>Active
+                    </span>
+                  <% } else { %>
+                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">
+                      <span class="w-1.5 h-1.5 rounded-full bg-red-500 mr-1.5"></span>Inactive
+                    </span>
+                  <% } %>
+                </td>
+                <td class="px-5 py-3.5">
+                  <div class="flex items-center gap-2 text-sm font-medium text-blue-600">
+                    <button onclick="openViewModal('<%= cat._id %>')" class="hover:text-blue-800 transition">View</button>
+                    <span class="text-gray-300">|</span>
+                    <button onclick="openForm('edit','<%= cat._id %>')" class="hover:text-blue-800 transition">Edit</button>
+                    <span class="text-gray-300">|</span>
+                    <button onclick="openDeleteConfirm('<%= cat._id %>','<%= cat.categoryName %>')" class="text-red-500 hover:text-red-700 transition">Delete</button>
+                  </div>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-600">
+        <div id="showingInfo">
+          Showing <span class="font-semibold"><%= showingFrom %>–<%= showingTo %></span>
+          of <span class="font-semibold"><%= total %></span> categories
+        </div>
+        <div id="paginationWrap" class="flex items-center gap-1.5 flex-wrap">
+          <% if (currentPage > 1) { %>
+            <button data-page="<%= currentPage - 1 %>" class="inline-flex items-center justify-center w-8 h-8 text-sm rounded border border-gray-200 bg-white hover:bg-gray-50 transition"><i class="bi bi-chevron-left text-xs"></i></button>
+          <% } else { %>
+            <span class="inline-flex items-center justify-center w-8 h-8 text-sm rounded border border-gray-200 bg-white opacity-40 cursor-not-allowed"><i class="bi bi-chevron-left text-xs"></i></span>
+          <% } %>
+          <% for (let i = 1; i <= totalPages; i++) { %>
+            <button data-page="<%= i %>" class="inline-flex items-center justify-center w-8 h-8 text-sm rounded border transition <%= i === currentPage ? 'bg-gray-900 text-white border-gray-900' : 'border-gray-200 bg-white hover:bg-gray-50 text-gray-700' %>"><%= i %></button>
+          <% } %>
+          <% if (currentPage < totalPages) { %>
+            <button data-page="<%= currentPage + 1 %>" class="inline-flex items-center justify-center w-8 h-8 text-sm rounded border border-gray-200 bg-white hover:bg-gray-50 transition"><i class="bi bi-chevron-right text-xs"></i></button>
+          <% } else { %>
+            <span class="inline-flex items-center justify-center w-8 h-8 text-sm rounded border border-gray-200 bg-white opacity-40 cursor-not-allowed"><i class="bi bi-chevron-right text-xs"></i></span>
+          <% } %>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ FORM VIEW — full width two-column ══════════ -->
+    <div id="formView" class="hidden w-full">
+
+      <!-- Page header -->
+      <div class="flex items-center gap-3 mb-6">
+        <button onclick="closeForm()" class="text-gray-400 hover:text-gray-700 transition">
+          <i class="bi bi-arrow-left text-xl"></i>
+        </button>
+        <div>
+          <p class="text-xs text-gray-400 mb-0.5">
+            Categories <i class="bi bi-chevron-right text-[10px]"></i>
+            <span id="formBreadcrumb" class="text-gray-700 font-medium">Create New Category</span>
+          </p>
+          <h1 id="formTitle" class="text-2xl font-semibold text-gray-900">Create New Category</h1>
+        </div>
+      </div>
+
+      <!-- TWO COLUMN GRID -->
+      <div class="grid grid-cols-2 gap-6 items-start">
+
+        <!-- ── LEFT COLUMN ── -->
+        <div class="flex flex-col gap-5">
+
+          <!-- Basic Details -->
+          <div class="bg-white rounded shadow p-6">
+            <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-5">Basic Details</h2>
+
+            <div class="mb-4">
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">
+                Category Name <span class="text-red-500">*</span>
+              </label>
+              <input id="fCatName" type="text" maxlength="50" placeholder="e.g. Laptops"
+                class="w-full px-3.5 py-2.5 border border-gray-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 transition"/>
+              <div class="flex items-center justify-between mt-1">
+                <p id="nameErr" class="text-red-500 text-xs hidden"></p>
+                <p class="text-xs text-gray-400 ml-auto"><span id="nameCount">0</span>/50</p>
+              </div>
+            </div>
+
+            <div class="mb-4">
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">Description</label>
+              <textarea id="fDescription" rows="3" maxlength="200"
+                placeholder="Short description for this category…"
+                class="w-full px-3.5 py-2.5 border border-gray-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 transition resize-none"></textarea>
+              <div class="flex justify-end mt-1">
+                <p class="text-xs text-gray-400"><span id="descCount">0</span>/200</p>
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
+              <div class="flex items-center gap-5">
+                <label class="flex items-center gap-2 cursor-pointer text-sm text-gray-700">
+                  <input type="radio" name="fStatus" id="statusActive" value="true" checked class="accent-gray-800"/> Active
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm text-gray-700">
+                  <input type="radio" name="fStatus" id="statusInactive" value="false" class="accent-gray-800"/> Inactive
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <!-- Specification Fields -->
+          <div class="bg-white rounded shadow p-6">
+            <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-1">Specification Fields</h2>
+            <p class="text-xs text-gray-400 mb-4">
+              Label fields shown on the product page (e.g. Processor, Battery). Admin fills values when adding a product.
+            </p>
+            <div class="border border-gray-200 rounded overflow-hidden mb-4">
+              <table class="w-full text-sm">
+                <thead class="bg-gray-50 border-b border-gray-200">
+                  <tr>
+                    <th class="text-left px-4 py-3 font-medium text-gray-600 w-[60%]">Specification Name</th>
+                    <th class="text-center px-4 py-3 font-medium text-gray-600 w-[20%]">Required</th>
+                    <th class="text-left px-4 py-3 font-medium text-gray-600 w-[20%]">Action</th>
+                  </tr>
+                </thead>
+                <tbody id="specTableBody" class="divide-y divide-gray-100"></tbody>
+              </table>
+            </div>
+            <button type="button" onclick="addSpec()"
+              class="flex items-center gap-2 px-4 py-2 border border-gray-200 bg-white hover:bg-gray-50 rounded text-sm font-medium text-gray-700 transition">
+              <i class="bi bi-plus"></i> Add Specification Field
+            </button>
+          </div>
+
+          <!-- Cancel / Submit (bottom of left col, always visible) -->
+          <div class="bg-white rounded shadow p-5 flex items-center gap-3">
+            <button type="button" onclick="closeForm()"
+              class="flex-1 px-6 py-2.5 border border-gray-200 bg-white hover:bg-gray-50 rounded text-sm font-medium text-gray-700 transition">
+              Cancel
+            </button>
+            <button type="button" id="submitBtn" onclick="submitForm()"
+              class="flex-[2] px-8 py-2.5 bg-gray-800 hover:bg-gray-900 text-white rounded text-sm font-semibold transition flex items-center justify-center gap-2">
+              <i class="bi bi-check-lg"></i> <span id="submitBtnLabel">Create Category</span>
+            </button>
+          </div>
+
+        </div>
+
+        <!-- ── RIGHT COLUMN ── -->
+        <div class="flex flex-col gap-5">
+
+          <!-- Variant Options -->
+          <div class="bg-white rounded shadow p-6">
+            <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-1">Variant Options</h2>
+            <p class="text-xs text-gray-400 mb-5">
+              Options affecting price &amp; stock (e.g. RAM, Storage, Color). Use <strong>Unit/Suffix</strong> for numeric variants (e.g. 8GB, 256GB). Leave it off for text variants (e.g. Color names).
+              <span class="text-red-400 font-medium">At least one variant required.</span>
+            </p>
+            <div id="variantContainer" class="space-y-4 mb-4"></div>
+            <button type="button" onclick="addVariant()"
+              class="flex items-center gap-2 px-4 py-2 border border-gray-200 bg-white hover:bg-gray-50 rounded text-sm font-medium text-gray-700 transition">
+              <i class="bi bi-plus"></i> Add Variant Option
+            </button>
+          </div>
+
+        </div>
+      </div>
+    </div>
+    <!-- END FORM VIEW -->
+
+  </main>
+</div>
+
+<!-- VIEW MODAL -->
+<div id="viewModal" class="fixed inset-0 z-50 hidden items-center justify-center">
+  <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" onclick="closeViewModal()"></div>
+  <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden">
+    <div class="flex items-center justify-between px-6 pt-5 pb-4 border-b">
+      <h2 id="viewModalTitle" class="text-lg font-bold text-gray-900"></h2>
+      <button onclick="closeViewModal()" class="text-gray-400 hover:text-gray-700 transition">
+        <i class="bi bi-x-lg text-sm"></i>
+      </button>
+    </div>
+    <div id="viewModalBody" class="px-6 py-5 text-sm text-gray-700 space-y-4 max-h-[60vh] overflow-y-auto"></div>
+    <div class="px-6 pb-6 pt-3 flex gap-3">
+      <button onclick="closeViewModal()"
+        class="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition">Close</button>
+      <button id="viewEditBtn"
+        class="flex-1 py-2.5 rounded-xl bg-gray-900 hover:bg-black text-sm font-semibold text-white transition">Edit</button>
+    </div>
+  </div>
+</div>
+
+<!-- DELETE MODAL -->
+<div id="confirmModal" class="fixed inset-0 z-50 hidden items-center justify-center">
+  <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" onclick="closeConfirm()"></div>
+  <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden">
+    <div class="flex flex-col items-center pt-8 pb-4 px-6 text-center">
+      <div class="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mb-4">
+        <i class="bi bi-trash3 text-red-600 text-2xl"></i>
+      </div>
+      <h3 class="text-lg font-bold text-gray-900 mb-1">Delete Category</h3>
+      <p id="confirmDesc" class="text-sm text-gray-500"></p>
+    </div>
+    <div class="flex gap-3 px-6 pb-7 pt-2">
+      <button onclick="closeConfirm()"
+        class="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition">Cancel</button>
+      <button id="confirmDeleteBtn"
+        class="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-sm font-semibold text-white transition">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast" class="fixed top-[72px] right-5 z-[9999] hidden items-center gap-3 px-5 py-3.5 rounded-xl shadow-xl text-white text-sm font-medium min-w-[220px] max-w-xs">
+  <i id="toastIcon" class="text-lg shrink-0"></i>
+  <span id="toastMsg" class="leading-snug"></span>
+</div>
+
+<script>
+// ══════════════════════════════════
+//  SEARCH / SORT / PAGINATION
+// ══════════════════════════════════
+const searchInput       = document.getElementById('searchInput');
+const sortSelect        = document.getElementById('sortSelect');
+const paginationWrap    = document.getElementById('paginationWrap');
+const showingInfo       = document.getElementById('showingInfo');
+const clearBtn          = document.getElementById('clearBtn');
+const searchSpinner     = document.getElementById('searchSpinner');
+const searchSuggestions = document.getElementById('searchSuggestions');
+let debounceTimer       = null;
+
+function fetchCategories(page = 1) {
+  const q    = searchInput.value.trim();
+  const sort = sortSelect.value;
+  searchSpinner.classList.remove('hidden');
+  fetch(`/admin/category?q=${encodeURIComponent(q)}&sort=${sort}&page=${page}&ajax=1`, { credentials: 'include' })
+    .then(r => r.json())
+    .then(data => {
+      renderTable(data.categories);
+      renderPagination(data.currentPage, data.totalPages);
+      showingInfo.innerHTML = `Showing <span class="font-semibold">${data.showingFrom}–${data.showingTo}</span> of <span class="font-semibold">${data.total}</span> categories`;
+      clearBtn.classList.toggle('hidden', !q);
+      history.pushState({}, '', `/admin/category?q=${encodeURIComponent(q)}&sort=${sort}&page=${page}`);
+    })
+    .catch(() => showToast('Failed to load categories.', 'error'))
+    .finally(() => searchSpinner.classList.add('hidden'));
+}
+
+// ── Debounced Suggestions ──────────────────────────────────────────────
+function fetchSuggestions() {
+  const q = searchInput.value.trim();
+  if (!q) {
+    searchSuggestions.classList.add('hidden');
+    fetchCategories(1);
+    return;
+  }
+
+  searchSpinner.classList.remove('hidden');
+  searchSuggestions.classList.remove('hidden');
+
+  fetch(`/admin/category?q=${encodeURIComponent(q)}&sort=${sortSelect.value}&page=1&ajax=1`, { credentials: 'include' })
+    .then(r => r.json())
+    .then(data => {
+      renderTable(data.categories);
+      renderPagination(data.currentPage, data.totalPages);
+      showingInfo.innerHTML = `Showing <span class="font-semibold">${data.showingFrom}–${data.showingTo}</span> of <span class="font-semibold">${data.total}</span> categories`;
+      clearBtn.classList.remove('hidden');
+
+      if (!data.categories || data.categories.length === 0) {
+        searchSuggestions.innerHTML = `<div class="p-3 text-sm text-gray-500 text-center"><i class="bi bi-emoji-frown mr-1"></i> Not found</div>`;
+      } else {
+        searchSuggestions.innerHTML = data.categories.map(c => {
+          return `<div class="px-3 py-2 border-b border-gray-100 last:border-0 hover:bg-gray-50 cursor-pointer flex flex-col" onclick="selectSuggestion('${escHtml(c.categoryName)}')">
+                   <span class="font-medium text-xs text-gray-800">${escHtml(c.categoryName)}</span>
+                 </div>`;
+        }).join('');
+      }
+    })
+    .catch(() => searchSuggestions.innerHTML = `<div class="p-3 text-sm text-red-400 text-center">Failed</div>`)
+    .finally(() => searchSpinner.classList.add('hidden'));
+}
+
+function selectSuggestion(name) {
+  searchInput.value = name;
+  searchSuggestions.classList.add('hidden');
+  fetchCategories(1);
+}
+
+document.addEventListener('click', (e) => {
+  if (!searchInput.contains(e.target) && !searchSuggestions.contains(e.target)) {
+    searchSuggestions.classList.add('hidden');
+  }
+});
+
+searchInput.addEventListener('input', () => { 
+  clearTimeout(debounceTimer); 
+  debounceTimer = setTimeout(() => fetchSuggestions(), 400); 
+});
+
+searchInput.addEventListener('focus', () => {
+  if (searchInput.value.trim().length > 0 && searchSuggestions.innerHTML.trim() !== '') {
+    searchSuggestions.classList.remove('hidden');
+  }
+});
+
+sortSelect.addEventListener('change', () => fetchCategories(1));
+paginationWrap.addEventListener('click', e => { const btn = e.target.closest('[data-page]'); if (btn) fetchCategories(Number(btn.dataset.page)); });
+function clearSearch() { searchInput.value = ''; searchSuggestions.classList.add('hidden'); clearBtn.classList.add('hidden'); fetchCategories(1); }
+
+// ══════════════════════════════════
+//  RENDER TABLE
+// ══════════════════════════════════
+function renderTable(cats) {
+  const tbody = document.getElementById('categoryTableBody');
+  if (!cats || cats.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="4" class="px-5 py-12 text-center text-gray-400"><i class="bi bi-tags text-3xl block mb-2"></i>No categories found.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = cats.map(cat => {
+    const date  = new Date(cat.createdAt).toISOString().split('T')[0];
+    const badge = cat.isActive
+      ? `<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700"><span class="w-1.5 h-1.5 rounded-full bg-green-500 mr-1.5"></span>Active</span>`
+      : `<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700"><span class="w-1.5 h-1.5 rounded-full bg-red-500 mr-1.5"></span>Inactive</span>`;
+    return `
+      <tr class="hover:bg-gray-50 transition" data-id="${cat._id}">
+        <td class="px-5 py-3.5 font-medium text-gray-800">${escHtml(cat.categoryName)}</td>
+        <td class="px-5 py-3.5 text-gray-600">${date}</td>
+        <td class="px-5 py-3.5">${badge}</td>
+        <td class="px-5 py-3.5">
+          <div class="flex items-center gap-2 text-sm font-medium text-blue-600">
+            <button onclick="openViewModal('${cat._id}')" class="hover:text-blue-800 transition">View</button>
+            <span class="text-gray-300">|</span>
+            <button onclick="openForm('edit','${cat._id}')" class="hover:text-blue-800 transition">Edit</button>
+            <span class="text-gray-300">|</span>
+            <button onclick="openDeleteConfirm('${cat._id}','${escHtml(cat.categoryName)}')" class="text-red-500 hover:text-red-700 transition">Delete</button>
+          </div>
+        </td>
+      </tr>`;
+  }).join('');
+}
+
+function renderPagination(current, total) {
+  let html = current > 1
+    ? `<button data-page="${current-1}" class="inline-flex items-center justify-center w-8 h-8 text-sm rounded border border-gray-200 bg-white hover:bg-gray-50 transition"><i class="bi bi-chevron-left text-xs"></i></button>`
+    : `<span class="inline-flex items-center justify-center w-8 h-8 text-sm rounded border border-gray-200 bg-white opacity-40 cursor-not-allowed"><i class="bi bi-chevron-left text-xs"></i></span>`;
+  for (let i = 1; i <= total; i++) {
+    const cls = i === current ? 'bg-gray-900 text-white border-gray-900' : 'border-gray-200 bg-white hover:bg-gray-50 text-gray-700';
+    html += `<button data-page="${i}" class="inline-flex items-center justify-center w-8 h-8 text-sm rounded border transition ${cls}">${i}</button>`;
+  }
+  html += current < total
+    ? `<button data-page="${current+1}" class="inline-flex items-center justify-center w-8 h-8 text-sm rounded border border-gray-200 bg-white hover:bg-gray-50 transition"><i class="bi bi-chevron-right text-xs"></i></button>`
+    : `<span class="inline-flex items-center justify-center w-8 h-8 text-sm rounded border border-gray-200 bg-white opacity-40 cursor-not-allowed"><i class="bi bi-chevron-right text-xs"></i></span>`;
+  paginationWrap.innerHTML = html;
+}
+
+// ══════════════════════════════════
+//  FORM STATE
+// ══════════════════════════════════
+let _editingId   = null;
+let _specRows    = [];
+let _variantRows = [];
+
+document.getElementById('fCatName').addEventListener('input', function () {
+  this.value = this.value.replace(/[^a-zA-Z &\-\/]/g, '');
+  document.getElementById('nameCount').textContent = this.value.length;
+  clearFieldError('fCatName', 'nameErr');
+});
+document.getElementById('fDescription').addEventListener('input', function () {
+  document.getElementById('descCount').textContent = this.value.length;
+});
+
+function setFieldError(inputId, errId, msg) {
+  const el = document.getElementById(inputId);
+  const er = document.getElementById(errId);
+  if (el) el.classList.add('border-red-400');
+  if (er) { er.textContent = msg; er.classList.remove('hidden'); }
+}
+function clearFieldError(inputId, errId) {
+  const el = document.getElementById(inputId);
+  const er = document.getElementById(errId);
+  if (el) el.classList.remove('border-red-400');
+  if (er) er.classList.add('hidden');
+}
+
+// ══════════════════════════════════
+//  OPEN / CLOSE FORM
+// ══════════════════════════════════
+function openForm(mode, id = null) {
+  _editingId = id;
+  document.getElementById('listView').classList.add('hidden');
+  document.getElementById('formView').classList.remove('hidden');
+  document.getElementById('fCatName').value        = '';
+  document.getElementById('fDescription').value    = '';
+  document.getElementById('nameCount').textContent = '0';
+  document.getElementById('descCount').textContent = '0';
+  document.getElementById('statusActive').checked  = true;
+  clearFieldError('fCatName', 'nameErr');
+
+  if (mode === 'create') {
+    _specRows    = [];
+    _variantRows = [];
+    document.getElementById('formTitle').textContent      = 'Create New Category';
+    document.getElementById('formBreadcrumb').textContent = 'Create New Category';
+    document.getElementById('submitBtnLabel').textContent = 'Create Category';
+    document.getElementById('submitBtn').disabled         = false;
+    renderSpecs();
+    renderVariants();
+  } else {
+    document.getElementById('formTitle').textContent      = 'Edit Category';
+    document.getElementById('formBreadcrumb').textContent = 'Edit Category';
+    document.getElementById('submitBtnLabel').textContent = 'Save Changes';
+    document.getElementById('submitBtn').disabled         = false;
+
+    fetch(`/admin/category/${id}`, { credentials: 'include' })
+      .then(r => r.json())
+      .then(data => {
+        if (!data.success) { showToast('Failed to load category.', 'error'); return; }
+        const cat = data.category;
+
+        document.getElementById('fCatName').value        = cat.categoryName || '';
+        document.getElementById('fDescription').value    = cat.description  || '';
+        document.getElementById('nameCount').textContent = (cat.categoryName || '').length;
+        document.getElementById('descCount').textContent = (cat.description  || '').length;
+
+        if (cat.isActive) document.getElementById('statusActive').checked   = true;
+        else              document.getElementById('statusInactive').checked = true;
+
+        _specRows = (cat.specificationsConfig || []).map(s => ({
+          name: s.name || '', required: !!s.required,
+        }));
+
+        _variantRows = (cat.variantOptions || []).map(v => {
+          if (v.usesSuffix === true) {
+            return {
+              variantName: v.variantName || '', usesSuffix: true,
+              suffixes: (v.suffixes && v.suffixes.length > 0)
+                ? v.suffixes.map(s => ({ unit: (s.unit || '').toUpperCase(), values: (s.values || []).map(String) }))
+                : [{ unit: '', values: [''] }],
+              plainValues: [],
+            };
+          }
+          return {
+            variantName: v.variantName || '', usesSuffix: false, suffixes: [],
+            plainValues: (v.plainValues && v.plainValues.length > 0) ? v.plainValues.map(String) : [''],
+          };
+        });
+
+        renderSpecs();
+        renderVariants();
+      })
+      .catch(() => showToast('Network error loading category.', 'error'));
+  }
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function closeForm() {
+  document.getElementById('formView').classList.add('hidden');
+  document.getElementById('listView').classList.remove('hidden');
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = false;
+  document.getElementById('submitBtnLabel').textContent = 'Create Category';
+  _editingId = null; _specRows = []; _variantRows = [];
+}
+
+// ══════════════════════════════════
+//  SPEC ROWS
+// ══════════════════════════════════
+function renderSpecs() {
+  const tbody = document.getElementById('specTableBody');
+  if (_specRows.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="3" class="px-4 py-6 text-center text-xs text-gray-400">No specification fields added yet.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = _specRows.map((r, i) => `
+    <tr class="hover:bg-gray-50 transition">
+      <td class="px-4 py-2.5">
+        <input type="text" value="${escHtml(r.name || '')}" maxlength="50"
+          placeholder="e.g. Processor, Battery, Display"
+          oninput="_specRows[${i}].name = this.value"
+          class="w-full px-3 py-2 border border-gray-200 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gray-300 transition"/>
+      </td>
+      <td class="px-4 py-2.5 text-center">
+        <input type="checkbox" ${r.required ? 'checked' : ''}
+          onchange="_specRows[${i}].required = this.checked"
+          class="w-4 h-4 accent-gray-800 cursor-pointer"/>
+      </td>
+      <td class="px-4 py-2.5">
+        <button type="button" onclick="removeSpec(${i})"
+          class="text-red-500 hover:text-red-700 text-sm font-medium transition">Delete</button>
+      </td>
+    </tr>`).join('');
+}
+function addSpec()     { _specRows.push({ name: '', required: false }); renderSpecs(); }
+function removeSpec(i) { _specRows.splice(i, 1); renderSpecs(); }
+
+// ══════════════════════════════════
+//  VARIANT CARDS
+// ══════════════════════════════════
+function toggleSuffix(vi) {
+  const v = _variantRows[vi];
+  if (!v.usesSuffix) { v.usesSuffix = true; v.suffixes = [{ unit: '', values: [''] }]; v.plainValues = []; }
+  else               { v.usesSuffix = false; v.suffixes = []; v.plainValues = ['']; }
+  renderVariants();
+}
+
+function renderVariants() {
+  const container = document.getElementById('variantContainer');
+  if (_variantRows.length === 0) {
+    container.innerHTML = `<div class="border border-dashed border-gray-200 rounded-lg py-8 text-center text-xs text-gray-400">No variant options added. At least one is required.</div>`;
+    return;
+  }
+  container.innerHTML = _variantRows.map((v, vi) => {
+
+    const plainValuesHtml = (v.plainValues && v.plainValues.length > 0 ? v.plainValues : ['']).map((val, vali) => `
+      <div class="flex items-center gap-1.5">
+        <input type="text" value="${escHtml(val)}" placeholder="e.g. Red, Blue, Black" maxlength="30"
+          oninput="_variantRows[${vi}].plainValues[${vali}] = this.value;"
+          class="flex-1 px-3 py-1.5 border border-gray-200 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gray-300 transition"/>
+        <button type="button" onclick="removePlainValue(${vi}, ${vali})"
+          class="w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:text-red-500 hover:bg-red-50 transition flex-shrink-0">
+          <i class="bi bi-x text-sm"></i>
+        </button>
+      </div>`).join('');
+
+    const suffixesHtml = (v.suffixes || []).map((s, si) => {
+      const valuesHtml = (s.values && s.values.length > 0 ? s.values : ['']).map((val, vali) => `
+        <div class="flex items-center gap-1.5">
+          <div class="flex items-center border border-gray-200 rounded overflow-hidden flex-1">
+            <input type="text" inputmode="numeric" value="${escHtml(val)}" placeholder="e.g. 8, 16, 256" maxlength="10"
+              oninput="const c=this.value.replace(/[^0-9]/g,'');if(this.value!==c)this.value=c;_variantRows[${vi}].suffixes[${si}].values[${vali}]=c;"
+              class="flex-1 px-2.5 py-1.5 text-sm focus:outline-none border-0 min-w-0"/>
+            <span class="px-2.5 py-1.5 bg-gray-50 border-l border-gray-200 text-xs font-semibold text-gray-500 whitespace-nowrap suffix-unit-badge-${vi}-${si}">${escHtml(s.unit || '—')}</span>
+          </div>
+          <button type="button" onclick="removeValue(${vi}, ${si}, ${vali})"
+            class="w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:text-red-500 hover:bg-red-50 transition flex-shrink-0">
+            <i class="bi bi-x text-sm"></i>
+          </button>
+        </div>`).join('');
+
+      return `
+        <div class="border border-gray-200 rounded-lg overflow-hidden" id="suffixBlock_${vi}_${si}">
+          <div class="flex items-center gap-3 px-3 py-2 bg-gray-50 border-b border-gray-200">
+            <label class="text-xs font-medium text-gray-500 whitespace-nowrap flex-shrink-0">Unit / Suffix</label>
+            <input type="text" value="${escHtml(s.unit || '')}" placeholder="e.g. GB" maxlength="10"
+              oninput="const u=this.value.replace(/[^a-zA-Z]/g,'').toUpperCase();this.value=u;_variantRows[${vi}].suffixes[${si}].unit=u;document.querySelectorAll('.suffix-unit-badge-${vi}-${si}').forEach(el=>el.textContent=u||'—');"
+              class="w-20 px-2.5 py-1.5 border border-gray-200 rounded text-sm font-semibold text-gray-700 uppercase bg-white focus:outline-none focus:ring-1 focus:ring-gray-300 transition tracking-wide"
+              style="text-transform:uppercase"/>
+            <div class="flex-1"></div>
+            ${(v.suffixes || []).length > 1 ? `
+              <button type="button" onclick="removeSuffix(${vi}, ${si})"
+                class="text-xs text-red-400 hover:text-red-600 font-medium transition flex items-center gap-1 flex-shrink-0">
+                <i class="bi bi-x text-sm"></i> Remove Suffix
+              </button>` : ''}
+          </div>
+          <div class="px-3 py-2.5 space-y-2" id="valuesContainer_${vi}_${si}">${valuesHtml}</div>
+          <div class="px-3 pb-3">
+            <button type="button" onclick="addValue(${vi}, ${si})"
+              class="flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-800 transition">
+              <i class="bi bi-plus-circle text-sm"></i> Add Value
+            </button>
+          </div>
+        </div>`;
+    }).join('');
+
+    const toggleLabel = v.usesSuffix
+      ? `<i class="bi bi-dash-circle text-xs"></i> Remove Unit/Suffix`
+      : `<i class="bi bi-plus-circle text-xs"></i> Add Unit/Suffix`;
+    const toggleCls = v.usesSuffix
+      ? 'text-xs font-medium text-red-400 hover:text-red-600 transition flex items-center gap-1'
+      : 'text-xs font-medium text-blue-500 hover:text-blue-700 transition flex items-center gap-1';
+
+    return `
+      <div class="border border-gray-200 rounded-lg overflow-hidden" id="variantCard_${vi}">
+        <div class="flex items-center gap-3 px-4 py-3 bg-gray-50 border-b border-gray-200">
+          <span class="text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap flex-shrink-0">Variant ${vi + 1}</span>
+          <input type="text" value="${escHtml(v.variantName || '')}" placeholder="e.g. RAM, Storage, Color" maxlength="30"
+            oninput="_variantRows[${vi}].variantName = this.value;"
+            class="flex-1 min-w-0 px-3 py-1.5 border border-gray-200 rounded text-sm font-semibold text-gray-800 focus:outline-none focus:ring-1 focus:ring-gray-300 bg-white transition"/>
+          <button type="button" onclick="removeVariant(${vi})"
+            class="flex-shrink-0 text-xs text-red-500 hover:text-red-700 font-medium transition flex items-center gap-1">
+            <i class="bi bi-trash3 text-xs"></i> Delete
+          </button>
+        </div>
+        <div class="p-4">
+          ${v.usesSuffix ? `
+            <div class="space-y-3 mb-3" id="suffixesContainer_${vi}">${suffixesHtml}</div>
+            <button type="button" onclick="addSuffix(${vi})"
+              class="flex items-center gap-1.5 px-3 py-1.5 border border-dashed border-gray-300 rounded text-xs font-medium text-gray-600 hover:border-gray-400 hover:text-gray-800 hover:bg-gray-50 transition mb-4">
+              <i class="bi bi-plus text-sm"></i> Add Another Suffix
+            </button>
+          ` : `
+            <div class="space-y-2 mb-3" id="plainValuesContainer_${vi}">${plainValuesHtml}</div>
+            <button type="button" onclick="addPlainValue(${vi})"
+              class="flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-800 transition mb-4">
+              <i class="bi bi-plus-circle text-sm"></i> Add Value
+            </button>
+          `}
+          <div class="border-t border-gray-100 pt-3">
+            <button type="button" onclick="toggleSuffix(${vi})" class="${toggleCls}">${toggleLabel}</button>
+            <p class="text-xs text-gray-400 mt-1">
+              ${v.usesSuffix
+                ? 'Currently using numeric values with a unit (e.g. 8GB). Click to switch to plain text.'
+                : 'Currently using plain text values (e.g. Red, Blue). Click to add a numeric unit/suffix.'}
+            </p>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function addVariant() {
+  _variantRows.push({ variantName: '', usesSuffix: false, suffixes: [], plainValues: [''] });
+  renderVariants();
+  setTimeout(() => {
+    const card = document.getElementById(`variantCard_${_variantRows.length - 1}`);
+    if (card) card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }, 50);
+}
+function removeVariant(vi)          { _variantRows.splice(vi, 1); renderVariants(); }
+function addPlainValue(vi)          { (_variantRows[vi].plainValues = _variantRows[vi].plainValues || []).push(''); renderVariants(); setTimeout(() => { const c = document.getElementById(`plainValuesContainer_${vi}`); if (c) { const ins = c.querySelectorAll('input'); if (ins.length) ins[ins.length - 1].focus(); } }, 50); }
+function removePlainValue(vi, vali) { _variantRows[vi].plainValues.splice(vali, 1); renderVariants(); }
+function addSuffix(vi)              { (_variantRows[vi].suffixes = _variantRows[vi].suffixes || []).push({ unit: '', values: [''] }); renderVariants(); }
+function removeSuffix(vi, si)       { _variantRows[vi].suffixes.splice(si, 1); renderVariants(); }
+function addValue(vi, si)           { (_variantRows[vi].suffixes[si].values = _variantRows[vi].suffixes[si].values || []).push(''); renderVariants(); setTimeout(() => { const c = document.getElementById(`valuesContainer_${vi}_${si}`); if (c) { const ins = c.querySelectorAll('input[type="text"]'); if (ins.length) ins[ins.length - 1].focus(); } }, 50); }
+function removeValue(vi, si, vali)  { _variantRows[vi].suffixes[si].values.splice(vali, 1); renderVariants(); }
+
+// ══════════════════════════════════
+//  VALIDATION
+// ══════════════════════════════════
+function validateForm() {
+  const name = document.getElementById('fCatName').value.trim();
+  if (!name) { setFieldError('fCatName', 'nameErr', 'Category name is required.'); showToast('Category name is required.', 'error'); document.getElementById('fCatName').focus(); return false; }
+  if (!/^[a-zA-Z &\-\/]+$/.test(name)) { setFieldError('fCatName', 'nameErr', 'Category name must contain letters only — no numbers.'); showToast('Category name must contain letters only.', 'error'); return false; }
+
+  const specNames = [];
+  for (let i = 0; i < _specRows.length; i++) {
+    const sName = (_specRows[i].name || '').trim();
+    if (!sName)            { showToast(`Specification row ${i + 1}: Field name is required.`, 'error'); return false; }
+    if (sName.length > 50) { showToast(`"${sName}" cannot exceed 50 characters.`, 'error'); return false; }
+    const key = sName.toLowerCase();
+    if (specNames.includes(key)) { showToast(`Duplicate specification: "${sName}".`, 'error'); return false; }
+    specNames.push(key);
+  }
+
+  let vi = 0;
+  while (vi < _variantRows.length) {
+    const v = _variantRows[vi]; const vName = (v.variantName || '').trim();
+    if (!vName) {
+      const hasAnyValue = !v.usesSuffix
+        ? (v.plainValues || []).some(x => (x || '').trim() !== '')
+        : (v.suffixes || []).some(s => (s.unit || '').trim() !== '' || (s.values || []).some(x => (x || '').trim() !== ''));
+      if (!hasAnyValue) { _variantRows.splice(vi, 1); renderVariants(); continue; }
+      showToast(`Variant ${vi + 1}: Variant name is required.`, 'error'); return false;
+    }
+    if (vName.length > 30) { showToast(`Variant "${vName}": cannot exceed 30 characters.`, 'error'); return false; }
+    const prevNames = _variantRows.slice(0, vi).map(r => (r.variantName || '').trim().toLowerCase());
+    if (prevNames.includes(vName.toLowerCase())) { showToast(`Duplicate variant: "${vName}".`, 'error'); return false; }
+    if (!v.usesSuffix) {
+      const vals = (v.plainValues || []).map(x => (x || '').trim()).filter(Boolean), seen = [];
+      for (const val of vals) {
+        if (val.length > 30)                  { showToast(`Variant "${vName}": Value "${val}" cannot exceed 30 characters.`, 'error'); return false; }
+        if (seen.includes(val.toLowerCase())) { showToast(`Variant "${vName}": Duplicate value "${val}".`, 'error'); return false; }
+        seen.push(val.toLowerCase());
+      }
+    } else {
+      const suffixes = v.suffixes || [];
+      if (!suffixes.length) { showToast(`Variant "${vName}": At least one suffix is required.`, 'error'); return false; }
+      const usedUnits = [];
+      for (let si = 0; si < suffixes.length; si++) {
+        const s = suffixes[si]; const unit = (s.unit || '').trim().toUpperCase();
+        if (!unit)                     { showToast(`Variant "${vName}" suffix ${si + 1}: Unit is required.`, 'error'); return false; }
+        if (!/^[a-zA-Z]+$/.test(unit)) { showToast(`Variant "${vName}": Unit must be letters only.`, 'error'); return false; }
+        if (unit.length > 10)          { showToast(`Variant "${vName}": Unit max 10 characters.`, 'error'); return false; }
+        if (usedUnits.includes(unit.toLowerCase())) { showToast(`Variant "${vName}": Duplicate suffix unit "${unit}".`, 'error'); return false; }
+        usedUnits.push(unit.toLowerCase());
+        const values = (s.values || []).map(x => (x || '').trim()).filter(Boolean);
+        if (!values.length) { showToast(`Variant "${vName}" (${unit}): At least one value is required.`, 'error'); return false; }
+        const seenVals = [];
+        for (const val of values) {
+          if (!/^[0-9]+$/.test(val))  { showToast(`Variant "${vName}" (${unit}): Values must be numbers only. Got "${val}".`, 'error'); return false; }
+          if (val.length > 10)        { showToast(`Variant "${vName}" (${unit}): Value "${val}" is too long.`, 'error'); return false; }
+          if (seenVals.includes(val)) { showToast(`Variant "${vName}" (${unit}): Duplicate value "${val}".`, 'error'); return false; }
+          seenVals.push(val);
+        }
+      }
+    }
+    vi++;
+  }
+  if (_variantRows.length === 0) { showToast('At least one variant option is required.', 'error'); return false; }
+  return true;
+}
+
+// ══════════════════════════════════
+//  SUBMIT
+// ══════════════════════════════════
+async function submitForm() {
+  clearFieldError('fCatName', 'nameErr');
+  if (!validateForm()) return;
+  const name = document.getElementById('fCatName').value.trim();
+  const description = document.getElementById('fDescription').value.trim();
+  const isActive = document.getElementById('statusActive').checked;
+  const btn = document.getElementById('submitBtn'), lbl = document.getElementById('submitBtnLabel');
+  btn.disabled = true; lbl.textContent = _editingId ? 'Saving…' : 'Creating…';
+  const cleanSpecsData    = _specRows.map(s => ({ name: s.name.trim(), required: !!s.required }));
+  const cleanVariantsData = _variantRows.map(v => v.usesSuffix
+    ? { variantName: v.variantName.trim(), usesSuffix: true, plainValues: [], suffixes: (v.suffixes || []).map(s => ({ unit: (s.unit || '').trim().toUpperCase(), values: (s.values || []).map(x => (x || '').trim()).filter(Boolean) })) }
+    : { variantName: v.variantName.trim(), usesSuffix: false, plainValues: (v.plainValues || []).map(x => (x || '').trim()).filter(Boolean), suffixes: [] });
+  try {
+    const url = _editingId ? `/admin/category/${_editingId}/edit` : '/admin/category/create';
+    const method = _editingId ? 'PUT' : 'POST';
+    const res = await fetch(url, { method, credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ categoryName: name, description, isActive, specificationsConfig: cleanSpecsData, variantOptions: cleanVariantsData }) });
+    const data = await res.json();
+    if (data.success) {
+      showToast(data.message || (_editingId ? 'Category updated!' : 'Category created!'), 'success');
+      setTimeout(() => { closeForm(); fetchCategories(1); }, 900);
+    } else {
+      showToast(data.message || 'Something went wrong.', 'error');
+      if (data.message?.toLowerCase().includes('name')) setFieldError('fCatName', 'nameErr', data.message);
+      btn.disabled = false; lbl.textContent = _editingId ? 'Save Changes' : 'Create Category';
+    }
+  } catch (err) {
+    showToast('Network error. Please try again.', 'error');
+    btn.disabled = false; lbl.textContent = _editingId ? 'Save Changes' : 'Create Category';
+  }
+}
+
+// ══════════════════════════════════
+//  VIEW MODAL
+// ══════════════════════════════════
+function openViewModal(id) {
+  fetch(`/admin/category/${id}`, { credentials: 'include' }).then(r => r.json()).then(data => {
+    if (!data.success) { showToast('Category not found.', 'error'); return; }
+    const cat = data.category, date = new Date(cat.createdAt).toISOString().split('T')[0];
+    document.getElementById('viewModalTitle').textContent = cat.categoryName;
+    document.getElementById('viewEditBtn').onclick = () => { closeViewModal(); openForm('edit', cat._id); };
+    const statusBadge = cat.isActive
+      ? `<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700"><span class="w-1.5 h-1.5 rounded-full bg-green-500 mr-1.5"></span>Active</span>`
+      : `<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700"><span class="w-1.5 h-1.5 rounded-full bg-red-500 mr-1.5"></span>Inactive</span>`;
+    let html = `<div class="grid grid-cols-2 gap-4 pb-3 border-b border-gray-100">
+      <div><p class="text-xs text-gray-400 uppercase tracking-wide mb-1">Added Date</p><p class="font-semibold text-gray-800">${date}</p></div>
+      <div><p class="text-xs text-gray-400 uppercase tracking-wide mb-1">Status</p>${statusBadge}</div>
+    </div>`;
+    if (cat.description) html += `<div><p class="text-xs text-gray-400 uppercase tracking-wide mb-1">Description</p><p class="text-gray-700">${escHtml(cat.description)}</p></div>`;
+    if (cat.specificationsConfig?.length) html += `<div><p class="text-xs text-gray-400 uppercase tracking-wide mb-2">Specification Fields</p><div class="flex flex-wrap gap-2">${cat.specificationsConfig.map(s => `<span class="inline-flex items-center gap-1 px-3 py-1.5 bg-gray-100 border border-gray-200 rounded text-sm text-gray-700">${escHtml(s.name)}${s.required ? '<span class="text-red-500 font-bold text-xs">*</span>' : ''}</span>`).join('')}</div></div>`;
+    if (cat.variantOptions?.length) html += `<div><p class="text-xs text-gray-400 uppercase tracking-wide mb-2">Variant Options</p><div class="space-y-3">${cat.variantOptions.map(v => {
+      if (!v.usesSuffix) return `<div class="border border-gray-200 rounded-lg overflow-hidden"><div class="px-3 py-2 bg-gray-50 border-b border-gray-200 flex items-center gap-2"><span class="font-semibold text-gray-800 text-sm">${escHtml(v.variantName)}</span><span class="text-xs text-gray-400 bg-gray-100 border border-gray-200 rounded px-1.5 py-0.5">text values</span></div><div class="px-3 py-2.5 flex flex-wrap gap-1.5">${(v.plainValues || []).length > 0 ? (v.plainValues || []).map(val => `<span class="px-2 py-0.5 bg-gray-100 rounded text-xs font-medium text-gray-700">${escHtml(String(val))}</span>`).join('') : `<span class="text-xs text-gray-400 italic">No values added</span>`}</div></div>`;
+      return `<div class="border border-gray-200 rounded-lg overflow-hidden"><div class="px-3 py-2 bg-gray-50 border-b border-gray-200"><span class="font-semibold text-gray-800 text-sm">${escHtml(v.variantName)}</span></div><div class="divide-y divide-gray-100">${(v.suffixes || []).map(s => `<div class="px-3 py-2.5"><span class="text-xs font-mono font-bold text-gray-500 bg-gray-100 border border-gray-200 px-2 py-0.5 rounded">${escHtml(s.unit || '—')}</span><div class="flex flex-wrap gap-1.5 mt-1.5">${(s.values || []).map(val => `<span class="inline-flex items-center gap-0.5 px-2 py-0.5 bg-gray-100 rounded text-xs font-medium text-gray-700">${escHtml(String(val))}<span class="text-gray-400 ml-0.5">${escHtml(s.unit || '')}</span></span>`).join('')}</div></div>`).join('')}</div></div>`;
+    }).join('')}</div></div>`;
+    document.getElementById('viewModalBody').innerHTML = html;
+    showModal('viewModal');
+  }).catch(() => showToast('Failed to load category.', 'error'));
+}
+function closeViewModal() { hideModal('viewModal'); }
+
+// ══════════════════════════════════
+//  DELETE
+// ══════════════════════════════════
+let _deleteId = null;
+function openDeleteConfirm(id, name) {
+  _deleteId = id;
+  document.getElementById('confirmDesc').textContent = `Are you sure you want to delete "${name}"? This action cannot be undone.`;
+  showModal('confirmModal');
+}
+function closeConfirm() { hideModal('confirmModal'); _deleteId = null; }
+
+document.getElementById('confirmDeleteBtn').addEventListener('click', async () => {
+  if (!_deleteId) return;
+  const id = _deleteId; closeConfirm();
+  try {
+    const res = await fetch(`/admin/category/${id}/delete`, { method: 'DELETE', credentials: 'include', headers: { 'Content-Type': 'application/json' } });
+    const data = await res.json();
+    if (data.success) {
+      const row = document.querySelector(`tr[data-id="${id}"]`);
+      if (row) { row.style.transition = 'opacity 0.3s'; row.style.opacity = '0'; }
+      showToast('Category deleted successfully.', 'success');
+      setTimeout(() => {
+        let currentPage = 1;
+        document.querySelectorAll('#paginationWrap button[data-page]').forEach(btn => { if (btn.classList.contains('bg-gray-900')) currentPage = Number(btn.dataset.page); });
+        const remainingRows = document.querySelectorAll('#categoryTableBody tr[data-id]');
+        fetchCategories((remainingRows.length <= 1 && currentPage > 1) ? currentPage - 1 : currentPage);
+      }, 300);
+    } else { showToast(data.message || 'Delete failed.', 'error'); }
+  } catch (err) { showToast('Network error. Please try again.', 'error'); }
+});
+
+// ══════════════════════════════════
+//  EXPORT CSV
+// ══════════════════════════════════
+function exportCSV() {
+  const rows = [['Category Name', 'Added Date', 'Status']];
+  document.querySelectorAll('#categoryTableBody tr[data-id]').forEach(tr => {
+    const c = tr.querySelectorAll('td');
+    rows.push([c[0]?.textContent.trim(), c[1]?.textContent.trim(), c[2]?.textContent.trim()]);
+  });
+  const csv = rows.map(r => r.map(v => `"${(v || '').replace(/"/g, '""')}"`).join(',')).join('\n');
+  const a = document.createElement('a'); a.href = 'data:text/csv,' + encodeURIComponent(csv); a.download = 'categories.csv'; a.click();
+  showToast('Exported successfully.', 'success');
+}
+
+// ══════════════════════════════════
+//  HELPERS
+// ══════════════════════════════════
+function escHtml(s) { return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
+function showModal(id) { const m = document.getElementById(id); m.classList.remove('hidden'); m.classList.add('flex'); }
+function hideModal(id) { const m = document.getElementById(id); m.classList.add('hidden'); m.classList.remove('flex'); }
+
+let _toastTimer = null;
+function showToast(msg, type = 'success') {
+  const toast = document.getElementById('toast');
+  document.getElementById('toastMsg').textContent = msg;
+  document.getElementById('toastIcon').className  = type === 'success' ? 'bi bi-check-circle-fill text-lg shrink-0' : 'bi bi-x-circle-fill text-lg shrink-0';
+  toast.className = `fixed top-[72px] right-5 z-[9999] flex items-center gap-3 px-5 py-3.5 rounded-xl shadow-xl text-white text-sm font-medium min-w-[220px] max-w-xs ${type === 'success' ? 'bg-green-600' : 'bg-red-600'}`;
+  toast.classList.remove('hidden');
+  if (_toastTimer) clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => toast.classList.add('hidden'), 3500);
+}
+</script>
+
+</body>
+</html>

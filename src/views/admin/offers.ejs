@@ -1,0 +1,872 @@
+<%
+  let _tab = tab || 'all';
+%>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Admin Offers | ElectroHub</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+  <style>
+    #offerTable { table-layout: fixed; width: 100%; }
+    #offerTable .col-name    { width: 150px; }
+    #offerTable .col-type    { width: 90px;  }
+    #offerTable .col-applies { width: 160px; }
+    #offerTable .col-pct     { width: 80px;  }
+    #offerTable .col-validity{ width: 160px; }
+    #offerTable .col-status  { width: 90px;  }
+    #offerTable .col-action  { width: 130px; text-align: center; }
+    #offerTable thead .col-action { text-align: center; }
+  </style>
+</head>
+<body class="bg-gray-100">
+
+<header class="bg-white shadow-sm">
+  <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+    <div class="flex items-center gap-2">
+      <span class="text-xl font-bold">ElectroHub</span>
+      <span class="text-xs text-gray-500 ml-2">Next-Gen Electronics</span>
+    </div>
+    <nav class="flex items-center gap-6 text-sm font-medium">
+      <a href="#" class="hover:text-black text-gray-600">Home</a>
+      <a href="#" class="hover:text-black text-gray-600">Contact</a>
+      <a href="#" class="hover:text-black text-gray-600">About</a>
+      <a href="/admin/logout" class="text-red-600 hover:underline">Logout</a>
+    </nav>
+  </div>
+</header>
+
+<div class="flex">
+  <aside class="w-64 min-h-[calc(100vh-64px)] bg-white border-r flex flex-col justify-between">
+    <div>
+      <div class="p-6 font-semibold">ElectroHub Admin</div>
+      <nav class="px-4 space-y-1 text-sm">
+        <a href="/admin/dashboard"    class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 text-gray-700"><i class="bi bi-house"></i> Dashboard</a>
+        <a href="/admin/orders"       class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 text-gray-700"><i class="bi bi-bag"></i> Orders</a>
+        <a href="/admin/products"     class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 text-gray-700"><i class="bi bi-box"></i> Products</a>
+        <a href="/admin/category"     class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 text-gray-700"><i class="bi bi-tags"></i> Category</a>
+        <a href="/admin/offers"       class="flex items-center gap-2 px-3 py-2 rounded bg-gray-100 font-semibold text-gray-900"><i class="bi bi-percent"></i> Offers</a>
+        <a href="/admin/coupons"      class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 text-gray-700"><i class="bi bi-ticket"></i> Coupons</a>
+        <a href="/admin/banners"      class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 text-gray-700"><i class="bi bi-image"></i> Banners</a>
+        <a href="/admin/customers"    class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 text-gray-700"><i class="bi bi-people"></i> Customers</a>
+        <a href="/admin/sales-report" class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 text-gray-700"><i class="bi bi-graph-up"></i> Sales Report</a>
+      </nav>
+    </div>
+    <div class="px-4 pb-6">
+      <a href="/admin/logout" class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 text-gray-700 text-sm">
+        <i class="bi bi-box-arrow-left"></i> Logout
+      </a>
+    </div>
+  </aside>
+
+  <main class="flex-1 p-8 min-w-0">
+
+    <div class="flex items-center justify-between mb-6">
+      <h1 class="text-2xl font-semibold">Offers</h1>
+      <!-- FIX: removed duplicate + from label, kept only icon -->
+      <button onclick="openCreateModal()"
+        class="bg-gray-800 hover:bg-gray-900 text-white text-sm px-4 py-2 rounded flex items-center gap-2 transition">
+        <i class="bi bi-plus-lg"></i> Create Offer
+      </button>
+    </div>
+
+    <!-- Tabs -->
+    <div class="bg-white rounded shadow mb-5 flex overflow-hidden border border-gray-200">
+      <button id="tab-all"      onclick="switchTab('all')"
+        class="tab-btn flex-1 py-3 text-sm font-medium transition <%= _tab==='all'      ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-50' %>">All Offers</button>
+      <button id="tab-active"   onclick="switchTab('active')"
+        class="tab-btn flex-1 py-3 text-sm font-medium transition border-l border-gray-200 <%= _tab==='active'   ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-50' %>">Active</button>
+      <button id="tab-inactive" onclick="switchTab('inactive')"
+        class="tab-btn flex-1 py-3 text-sm font-medium transition border-l border-gray-200 <%= _tab==='inactive' ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-50' %>">Inactive</button>
+      <button id="tab-expired"  onclick="switchTab('expired')"
+        class="tab-btn flex-1 py-3 text-sm font-medium transition border-l border-gray-200 <%= _tab==='expired'  ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-50' %>">Expired</button>
+    </div>
+
+    <!-- Table -->
+    <div class="bg-white rounded shadow overflow-hidden mb-5">
+      <table id="offerTable">
+        <thead>
+          <tr class="bg-gray-50 border-b border-gray-200">
+            <th class="col-name     text-left px-4 py-3.5 font-semibold text-gray-600 uppercase text-xs tracking-wide">Offer Name</th>
+            <th class="col-type     text-left px-4 py-3.5 font-semibold text-gray-600 uppercase text-xs tracking-wide">Type</th>
+            <th class="col-applies  text-left px-4 py-3.5 font-semibold text-gray-600 uppercase text-xs tracking-wide">Applies To</th>
+            <th class="col-pct      text-left px-4 py-3.5 font-semibold text-gray-600 uppercase text-xs tracking-wide">Discount %</th>
+            <th class="col-validity text-left px-4 py-3.5 font-semibold text-gray-600 uppercase text-xs tracking-wide">Validity</th>
+            <th class="col-status   text-left px-4 py-3.5 font-semibold text-gray-600 uppercase text-xs tracking-wide">Status</th>
+            <th class="col-action   text-center px-4 py-3.5 font-semibold text-gray-600 uppercase text-xs tracking-wide">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="offerTableBody" class="divide-y divide-gray-100">
+          <% if (!offers || offers.length === 0) { %>
+            <tr><td colspan="7" class="px-5 py-12 text-center text-gray-400">
+              <i class="bi bi-percent text-3xl block mb-2"></i>No offers found.
+            </td></tr>
+          <% } %>
+          <% (offers || []).forEach(offer => {
+            const startStr  = offer.startDate ? new Date(offer.startDate).toLocaleDateString('en-GB') : '—';
+            const endStr    = offer.endDate   ? new Date(offer.endDate).toLocaleDateString('en-GB')   : '—';
+            const isExpired = offer.endDate && new Date(offer.endDate) < new Date();
+            const refName   = offer.refId?.productName || offer.refId?.categoryName || '—';
+          %>
+            <tr class="hover:bg-gray-50 transition" id="offerRow_<%= offer._id %>">
+              <td class="col-name px-4 py-4 font-semibold text-gray-800 text-sm overflow-hidden text-ellipsis whitespace-nowrap"><%= offer.offerName %></td>
+              <td class="col-type px-4 py-4 text-sm">
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium <%= offer.offerType==='product' ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600' %>">
+                  <%= offer.offerType === 'product' ? 'Product' : 'Category' %>
+                </span>
+              </td>
+              <td class="col-applies px-4 py-4 text-sm text-gray-700 font-medium overflow-hidden text-ellipsis whitespace-nowrap"><%= refName %></td>
+              <td class="col-pct px-4 py-4 text-blue-600 font-medium text-sm"><%= offer.offerPrecentage %>%</td>
+              <td class="col-validity px-4 py-4 text-gray-600 text-xs whitespace-nowrap"><%= startStr %> – <%= endStr %></td>
+              <td class="col-status px-4 py-4" id="statusCell_<%= offer._id %>">
+                <% if (isExpired) { %>
+                  <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-500"><span class="w-1.5 h-1.5 rounded-full bg-gray-400 mr-1.5 shrink-0"></span>Expired</span>
+                <% } else if (offer.isActive) { %>
+                  <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700"><span class="w-1.5 h-1.5 rounded-full bg-green-500 mr-1.5 shrink-0"></span>Active</span>
+                <% } else { %>
+                  <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-600"><span class="w-1.5 h-1.5 rounded-full bg-red-500 mr-1.5 shrink-0"></span>Inactive</span>
+                <% } %>
+              </td>
+              <td class="col-action px-4 py-4" id="actionCell_<%= offer._id %>">
+                <div class="flex items-center justify-center gap-0">
+                  <button onclick="openEditModal('<%= offer._id %>')" class="text-blue-600 hover:text-blue-800 font-medium text-sm">Edit</button>
+                  <span class="text-gray-300 px-1.5">|</span>
+                  <% if (!isExpired) { %>
+                    <% if (offer.isActive) { %>
+                      <button onclick="openToggleConfirm('<%= offer._id %>','<%= offer.offerName %>',true)"  class="text-yellow-600 hover:text-yellow-800 font-medium text-sm">Disable</button>
+                    <% } else { %>
+                      <button onclick="openToggleConfirm('<%= offer._id %>','<%= offer.offerName %>',false)" class="text-green-600 hover:text-green-800 font-medium text-sm">Enable</button>
+                    <% } %>
+                  <% } else { %>
+                    <span class="text-gray-300 text-sm">—</span>
+                  <% } %>
+                  <span class="text-gray-300 px-1.5">|</span>
+                  <button onclick="openDeleteConfirm('<%= offer._id %>','<%= offer.offerName %>')" class="text-red-500 hover:text-red-700 font-medium text-sm">Delete</button>
+                </div>
+              </td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination -->
+    <div class="flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-600">
+      <div id="showingInfo">
+        Showing <span class="font-semibold"><%= showingFrom %>–<%= showingTo %></span>
+        of <span class="font-semibold"><%= total %></span>
+      </div>
+      <div id="paginationWrap" class="flex items-center gap-1.5 flex-wrap">
+        <% if (currentPage > 1) { %>
+          <button data-page="<%= currentPage-1 %>" class="inline-flex items-center justify-center w-8 h-8 text-sm rounded border border-gray-200 bg-white hover:bg-gray-50 transition"><i class="bi bi-chevron-left text-xs"></i></button>
+        <% } else { %>
+          <span class="inline-flex items-center justify-center w-8 h-8 text-sm rounded border border-gray-200 bg-white opacity-40 cursor-not-allowed"><i class="bi bi-chevron-left text-xs"></i></span>
+        <% } %>
+        <% for (let i=1; i<=totalPages; i++) { %>
+          <% if (i<=3 || i===totalPages || Math.abs(i-currentPage)<=1) { %>
+            <button data-page="<%= i %>" class="inline-flex items-center justify-center w-8 h-8 text-sm rounded border transition <%= i===currentPage?'bg-gray-900 text-white border-gray-900':'border-gray-200 bg-white hover:bg-gray-50 text-gray-700' %>"><%= i %></button>
+          <% } else if (Math.abs(i-currentPage)===2 && i!==4) { %>
+            <span class="inline-flex items-center justify-center w-8 h-8 text-sm text-gray-400">…</span>
+          <% } %>
+        <% } %>
+        <% if (currentPage < totalPages) { %>
+          <button data-page="<%= currentPage+1 %>" class="inline-flex items-center justify-center w-8 h-8 text-sm rounded border border-gray-200 bg-white hover:bg-gray-50 transition"><i class="bi bi-chevron-right text-xs"></i></button>
+        <% } else { %>
+          <span class="inline-flex items-center justify-center w-8 h-8 text-sm rounded border border-gray-200 bg-white opacity-40 cursor-not-allowed"><i class="bi bi-chevron-right text-xs"></i></span>
+        <% } %>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+
+<!-- ══════════ CREATE MODAL ══════════ -->
+<div id="createModal" class="fixed inset-0 z-50 hidden items-center justify-center">
+  <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" onclick="closeCreateModal()"></div>
+  <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden">
+    <div class="flex items-center justify-between px-6 pt-5 pb-4 border-b">
+      <h2 class="text-lg font-bold text-gray-900">Create New Offer</h2>
+      <button onclick="closeCreateModal()" class="text-gray-400 hover:text-gray-700"><i class="bi bi-x-lg text-sm"></i></button>
+    </div>
+    <div class="px-6 py-5 space-y-4 max-h-[70vh] overflow-y-auto">
+
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1.5">Offer Name <span class="text-red-500">*</span></label>
+        <input id="c_name" type="text" maxlength="100" placeholder="e.g. Summer Sale"
+          class="w-full px-3.5 py-2.5 border border-gray-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 transition"
+          oninput="liveText(this,'c_nameErr','Offer name')"/>
+        <p id="c_nameErr" class="text-red-500 text-xs mt-1 hidden"></p>
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1.5">Offer Type <span class="text-red-500">*</span></label>
+        <div class="flex gap-2">
+          <button type="button" id="c_type_product"  onclick="selectType('c','product')"
+            class="flex-1 py-2.5 border-2 border-gray-200 rounded text-sm font-medium text-gray-600 transition hover:border-gray-400">
+            <i class="bi bi-box mr-1"></i> Product
+          </button>
+          <button type="button" id="c_type_category" onclick="selectType('c','category')"
+            class="flex-1 py-2.5 border-2 border-gray-200 rounded text-sm font-medium text-gray-600 transition hover:border-gray-400">
+            <i class="bi bi-tags mr-1"></i> Category
+          </button>
+        </div>
+        <p id="c_typeErr" class="text-red-500 text-xs mt-1 hidden"></p>
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1.5" id="c_refLabel">Select Product / Category <span class="text-red-500">*</span></label>
+        <div class="relative">
+          <input id="c_refSearch" type="text" placeholder="Select offer type first..." autocomplete="off"
+            class="w-full px-3.5 py-2.5 border border-gray-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 transition"
+            oninput="handleRefSearch('c')"/>
+          <div id="c_searchResults" class="hidden absolute top-full left-0 right-0 bg-white border border-gray-200 rounded shadow-lg z-50 max-h-48 overflow-y-auto mt-1"></div>
+        </div>
+        <input id="c_refId" type="hidden"/>
+        <p id="c_refErr" class="text-red-500 text-xs mt-1 hidden"></p>
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1.5">Offer Percentage (%) <span class="text-red-500">*</span> <span class="text-xs text-gray-400 font-normal">(1–100)</span></label>
+        <input id="c_pct" type="text" inputmode="numeric" maxlength="3" placeholder="e.g. 15"
+          class="w-full px-3.5 py-2.5 border border-gray-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 transition"
+          oninput="livePct(this,'c_pctErr')"/>
+        <p id="c_pctErr" class="text-red-500 text-xs mt-1 hidden"></p>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">Start Date <span class="text-red-500">*</span></label>
+          <input id="c_startDate" type="date"
+            class="w-full px-3.5 py-2.5 border border-gray-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 transition"
+            onchange="liveDateCheck('c_startDate','c_endDate','c_startDateErr','c_endDateErr')"/>
+          <p id="c_startDateErr" class="text-red-500 text-xs mt-1 hidden"></p>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">Expiry Date <span class="text-red-500">*</span></label>
+          <input id="c_endDate" type="date"
+            class="w-full px-3.5 py-2.5 border border-gray-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 transition"
+            onchange="liveDateCheck('c_startDate','c_endDate','c_startDateErr','c_endDateErr')"/>
+          <p id="c_endDateErr" class="text-red-500 text-xs mt-1 hidden"></p>
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1.5">Status</label>
+        <div class="relative">
+          <select id="c_status" class="w-full appearance-none px-3.5 py-2.5 border border-gray-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 transition bg-white cursor-pointer">
+            <option value="true">Active</option>
+            <option value="false">Inactive</option>
+          </select>
+          <i class="bi bi-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none"></i>
+        </div>
+      </div>
+
+    </div>
+    <div class="flex gap-3 px-6 pb-6 pt-3 border-t">
+      <button onclick="closeCreateModal()" class="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50">Cancel</button>
+      <button onclick="submitCreate()" class="flex-1 py-2.5 rounded-xl bg-gray-900 hover:bg-black text-sm font-semibold text-white flex items-center justify-center gap-2">
+        <i class="bi bi-plus-lg"></i> <span id="createBtnLabel">Create Offer</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════ EDIT MODAL ══════════ -->
+<div id="editModal" class="fixed inset-0 z-50 hidden items-center justify-center">
+  <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" onclick="closeEditModal()"></div>
+  <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden">
+    <div class="flex items-center justify-between px-6 pt-5 pb-4 border-b">
+      <h2 class="text-lg font-bold text-gray-900">Edit Offer</h2>
+      <button onclick="closeEditModal()" class="text-gray-400 hover:text-gray-700"><i class="bi bi-x-lg text-sm"></i></button>
+    </div>
+    <div class="px-6 py-5 space-y-4 max-h-[70vh] overflow-y-auto">
+      <input id="e_id" type="hidden"/>
+
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1.5">Offer Name <span class="text-red-500">*</span></label>
+        <input id="e_name" type="text" maxlength="100"
+          class="w-full px-3.5 py-2.5 border border-gray-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 transition"
+          oninput="liveText(this,'e_nameErr','Offer name')"/>
+        <p id="e_nameErr" class="text-red-500 text-xs mt-1 hidden"></p>
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1.5">Offer Type <span class="text-red-500">*</span></label>
+        <div class="flex gap-2">
+          <button type="button" id="e_type_product"  onclick="selectType('e','product')"
+            class="flex-1 py-2.5 border-2 border-gray-200 rounded text-sm font-medium text-gray-600 transition hover:border-gray-400">
+            <i class="bi bi-box mr-1"></i> Product
+          </button>
+          <button type="button" id="e_type_category" onclick="selectType('e','category')"
+            class="flex-1 py-2.5 border-2 border-gray-200 rounded text-sm font-medium text-gray-600 transition hover:border-gray-400">
+            <i class="bi bi-tags mr-1"></i> Category
+          </button>
+        </div>
+        <p id="e_typeErr" class="text-red-500 text-xs mt-1 hidden"></p>
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1.5" id="e_refLabel">Select Product / Category <span class="text-red-500">*</span></label>
+        <div class="relative">
+          <input id="e_refSearch" type="text" placeholder="Search..." autocomplete="off"
+            class="w-full px-3.5 py-2.5 border border-gray-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 transition"
+            oninput="handleRefSearch('e')"/>
+          <div id="e_searchResults" class="hidden absolute top-full left-0 right-0 bg-white border border-gray-200 rounded shadow-lg z-50 max-h-48 overflow-y-auto mt-1"></div>
+        </div>
+        <input id="e_refId" type="hidden"/>
+        <p id="e_refErr" class="text-red-500 text-xs mt-1 hidden"></p>
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1.5">Offer Percentage (%) <span class="text-red-500">*</span> <span class="text-xs text-gray-400 font-normal">(1–100)</span></label>
+        <input id="e_pct" type="text" inputmode="numeric" maxlength="3"
+          class="w-full px-3.5 py-2.5 border border-gray-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 transition"
+          oninput="livePct(this,'e_pctErr')"/>
+        <p id="e_pctErr" class="text-red-500 text-xs mt-1 hidden"></p>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">Start Date <span class="text-red-500">*</span></label>
+          <input id="e_startDate" type="date"
+            class="w-full px-3.5 py-2.5 border border-gray-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 transition"
+            onchange="liveDateCheck('e_startDate','e_endDate','e_startDateErr','e_endDateErr')"/>
+          <p id="e_startDateErr" class="text-red-500 text-xs mt-1 hidden"></p>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">Expiry Date <span class="text-red-500">*</span></label>
+          <input id="e_endDate" type="date"
+            class="w-full px-3.5 py-2.5 border border-gray-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 transition"
+            onchange="liveDateCheck('e_startDate','e_endDate','e_startDateErr','e_endDateErr')"/>
+          <p id="e_endDateErr" class="text-red-500 text-xs mt-1 hidden"></p>
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1.5">Status</label>
+        <div class="relative">
+          <select id="e_status" class="w-full appearance-none px-3.5 py-2.5 border border-gray-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 transition bg-white cursor-pointer">
+            <option value="true">Active</option>
+            <option value="false">Inactive</option>
+          </select>
+          <i class="bi bi-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none"></i>
+        </div>
+        <p class="text-xs text-gray-400 mt-1">Expired status is set automatically when expiry date passes.</p>
+      </div>
+
+    </div>
+    <div class="flex gap-3 px-6 pb-6 pt-3 border-t">
+      <button onclick="closeEditModal()" class="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50">Cancel</button>
+      <button onclick="submitEdit()" class="flex-1 py-2.5 rounded-xl bg-gray-900 hover:bg-black text-sm font-semibold text-white flex items-center justify-center gap-2">
+        <i class="bi bi-check-lg"></i> <span id="editBtnLabel">Update Offer</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════ CONFIRM MODAL ══════════ -->
+<div id="confirmModal" class="fixed inset-0 z-50 hidden items-center justify-center">
+  <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" onclick="closeConfirmModal()"></div>
+  <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden">
+    <div class="flex flex-col items-center pt-8 pb-4 px-6 text-center">
+      <div id="confirmIconWrap" class="w-16 h-16 rounded-full flex items-center justify-center mb-4">
+        <i id="confirmIcon" class="text-2xl"></i>
+      </div>
+      <h3 id="confirmTitle" class="text-lg font-bold text-gray-900 mb-1"></h3>
+      <p id="confirmDesc"  class="text-sm text-gray-500"></p>
+    </div>
+    <div class="flex gap-3 px-6 pb-7 pt-2">
+      <button onclick="closeConfirmModal()" class="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50">Cancel</button>
+      <button id="confirmActionBtn" class="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white"></button>
+    </div>
+  </div>
+</div>
+
+
+<!-- TOAST -->
+<div id="toast" class="fixed top-[72px] right-5 z-[9999] hidden items-center gap-3 px-5 py-3.5 rounded-xl shadow-xl text-white text-sm font-medium min-w-[220px] max-w-xs">
+  <i id="toastIcon" class="text-lg shrink-0"></i>
+  <span id="toastMsg" class="leading-snug"></span>
+</div>
+
+
+<script>
+let _activeTab     = '<%= _tab %>';
+let _confirmAction = null;
+let _confirmId     = null;
+let _toastTimer    = null;
+const _selectedType = { c: null, e: null };
+const _searchTimer  = { c: null, e: null };
+
+// ══════════════════════════════════
+//  LIVE VALIDATION
+// ══════════════════════════════════
+function liveText(el, errId, label) {
+  const v = el.value.trim();
+  if (!v) showErr(errId, `${label} is required.`);
+  else    hideErr(errId);
+}
+
+function livePct(el, errId) {
+  el.value = el.value.replace(/[^0-9]/g, '');
+  const n = Number(el.value);
+  if (!el.value)    showErr(errId, 'Percentage is required.');
+  else if (n < 1)   showErr(errId, 'Minimum is 1%.');
+  else if (n > 100) { el.value = '100'; hideErr(errId); }
+  else              hideErr(errId);
+}
+
+function liveDateCheck(startId, endId, startErrId, endErrId) {
+  const s = document.getElementById(startId).value;
+  const e = document.getElementById(endId).value;
+  if (s) hideErr(startErrId);
+  if (e && s && e < s) showErr(endErrId, 'Expiry must be after start date.');
+  else if (e)          hideErr(endErrId);
+}
+
+// ══════════════════════════════════
+//  FULL FORM VALIDATION
+// ══════════════════════════════════
+function validateOffer(p) {
+  let ok = true;
+
+  const name = document.getElementById(`${p}_name`).value.trim();
+  if (!name)              { showErr(`${p}_nameErr`, 'Offer name is required.'); ok = false; }
+  else if (name.length<3) { showErr(`${p}_nameErr`, 'At least 3 characters required.'); ok = false; }
+  else                      hideErr(`${p}_nameErr`);
+
+  if (!_selectedType[p]) { showErr(`${p}_typeErr`, 'Please select offer type.'); ok = false; }
+  else                     hideErr(`${p}_typeErr`);
+
+  const refId     = document.getElementById(`${p}_refId`).value;
+  const refSearch = document.getElementById(`${p}_refSearch`).value.trim();
+  if (!refId || !refSearch) {
+    showErr(`${p}_refErr`, `Please search and select a ${_selectedType[p] || 'product/category'}.`);
+    ok = false;
+  } else hideErr(`${p}_refErr`);
+
+  const pctVal = document.getElementById(`${p}_pct`).value;
+  const pct    = Number(pctVal);
+  if (!pctVal)               { showErr(`${p}_pctErr`, 'Percentage is required.'); ok = false; }
+  else if (pct<1 || pct>100) { showErr(`${p}_pctErr`, 'Must be between 1 and 100.'); ok = false; }
+  else                         hideErr(`${p}_pctErr`);
+
+  const startDate = document.getElementById(`${p}_startDate`).value;
+  if (!startDate) { showErr(`${p}_startDateErr`, 'Start date is required.'); ok = false; }
+  else              hideErr(`${p}_startDateErr`);
+
+  const endDate = document.getElementById(`${p}_endDate`).value;
+  if (!endDate)                            { showErr(`${p}_endDateErr`, 'Expiry date is required.'); ok = false; }
+  else if (startDate && endDate<startDate) { showErr(`${p}_endDateErr`, 'Expiry must be after start date.'); ok = false; }
+  else                                       hideErr(`${p}_endDateErr`);
+
+  return ok;
+}
+
+// ══════════════════════════════════
+//  TYPE BUTTONS
+// ══════════════════════════════════
+function selectType(p, type) {
+  _selectedType[p] = type;
+  ['product','category'].forEach(t => {
+    const btn = document.getElementById(`${p}_type_${t}`);
+    if (t === type) {
+      btn.classList.add('border-gray-900','bg-gray-900','text-white');
+      btn.classList.remove('border-gray-200','text-gray-600');
+    } else {
+      btn.classList.remove('border-gray-900','bg-gray-900','text-white');
+      btn.classList.add('border-gray-200','text-gray-600');
+    }
+  });
+  hideErr(`${p}_typeErr`);
+  document.getElementById(`${p}_refSearch`).value = '';
+  document.getElementById(`${p}_refId`).value     = '';
+  document.getElementById(`${p}_searchResults`).classList.add('hidden');
+  document.getElementById(`${p}_refSearch`).placeholder = `Search ${type} name...`;
+  document.getElementById(`${p}_refLabel`).innerHTML =
+    `Select ${type === 'product' ? 'Product' : 'Category'} <span class="text-red-500">*</span>`;
+  hideErr(`${p}_refErr`);
+}
+
+// ══════════════════════════════════
+//  SEARCH
+// ══════════════════════════════════
+function handleRefSearch(p) {
+  const q    = document.getElementById(`${p}_refSearch`).value.trim();
+  const type = _selectedType[p];
+  document.getElementById(`${p}_refId`).value = '';
+  if (!type) { showErr(`${p}_typeErr`, 'Please select offer type first.'); return; }
+  if (!q)    { document.getElementById(`${p}_searchResults`).classList.add('hidden'); return; }
+  clearTimeout(_searchTimer[p]);
+  _searchTimer[p] = setTimeout(() => doSearch(p, type, q), 300);
+}
+
+async function doSearch(p, type, q) {
+  const url = type === 'product'
+    ? `/admin/offers/search-products?q=${encodeURIComponent(q)}`
+    : `/admin/offers/search-categories?q=${encodeURIComponent(q)}`;
+  try {
+    const res   = await fetch(url, { credentials: 'include' });
+    const data  = await res.json();
+    const resEl = document.getElementById(`${p}_searchResults`);
+    const items = data.results || [];
+    if (!items.length) {
+      resEl.innerHTML = `<div class="px-4 py-3 text-sm text-gray-400">No results found</div>`;
+    } else {
+      resEl.innerHTML = items.map(item =>
+        `<div onclick="selectRef('${p}','${escHtml(item._id)}','${escHtml(item.name)}')"
+          class="px-4 py-2.5 text-sm text-gray-700 cursor-pointer hover:bg-gray-50 border-b border-gray-100 last:border-0">
+          ${escHtml(item.name)}
+        </div>`
+      ).join('');
+    }
+    resEl.classList.remove('hidden');
+  } catch { /* silent */ }
+}
+
+function selectRef(p, id, name) {
+  document.getElementById(`${p}_refId`).value     = id;
+  document.getElementById(`${p}_refSearch`).value = name;
+  document.getElementById(`${p}_searchResults`).classList.add('hidden');
+  hideErr(`${p}_refErr`);
+}
+
+document.addEventListener('click', e => {
+  ['c','e'].forEach(p => {
+    const inp = document.getElementById(`${p}_refSearch`);
+    const res = document.getElementById(`${p}_searchResults`);
+    if (inp && res && !inp.contains(e.target) && !res.contains(e.target)) {
+      res.classList.add('hidden');
+    }
+  });
+});
+
+// ══════════════════════════════════
+//  TABS
+// ══════════════════════════════════
+function switchTab(tab) {
+  _activeTab = tab;
+  const tabs = ['all','active','inactive','expired'];
+  document.querySelectorAll('.tab-btn').forEach((btn, i) => {
+    const active = tabs[i] === tab;
+    btn.className = `tab-btn flex-1 py-3 text-sm font-medium transition ${i > 0 ? 'border-l border-gray-200' : ''} ${active ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-50'}`;
+  });
+  fetchOffers(1);
+}
+
+// ══════════════════════════════════
+//  FETCH & RENDER
+// ══════════════════════════════════
+function fetchOffers(page = 1) {
+  fetch(`/admin/offers?tab=${_activeTab}&page=${page}&ajax=1`, { credentials: 'include' })
+    .then(r => r.json())
+    .then(data => {
+      renderTable(data.offers);
+      renderPagination(data.currentPage, data.totalPages);
+      const info = document.getElementById('showingInfo');
+      if (info) info.innerHTML = data.total === 0
+        ? `Showing <span class="font-semibold">0</span> of <span class="font-semibold">0</span>`
+        : `Showing <span class="font-semibold">${data.showingFrom}–${data.showingTo}</span> of <span class="font-semibold">${data.total}</span>`;
+      history.pushState({}, '', `/admin/offers?tab=${_activeTab}&page=${page}`);
+    })
+    .catch(() => showToast('Failed to load offers.', 'error'));
+}
+
+document.getElementById('paginationWrap').addEventListener('click', e => {
+  const btn = e.target.closest('[data-page]');
+  if (btn) fetchOffers(Number(btn.dataset.page));
+});
+
+function statusBadgeHtml(isActive, isExpired) {
+  if (isExpired) return `<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-500"><span class="w-1.5 h-1.5 rounded-full bg-gray-400 mr-1.5 shrink-0"></span>Expired</span>`;
+  if (isActive)  return `<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700"><span class="w-1.5 h-1.5 rounded-full bg-green-500 mr-1.5 shrink-0"></span>Active</span>`;
+  return `<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-600"><span class="w-1.5 h-1.5 rounded-full bg-red-500 mr-1.5 shrink-0"></span>Inactive</span>`;
+}
+
+function actionBtnsHtml(o) {
+  const isExpired = o.endDate && new Date(o.endDate) < new Date();
+  const toggle    = isExpired
+    ? `<span class="text-gray-300 text-sm">—</span>`
+    : o.isActive
+      ? `<button onclick="openToggleConfirm('${o._id}','${escHtml(o.offerName)}',true)"  class="text-yellow-600 hover:text-yellow-800 font-medium text-sm">Disable</button>`
+      : `<button onclick="openToggleConfirm('${o._id}','${escHtml(o.offerName)}',false)" class="text-green-600 hover:text-green-800 font-medium text-sm">Enable</button>`;
+  return `<div class="flex items-center justify-center">
+    <button onclick="openEditModal('${o._id}')" class="text-blue-600 hover:text-blue-800 font-medium text-sm">Edit</button>
+    <span class="text-gray-300 px-1.5">|</span>
+    ${toggle}
+    <span class="text-gray-300 px-1.5">|</span>
+    <button onclick="openDeleteConfirm('${o._id}','${escHtml(o.offerName)}')" class="text-red-500 hover:text-red-700 font-medium text-sm">Delete</button>
+  </div>`;
+}
+
+function fmtDate(d) { return d ? new Date(d).toLocaleDateString('en-GB') : '—'; }
+
+function renderTable(offers) {
+  const tbody = document.getElementById('offerTableBody');
+  if (!offers || !offers.length) {
+    tbody.innerHTML = `<tr><td colspan="7" class="px-5 py-12 text-center text-gray-400"><i class="bi bi-percent text-3xl block mb-2"></i>No offers found.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = offers.map(o => {
+    const isExpired = o.endDate && new Date(o.endDate) < new Date();
+    const refName   = o.refId?.productName || o.refId?.categoryName || '—';
+    const typeBadge = o.offerType === 'product'
+      ? `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-600">Product</span>`
+      : `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-50 text-purple-600">Category</span>`;
+    return `<tr class="hover:bg-gray-50 transition" id="offerRow_${o._id}">
+      <td class="col-name px-4 py-4 font-semibold text-gray-800 text-sm overflow-hidden text-ellipsis whitespace-nowrap">${escHtml(o.offerName)}</td>
+      <td class="col-type px-4 py-4">${typeBadge}</td>
+      <td class="col-applies px-4 py-4 text-sm text-gray-700 font-medium overflow-hidden text-ellipsis whitespace-nowrap">${escHtml(refName)}</td>
+      <td class="col-pct px-4 py-4 text-blue-600 font-medium text-sm">${o.offerPrecentage}%</td>
+      <td class="col-validity px-4 py-4 text-gray-600 text-xs whitespace-nowrap">${fmtDate(o.startDate)} – ${fmtDate(o.endDate)}</td>
+      <td class="col-status px-4 py-4" id="statusCell_${o._id}">${statusBadgeHtml(o.isActive, isExpired)}</td>
+      <td class="col-action px-4 py-4" id="actionCell_${o._id}">${actionBtnsHtml(o)}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderPagination(current, total) {
+  const wrap = document.getElementById('paginationWrap');
+  if (!total) { wrap.innerHTML = ''; return; }
+  let html = current > 1
+    ? `<button data-page="${current-1}" class="inline-flex items-center justify-center w-8 h-8 text-sm rounded border border-gray-200 bg-white hover:bg-gray-50 transition"><i class="bi bi-chevron-left text-xs"></i></button>`
+    : `<span class="inline-flex items-center justify-center w-8 h-8 text-sm rounded border border-gray-200 bg-white opacity-40 cursor-not-allowed"><i class="bi bi-chevron-left text-xs"></i></span>`;
+  for (let i = 1; i <= total; i++) {
+    if (i <= 3 || i === total || Math.abs(i - current) <= 1) {
+      const cls = i === current ? 'bg-gray-900 text-white border-gray-900' : 'border-gray-200 bg-white hover:bg-gray-50 text-gray-700';
+      html += `<button data-page="${i}" class="inline-flex items-center justify-center w-8 h-8 text-sm rounded border transition ${cls}">${i}</button>`;
+    } else if (Math.abs(i - current) === 2 && i !== 4) {
+      html += `<span class="inline-flex items-center justify-center w-8 h-8 text-sm text-gray-400">…</span>`;
+    }
+  }
+  html += current < total
+    ? `<button data-page="${current+1}" class="inline-flex items-center justify-center w-8 h-8 text-sm rounded border border-gray-200 bg-white hover:bg-gray-50 transition"><i class="bi bi-chevron-right text-xs"></i></button>`
+    : `<span class="inline-flex items-center justify-center w-8 h-8 text-sm rounded border border-gray-200 bg-white opacity-40 cursor-not-allowed"><i class="bi bi-chevron-right text-xs"></i></span>`;
+  wrap.innerHTML = html;
+}
+
+// ══════════════════════════════════
+//  CREATE
+// ══════════════════════════════════
+function openCreateModal() {
+  _selectedType.c = null;
+  ['c_name','c_refSearch','c_refId','c_pct','c_startDate','c_endDate'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  document.getElementById('c_status').value = 'true';
+  ['product','category'].forEach(t => {
+    const btn = document.getElementById(`c_type_${t}`);
+    btn.classList.remove('border-gray-900','bg-gray-900','text-white');
+    btn.classList.add('border-gray-200','text-gray-600');
+  });
+  document.getElementById('c_refSearch').placeholder = 'Select offer type first...';
+  document.getElementById('c_refLabel').innerHTML = 'Select Product / Category <span class="text-red-500">*</span>';
+  ['c_nameErr','c_typeErr','c_refErr','c_pctErr','c_startDateErr','c_endDateErr'].forEach(hideErr);
+  document.getElementById('c_searchResults').classList.add('hidden');
+  document.getElementById('createBtnLabel').textContent = 'Create Offer';
+  showModal('createModal');
+}
+function closeCreateModal() { hideModal('createModal'); }
+
+async function submitCreate() {
+  if (!validateOffer('c')) return;
+  const btn = document.getElementById('createBtnLabel');
+  btn.textContent = 'Creating…';
+  try {
+    const res  = await fetch('/admin/offers/create', {
+      method: 'POST', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        offerName:       document.getElementById('c_name').value.trim(),
+        offerType:       _selectedType.c,
+        refId:           document.getElementById('c_refId').value,
+        offerPrecentage: Number(document.getElementById('c_pct').value),
+        startDate:       document.getElementById('c_startDate').value,
+        endDate:         document.getElementById('c_endDate').value,
+        isActive:        document.getElementById('c_status').value === 'true',
+      })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(data.message || 'Offer created!', 'success');
+      closeCreateModal();
+      fetchOffers(1);
+    } else {
+      showToast(data.message || 'Failed to create offer.', 'error');
+      btn.textContent = 'Create Offer';
+    }
+  } catch {
+    showToast('Network error.', 'error');
+    btn.textContent = 'Create Offer';
+  }
+}
+
+// ══════════════════════════════════
+//  EDIT
+// ══════════════════════════════════
+function openEditModal(id) {
+  fetch(`/admin/offers/${id}`, { credentials: 'include' })
+    .then(r => r.json())
+    .then(data => {
+      if (!data.success) { showToast('Offer not found.', 'error'); return; }
+      const o = data.offer;
+      document.getElementById('e_id').value        = o._id;
+      document.getElementById('e_name').value      = o.offerName || '';
+      document.getElementById('e_pct').value       = o.offerPrecentage || '';
+      document.getElementById('e_startDate').value = o.startDate ? o.startDate.slice(0,10) : '';
+      document.getElementById('e_endDate').value   = o.endDate   ? o.endDate.slice(0,10)   : '';
+      document.getElementById('e_status').value    = o.isActive ? 'true' : 'false';
+
+      // set type buttons
+      selectType('e', o.offerType || 'product');
+
+      // set ref name from populated data
+      const refName = o.refId?.productName || o.refId?.categoryName || '';
+      const refId   = o.refId?._id ? String(o.refId._id) : (o.refId ? String(o.refId) : '');
+      document.getElementById('e_refSearch').value = refName;
+      document.getElementById('e_refId').value     = refId;
+
+      ['e_nameErr','e_typeErr','e_refErr','e_pctErr','e_startDateErr','e_endDateErr'].forEach(hideErr);
+      document.getElementById('e_searchResults').classList.add('hidden');
+      document.getElementById('editBtnLabel').textContent = 'Update Offer';
+      showModal('editModal');
+    })
+    .catch(() => showToast('Failed to load offer.', 'error'));
+}
+function closeEditModal() { hideModal('editModal'); }
+
+async function submitEdit() {
+  if (!validateOffer('e')) return;
+  const id  = document.getElementById('e_id').value;
+  const btn = document.getElementById('editBtnLabel');
+  btn.textContent = 'Saving…';
+  try {
+    const res  = await fetch(`/admin/offers/${id}/edit`, {
+      method: 'PUT', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        offerName:       document.getElementById('e_name').value.trim(),
+        offerType:       _selectedType.e,
+        refId:           document.getElementById('e_refId').value,
+        offerPrecentage: Number(document.getElementById('e_pct').value),
+        startDate:       document.getElementById('e_startDate').value,
+        endDate:         document.getElementById('e_endDate').value,
+        isActive:        document.getElementById('e_status').value === 'true',
+      })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(data.message || 'Offer updated!', 'success');
+      closeEditModal();
+      fetchOffers(1);
+    } else {
+      showToast(data.message || 'Failed to update.', 'error');
+      btn.textContent = 'Update Offer';
+    }
+  } catch {
+    showToast('Network error.', 'error');
+    btn.textContent = 'Update Offer';
+  }
+}
+
+// ══════════════════════════════════
+//  CONFIRM MODAL
+// ══════════════════════════════════
+function openToggleConfirm(id, name, isCurrentlyActive) {
+  _confirmAction  = 'toggle';
+  _confirmId      = id;
+  const disabling = isCurrentlyActive;
+  document.getElementById('confirmIconWrap').className = `w-16 h-16 rounded-full flex items-center justify-center mb-4 ${disabling ? 'bg-yellow-100' : 'bg-green-100'}`;
+  document.getElementById('confirmIcon').className     = `bi ${disabling ? 'bi-slash-circle text-yellow-600' : 'bi-unlock text-green-600'} text-2xl`;
+  document.getElementById('confirmTitle').textContent  = disabling ? 'Disable Offer' : 'Enable Offer';
+  document.getElementById('confirmDesc').textContent   = disabling
+    ? `Disable "${name}"? It won't be applied to any products.`
+    : `Enable "${name}"? It will be applied to eligible products.`;
+  const ab = document.getElementById('confirmActionBtn');
+  ab.textContent = disabling ? 'Disable' : 'Enable';
+  ab.className   = `flex-1 py-2.5 rounded-xl text-sm font-semibold text-white ${disabling ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-green-600 hover:bg-green-700'}`;
+  showModal('confirmModal');
+}
+
+function openDeleteConfirm(id, name) {
+  _confirmAction = 'delete';
+  _confirmId     = id;
+  document.getElementById('confirmIconWrap').className = 'w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mb-4';
+  document.getElementById('confirmIcon').className     = 'bi bi-trash3 text-red-600 text-2xl';
+  document.getElementById('confirmTitle').textContent  = 'Delete Offer';
+  document.getElementById('confirmDesc').textContent   = `Are you sure you want to delete "${name}"? This cannot be undone.`;
+  const ab = document.getElementById('confirmActionBtn');
+  ab.textContent = 'Delete';
+  ab.className   = 'flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-sm font-semibold text-white';
+  showModal('confirmModal');
+}
+
+function closeConfirmModal() {
+  hideModal('confirmModal');
+  _confirmAction = null;
+  _confirmId     = null;
+}
+
+document.getElementById('confirmActionBtn').addEventListener('click', async () => {
+  const action = _confirmAction;
+  const id     = _confirmId;
+  closeConfirmModal();
+
+  if (action === 'toggle') {
+    try {
+      const res  = await fetch(`/admin/offers/${id}/toggle`, {
+        method: 'PATCH', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const data = await res.json();
+      if (data.success) {
+        document.getElementById(`statusCell_${id}`).innerHTML = statusBadgeHtml(data.isActive, false);
+        document.getElementById(`actionCell_${id}`).innerHTML = actionBtnsHtml({
+          _id: id, offerName: data.offerName, isActive: data.isActive, endDate: data.endDate
+        });
+        showToast(data.message || 'Updated.', data.isActive ? 'success' : 'warning');
+      } else showToast(data.message || 'Failed.', 'error');
+    } catch { showToast('Network error.', 'error'); }
+  }
+
+  if (action === 'delete') {
+    try {
+      const res  = await fetch(`/admin/offers/${id}/delete`, {
+        method: 'DELETE', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const data = await res.json();
+      if (data.success) { showToast('Offer deleted.', 'success'); fetchOffers(1); }
+      else showToast(data.message || 'Delete failed.', 'error');
+    } catch { showToast('Network error.', 'error'); }
+  }
+});
+
+// ══════════════════════════════════
+//  UTILS
+// ══════════════════════════════════
+function showErr(id, msg) { const el = document.getElementById(id); if (!el) return; el.textContent = msg; el.classList.remove('hidden'); }
+function hideErr(id)      { const el = document.getElementById(id); if (!el) return; el.classList.add('hidden'); }
+function showModal(id)    { const m  = document.getElementById(id); m.classList.remove('hidden'); m.classList.add('flex'); }
+function hideModal(id)    { const m  = document.getElementById(id); m.classList.add('hidden'); m.classList.remove('flex'); }
+function escHtml(s)       { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+
+function showToast(msg, type = 'success') {
+  const toast = document.getElementById('toast');
+  document.getElementById('toastMsg').textContent = msg;
+  const icons = { success:'bi bi-check-circle-fill', warning:'bi bi-exclamation-circle-fill', error:'bi bi-x-circle-fill' };
+  const bgs   = { success:'bg-green-600', warning:'bg-amber-500', error:'bg-red-600' };
+  document.getElementById('toastIcon').className = `${icons[type] || icons.success} text-lg shrink-0`;
+  toast.className = `fixed top-[72px] right-5 z-[9999] flex items-center gap-3 px-5 py-3.5 rounded-xl shadow-xl text-white text-sm font-medium min-w-[220px] max-w-xs ${bgs[type] || bgs.success}`;
+  toast.classList.remove('hidden');
+  if (_toastTimer) clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => toast.classList.add('hidden'), 3500);
+}
+</script>
+</body>
+</html>

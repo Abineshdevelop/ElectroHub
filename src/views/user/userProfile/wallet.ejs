@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ElectroHub - My Wallet</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: { fontFamily: { inter: ['Inter', 'sans-serif'] } } }
+    }
+  </script>
+  <style>
+    body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+    
+    .toast {
+      position: fixed; z-index: 9999; bottom: 20px; right: 20px;
+      padding: 12px 20px; border-radius: 12px;
+      display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 14px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.1); animation: slideUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    .toast.success { background: #10b981; color: white; }
+    .toast.error   { background: #ef4444; color: white; }
+    .toast.info    { background: #3b82f6; color: white; }
+    .toast.warn    { background: #f59e0b; color: white; }
+    @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(4px);
+      z-index: 999; display: flex; align-items: center; justify-content: center;
+      opacity: 0; pointer-events: none; transition: all 0.2s ease;
+    }
+    .modal-overlay.show { opacity: 1; pointer-events: all; }
+    .modal-box {
+      background: white; border-radius: 20px; padding: 24px; width: 100%; max-width: 420px;
+      transform: translateY(20px) scale(0.95); transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+    }
+    .modal-overlay.show .modal-box { transform: translateY(0) scale(1); }
+  </style>
+</head>
+<body class="text-gray-800">
+
+  <%- include('../partials/navbar', { user }) %>
+
+  <div class="flex min-h-[calc(100vh-64px)]">
+    <%- include('../partials/sidebar', { user, activePage: 'wallet' }) %>
+
+    <main class="flex-1 px-4 md:px-8 py-6 md:py-8 overflow-x-hidden">
+      
+      <div class="max-w-[1000px] mx-auto bg-white p-6 sm:p-10 rounded-none sm:rounded-xl shadow-sm border border-gray-100 mt-2">
+        <!-- Header Section -->
+        <div class="flex flex-col md:flex-row items-center justify-between mb-12 gap-8 relative">
+          <!-- Central Area -->
+          <div class="flex-1 flex flex-col items-center pt-4 md:pt-0">
+            <h2 class="text-[32px] md:text-[40px] font-[800] tracking-tight text-black mb-5">My Wallet</h2>
+            <button onclick="openTopupModal()" class="bg-[#ff3b3b] hover:bg-[#e62e2e] text-white px-8 py-2.5 rounded shadow-[0_4px_14px_0_rgba(255,59,59,0.39)] font-semibold transition tracking-wide">
+              Add Money
+            </button>
+          </div>
+          <!-- Right Balance Card -->
+          <div class="w-full md:w-auto flex justify-center md:absolute md:right-0">
+            <div class="flex items-center gap-5 bg-white border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.08)] px-7 py-6 rounded-lg min-w-[300px]">
+              <div class="text-gray-400 opacity-80">
+                <i class="bi bi-wallet2" style="font-size: 3.5rem; line-height: 1;"></i>
+              </div>
+              <div class="flex flex-col">
+                <span class="text-3xl font-[800] text-gray-900 tracking-tight leading-none mb-1">₹<%= (wallet?.balance || 0).toLocaleString('en-IN') %></span>
+                <span class="text-xs font-semibold text-gray-500 tracking-wide uppercase mt-1">My Wallet Balance</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Table Section -->
+        <div class="border border-gray-100 rounded-lg overflow-hidden mt-8">
+          <div class="bg-white px-6 py-5 border-b border-gray-100">
+            <h3 class="text-[11px] font-bold text-gray-800 tracking-wider">TRANSACTION DETAILS</h3>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-gray-50/50 text-[10px] font-bold text-gray-400 uppercase tracking-widest border-b border-gray-100">
+                  <th class="px-6 py-4 whitespace-nowrap">TRANSACTION ID</th>
+                  <th class="px-6 py-4 whitespace-nowrap">DESCRIPTION</th>
+                  <th class="px-6 py-4 whitespace-nowrap">DATE</th>
+                  <th class="px-6 py-4 whitespace-nowrap">WITHDRAWAL</th>
+                  <th class="px-6 py-4 whitespace-nowrap">DEPOSIT</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-50 text-[13px] font-semibold text-gray-700 bg-white">
+                <% if (transactions && transactions.length > 0) { %>
+                  <% transactions.forEach(txn => { %>
+                    <tr class="hover:bg-gray-50 transition-colors">
+                      <td class="px-6 py-5 whitespace-nowrap select-all cursor-text text-gray-500">
+                        #<%= String(txn.transactionId).replace(/^TXN-/, '').substring(0,8) %>
+                      </td>
+                      <td class="px-6 py-5 min-w-[150px]"><%= txn.description || 'Wallet Transaction' %></td>
+                      <td class="px-6 py-5 whitespace-nowrap text-gray-500">
+                        <%= new Date(txn.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) %>
+                      </td>
+                      <!-- Withdrawal = Debit -->
+                      <td class="px-6 py-5 whitespace-nowrap text-gray-600">
+                        <%= txn.transactionType === 'debit' ? `₹ ${txn.amount.toLocaleString('en-IN')}` : '-' %>
+                      </td>
+                      <!-- Deposit = Credit -->
+                      <td class="px-6 py-5 whitespace-nowrap text-gray-600">
+                        <%= txn.transactionType === 'credit' ? `₹ ${txn.amount.toLocaleString('en-IN')}` : '-' %>
+                      </td>
+                    </tr>
+                  <% }) %>
+                <% } else { %>
+                  <tr>
+                    <td colspan="5" class="px-6 py-12 text-center text-gray-400">
+                      <div class="flex flex-col items-center">
+                        <i class="bi bi-receipt text-3xl mb-2 opacity-50"></i>
+                        No transactions found
+                      </div>
+                    </td>
+                  </tr>
+                <% } %>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Pagination -->
+        <% if (totalPages > 1) { %>
+          <div class="flex items-center justify-center gap-2.5 mt-10 mb-2">
+            <!-- Prev -->
+            <a href="/user/wallet?page=<%= Math.max(1, currentPage - 1) %>" 
+               class="w-8 h-8 flex items-center justify-center rounded-full border-[1.5px] border-gray-800 text-gray-800 hover:bg-gray-800 hover:text-white transition group <%= currentPage === 1 ? 'opacity-50 pointer-events-none' : '' %>">
+              <i class="bi bi-arrow-left mt-[1px]"></i>
+            </a>
+            
+            <!-- Pages -->
+            <% for(let i=1; i<=totalPages; i++) { %>
+              <a href="/user/wallet?page=<%= i %>" 
+                 class="w-8 h-8 flex items-center justify-center rounded-full text-xs font-bold transition-all <%= currentPage === i ? 'bg-[#ff3b3b] text-white border border-[#ff3b3b]' : 'border border-gray-300 text-gray-500 hover:border-gray-800 hover:text-gray-800' %>">
+                <%= i < 10 ? '0'+i : i %>
+              </a>
+            <% } %>
+
+            <!-- Next -->
+            <a href="/user/wallet?page=<%= Math.min(totalPages, currentPage + 1) %>" 
+               class="w-8 h-8 flex items-center justify-center rounded-full border-[1.5px] border-gray-800 text-gray-800 hover:bg-gray-800 hover:text-white transition group <%= currentPage === totalPages ? 'opacity-50 pointer-events-none' : '' %>">
+              <i class="bi bi-arrow-right mt-[1px]"></i>
+            </a>
+          </div>
+        <% } %>
+
+      </div>
+    </main>
+  </div>
+
+  <div id="toast-container"></div>
+
+  <!-- TOPUP MODAL -->
+  <div id="topupModal" class="modal-overlay">
+    <div class="modal-box p-6 border border-gray-100" style="max-width: 350px;">
+      <div class="flex justify-between items-center mb-5">
+        <h3 class="text-lg font-bold text-gray-900 tracking-tight">Add Money</h3>
+        <button onclick="closeTopupModal()" class="w-7 h-7 flex items-center justify-center rounded-full bg-gray-50 hover:bg-gray-200 text-gray-500 transition">
+          <i class="bi bi-x-lg text-xs"></i>
+        </button>
+      </div>
+      <div>
+        <label class="block text-[11px] font-bold tracking-wider text-gray-500 uppercase mb-2">Enter Amount (₹)</label>
+        <input type="text" inputmode="numeric" pattern="[0-9]*" id="topup-amount" placeholder="e.g. 1000" class="w-full border-2 border-gray-100 focus:border-red-400 focus:ring-0 rounded-xl px-4 py-3 outline-none transition font-[800] text-xl tracking-tight text-gray-900" onkeypress="return (event.charCode >= 48 && event.charCode <= 57)" oninput="this.value = this.value.replace(/[^0-9]/g, ''); if(this.value > 50000) this.value = 50000;" />
+        <div class="flex flex-wrap gap-2 mt-4">
+          <button onclick="setAmt(1000)" class="px-4 py-2 bg-gray-50 hover:bg-red-50 hover:text-red-500 border border-gray-100 hover:border-red-200 rounded-lg text-sm font-bold text-gray-600 transition tracking-wide">+₹1,000</button>
+          <button onclick="setAmt(2000)" class="px-4 py-2 bg-gray-50 hover:bg-red-50 hover:text-red-500 border border-gray-100 hover:border-red-200 rounded-lg text-sm font-bold text-gray-600 transition tracking-wide">+₹2,000</button>
+          <button onclick="setAmt(5000)" class="px-4 py-2 bg-gray-50 hover:bg-red-50 hover:text-red-500 border border-gray-100 hover:border-red-200 rounded-lg text-sm font-bold text-gray-600 transition tracking-wide">+₹5,000</button>
+        </div>
+      </div>
+      <button id="proceed-topup-btn" onclick="initTopup()" class="w-full mt-6 bg-[#ff3b3b] hover:bg-[#e62e2e] text-white py-3 rounded-xl font-bold transition shadow-[0_4px_14px_0_rgba(255,59,59,0.39)] flex items-center justify-center gap-2 text-[14px] tracking-wide">
+        Proceed to Pay
+      </button>
+    </div>
+  </div>
+
+  <%- include('../partials/layout-scripts') %>
+
+  <script>
+    function showToast(msg, type = 'success') {
+      const icons = { success:'bi-check-circle-fill', error:'bi-x-circle-fill', info:'bi-info-circle-fill', warn:'bi-exclamation-triangle-fill' };
+      const t = document.createElement('div');
+      t.className = `toast ${type}`;
+      t.innerHTML = `<i class="bi ${icons[type]}"></i><span>${msg}</span>`;
+      document.getElementById('toast-container').appendChild(t);
+      setTimeout(() => t.remove(), 3000);
+    }
+
+    function openTopupModal() {
+      document.getElementById('topup-amount').value = '';
+      document.getElementById('topupModal').classList.add('show');
+    }
+    
+    function closeTopupModal() {
+      document.getElementById('topupModal').classList.remove('show');
+    }
+
+    function setAmt(val) {
+      document.getElementById('topup-amount').value = val;
+    }
+
+    async function initTopup() {
+      const amtInput = document.getElementById('topup-amount');
+      const amount = Number(amtInput.value);
+      if (!amount || amount < 1) { showToast('Please enter a valid amount', 'warn'); return; }
+      if (amount > 50000) { showToast('Maximum top-up is ₹50,000', 'warn'); return; }
+
+      const btn = document.getElementById('proceed-topup-btn');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="bi bi-hourglass-split spin"></i> Processing...';
+
+      try {
+        const res = await fetch('/user/wallet/create-topup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ amount })
+        });
+        const data = await res.json();
+        
+        if (!data.success) {
+          showToast(data.message || 'Failed to initiate payment', 'error');
+          btn.disabled = false; btn.innerHTML = 'Proceed to Pay';
+          return;
+        }
+
+        const options = {
+          key: data.keyId,
+          amount: data.amount,
+          currency: data.currency,
+          name: 'ElectroHub Wallet',
+          description: 'Wallet Top-up',
+          order_id: data.orderId,
+          theme: { color: '#ff3b3b' },
+          handler: async (response) => {
+            try {
+              const verifyRes = await fetch('/user/wallet/verify-topup', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  razorpayPaymentId: response.razorpay_payment_id,
+                  razorpayOrderId: response.razorpay_order_id,
+                  razorpaySignature: response.razorpay_signature
+                })
+              });
+              const verifyData = await verifyRes.json();
+              if (verifyData.success) {
+                showToast(verifyData.message, 'success');
+                closeTopupModal();
+                setTimeout(() => location.reload(), 1500);
+              } else {
+                showToast(verifyData.message || 'Payment verification failed', 'error');
+                btn.disabled = false; btn.innerHTML = 'Proceed to Pay';
+              }
+            } catch (err) {
+              showToast('Error verifying payment', 'error');
+              btn.disabled = false; btn.innerHTML = 'Proceed to Pay';
+            }
+          },
+          modal: {
+            ondismiss: () => {
+              showToast('Payment cancelled', 'warn');
+              btn.disabled = false; btn.innerHTML = 'Proceed to Pay';
+            }
+          }
+        };
+
+        const rzp = new Razorpay(options);
+        rzp.on('payment.failed', (response) => {
+          showToast('Payment failed: ' + response.error.description, 'error');
+          btn.disabled = false; btn.innerHTML = 'Proceed to Pay';
+        });
+        rzp.open();
+
+      } catch (err) {
+        showToast('Something went wrong', 'error');
+        btn.disabled = false; btn.innerHTML = 'Proceed to Pay';
+      }
+    }
+
+    document.getElementById('topupModal').addEventListener('click', function(e) {
+      if (e.target === this) this.classList.remove('show');
+    });
+  </script>
+</body>
+</html>

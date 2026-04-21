@@ -1,0 +1,951 @@
+<% const _sort=sort || 'desc' ; const _status=statusFilter || 'all' ; %>
+  <!DOCTYPE html>
+  <html lang="en">
+
+  <head>
+    <meta charset="UTF-8" />
+    <title>Admin Orders | ElectroHub</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+      .order-row {
+        transition: background 0.15s ease;
+      }
+
+      .order-row:hover {
+        background: #f9fafb;
+      }
+    </style>
+  </head>
+
+  <body class="bg-gray-100">
+
+    <header class="bg-white shadow-sm">
+      <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="text-xl font-bold">ElectroHub</span>
+          <span class="text-xs text-gray-500 ml-2">Next-Gen Electronics</span>
+        </div>
+        <nav class="flex items-center gap-6 text-sm font-medium">
+          <a href="#" class="hover:text-black text-gray-600">Home</a>
+          <a href="#" class="hover:text-black text-gray-600">Contact</a>
+          <a href="#" class="hover:text-black text-gray-600">About</a>
+          <a href="/admin/logout" class="text-red-600 hover:underline">Logout</a>
+        </nav>
+      </div>
+    </header>
+
+    <div class="flex">
+      <aside class="w-64 min-h-[calc(100vh-64px)] bg-white border-r flex flex-col justify-between">
+        <div>
+          <div class="p-6 font-semibold">ElectroHub Admin</div>
+          <nav class="px-4 space-y-1 text-sm">
+            <a href="/admin/dashboard"
+              class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 text-gray-700"><i
+                class="bi bi-house"></i> Dashboard</a>
+            <a href="/admin/orders"
+              class="flex items-center gap-2 px-3 py-2 rounded bg-gray-100 font-semibold text-gray-900"><i
+                class="bi bi-bag"></i> Orders</a>
+            <a href="/admin/products"
+              class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 text-gray-700"><i
+                class="bi bi-box"></i> Products</a>
+            <a href="/admin/category"
+              class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 text-gray-700"><i
+                class="bi bi-tags"></i> Category</a>
+            <a href="/admin/offers" class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 text-gray-700"><i
+                class="bi bi-percent"></i> Offers</a>
+            <a href="/admin/coupons"
+              class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 text-gray-700"><i
+                class="bi bi-ticket"></i> Coupons</a>
+            <a href="/admin/banners"
+              class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 text-gray-700"><i
+                class="bi bi-image"></i> Banners</a>
+            <a href="/admin/customers"
+              class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 text-gray-700"><i
+                class="bi bi-people"></i> Customers</a>
+            <a href="/admin/sales-report"
+              class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 text-gray-700"><i
+                class="bi bi-graph-up"></i> Sales Report</a>
+          </nav>
+        </div>
+        <div class="px-4 pb-6">
+          <a href="/admin/logout"
+            class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 text-gray-700 text-sm">
+            <i class="bi bi-box-arrow-left"></i> Logout
+          </a>
+        </div>
+      </aside>
+
+      <main class="flex-1 p-8 min-w-0">
+
+        <div class="flex items-center justify-between mb-6">
+          <h1 class="text-2xl font-semibold">Orders</h1>
+          <span id="totalBadge" class="text-sm text-gray-500 bg-white border px-4 py-1.5 rounded-full">Total: <%= total
+              %></span>
+        </div>
+
+        <!-- Filters -->
+        <div class="bg-white p-4 rounded shadow mb-5 flex flex-wrap gap-3 items-center">
+          <div class="relative flex-1 min-w-[200px] max-w-sm">
+            <i class="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+            <input id="searchInput" type="text" value="<%= query || '' %>"
+              placeholder="Search by order ID, name or email…" autocomplete="off"
+              class="w-full pl-9 pr-8 py-2 border border-gray-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 transition" />
+            <i id="searchSpinner"
+              class="bi bi-arrow-repeat animate-spin absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm hidden"></i>
+            <!-- Suggestions Dropdown -->
+            <div id="searchSuggestions"
+              class="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 hidden max-h-60 overflow-y-auto">
+            </div>
+          </div>
+          <div class="relative">
+            <i
+              class="bi bi-sort-down absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none"></i>
+            <select id="sortSelect"
+              class="appearance-none pl-9 pr-8 py-2 border border-gray-200 rounded bg-white text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-300 transition cursor-pointer">
+              <option value="desc" <%=(_sort==='desc' )?'selected':'' %>>Latest First</option>
+              <option value="asc" <%=(_sort==='asc' ) ?'selected':'' %>>Oldest First</option>
+            </select>
+            <i
+              class="bi bi-chevron-down absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none"></i>
+          </div>
+          <button id="clearBtn" onclick="clearSearch()"
+            class="px-4 py-2 border border-gray-200 bg-white hover:bg-gray-50 rounded text-gray-600 text-sm transition <%= query ? '' : 'hidden' %>">Clear</button>
+          <button onclick="exportCSV()"
+            class="flex items-center gap-2 px-4 py-2 border border-gray-200 bg-white hover:bg-gray-50 rounded text-sm text-gray-700 transition">
+            <i class="bi bi-download"></i> Export Data
+          </button>
+        </div>
+
+        <!-- Status Tabs -->
+        <div id="statusTabs" class="flex items-center gap-2 mb-5 flex-wrap">
+          <% ['all','pending','confirmed','processing','out_for_delivery','delivered','cancelled','partially_cancelled','returned'].forEach(function(s){
+            %>
+            <% const tabLabels={ all:'All Orders', pending: 'Pending' , confirmed:'Confirmed', processing:'Processing',
+              out_for_delivery:'Out for Delivery', delivered:'Delivered', cancelled:'Cancelled',
+              partially_cancelled:'Partially Cancelled', returned:'Returned' }; %>
+              <button data-status="<%= s %>"
+                class="status-tab px-4 py-2 rounded text-sm font-medium transition border
+            <%= _status === s ? 'bg-gray-900 text-white border-gray-900' : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50' %>">
+                <%= tabLabels[s] || s %>
+              </button>
+              <% }); %>
+        </div>
+
+        <!-- Table -->
+        <div class="bg-white rounded shadow overflow-hidden mb-5">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="bg-gray-50 border-b border-gray-200">
+                <th class="text-left px-5 py-3.5 font-semibold text-gray-600 w-[15%]">Order ID</th>
+                <th class="text-left px-5 py-3.5 font-semibold text-gray-600 w-[15%]">Date</th>
+                <th class="text-left px-5 py-3.5 font-semibold text-gray-600 w-[25%]">Customer</th>
+                <th class="text-left px-5 py-3.5 font-semibold text-gray-600 w-[25%]">Status</th>
+                <th class="text-left px-5 py-3.5 font-semibold text-gray-600 w-[20%]">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="ordersTableBody" class="divide-y divide-gray-100">
+              <% if (orders.length===0) { %>
+                <tr>
+                  <td colspan="5" class="px-5 py-12 text-center text-gray-400">
+                    <i class="bi bi-bag text-3xl block mb-2"></i>No orders found.
+                  </td>
+                </tr>
+                <% } %>
+                  <% orders.forEach(function(o) { const firstName=(o.shippingAddress && o.shippingAddress.firstName)
+                    || '?' ; const lastName=(o.shippingAddress && o.shippingAddress.lastName) || '' ; const
+                    email=(o.shippingAddress && o.shippingAddress.email) || '' ; const
+                    initial=firstName[0].toUpperCase(); const dateStr=new Date(o.createdAt).toLocaleDateString('en-IN',
+                    {day:'2-digit', month:'short', year:'numeric'}); %>
+                    <tr class="order-row transition align-top" data-order-id="<%= o._id %>">
+
+                      <!-- Order ID -->
+                      <td class="px-5 py-3.5">
+                        <span class="font-mono text-xs font-semibold text-gray-800 block">
+                          <%= o.orderId %>
+                        </span>
+                      </td>
+
+                      <!-- Date -->
+                      <td class="px-5 py-3.5 text-xs text-gray-500 whitespace-nowrap">
+                        <%= dateStr %>
+                      </td>
+
+                      <!-- Customer -->
+                      <td class="px-5 py-3.5">
+                        <div class="flex items-center gap-2">
+                          <div
+                            class="w-9 h-9 shrink-0 rounded-full bg-gray-200 text-gray-700 flex items-center justify-center text-xs font-semibold">
+                            <%= initial %>
+                          </div>
+                          <div class="min-w-0">
+                            <p class="text-sm font-medium text-gray-800 truncate">
+                              <%= firstName %>
+                                <%= lastName %>
+                            </p>
+                            <p class="text-[10px] text-gray-400 truncate max-w-[120px]">
+                              <%= email %>
+                            </p>
+                          </div>
+                        </div>
+                      </td>
+
+                      <!-- Status -->
+                      <td class="px-5 py-3.5">
+                        <% 
+                          const STATUS_CONFIG_EJS = {
+                            pending: { label: 'Pending', bg: 'bg-gray-50', text: 'text-gray-600', dot: 'bg-gray-400' },
+                            confirmed: { label: 'Confirmed', bg: 'bg-blue-50', text: 'text-blue-600', dot: 'bg-blue-400' },
+                            processing: { label: 'Processing', bg: 'bg-yellow-50', text: 'text-yellow-700', dot: 'bg-yellow-400' },
+                            shipped: { label: 'Shipped', bg: 'bg-cyan-50', text: 'text-cyan-700', dot: 'bg-cyan-400' },
+                            out_for_delivery: { label: 'Out for Delivery', bg: 'bg-indigo-50', text: 'text-indigo-700', dot: 'bg-indigo-400' },
+                            delivered: { label: 'Delivered', bg: 'bg-green-50', text: 'text-green-700', dot: 'bg-green-400' },
+                            cancelled: { label: 'Cancelled', bg: 'bg-red-50', text: 'text-red-600', dot: 'bg-red-400' },
+                            partially_cancelled: { label: 'Partially Cancelled', bg: 'bg-orange-50', text: 'text-orange-700', dot: 'bg-orange-400' },
+                            returned: { label: 'Returned', bg: 'bg-purple-50', text: 'text-purple-700', dot: 'bg-purple-400' },
+                            expired: { label: 'Expired', bg: 'bg-gray-50', text: 'text-gray-600', dot: 'bg-gray-400' }
+                          };
+                          const sc = STATUS_CONFIG_EJS[o.orderStatus] || { label: o.orderStatus, bg: 'bg-gray-100', text: 'text-gray-700', dot: 'bg-gray-400' };
+                        %>
+                        <div class="flex flex-col gap-2">
+                          <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium w-32 <%= sc.bg %> <%= sc.text %>">
+                            <span class="w-1.5 h-1.5 rounded-full shrink-0 <%= sc.dot %> mr-1.5"></span>
+                            <span class="truncate"><%= sc.label %></span>
+                          </span>
+                        </div>
+                      </td>
+
+                      <!-- Actions -->
+                      <td class="px-5 py-3.5">
+                        <div class="flex items-center gap-2 text-sm font-medium">
+                          <button onclick="openOrderModal('<%= o._id %>')"
+                            class="text-blue-600 hover:text-blue-800 transition">View Detail</button>
+                          <span class="text-gray-300">|</span>
+                          <button onclick="openDeleteConfirm('<%= o._id %>','<%= o.orderId %>')"
+                            class="text-red-500 hover:text-red-700 transition">Delete</button>
+                        </div>
+                      </td>
+                    </tr>
+                    <% }); %>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination -->
+        <div class="flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-600">
+          <div id="showingInfo">
+            Showing <span class="font-semibold">
+              <%= showingFrom %>–<%= showingTo %>
+            </span>
+            of <span class="font-semibold">
+              <%= total %>
+            </span> orders
+          </div>
+          <div id="paginationWrap" class="flex items-center gap-1.5 flex-wrap">
+            <% if (currentPage> 1) { %>
+              <button data-page="<%= currentPage-1 %>"
+                class="inline-flex items-center justify-center w-8 h-8 text-sm rounded border border-gray-200 bg-white hover:bg-gray-50 transition"><i
+                  class="bi bi-chevron-left text-xs"></i></button>
+              <% } else { %>
+                <span
+                  class="inline-flex items-center justify-center w-8 h-8 text-sm rounded border border-gray-200 bg-white opacity-40 cursor-not-allowed"><i
+                    class="bi bi-chevron-left text-xs"></i></span>
+                <% } %>
+                  <% for (let i=1; i <=totalPages; i++) { %>
+                    <button data-page="<%= i %>"
+                      class="inline-flex items-center justify-center w-8 h-8 text-sm rounded border transition
+            <%= i===currentPage ? 'bg-gray-900 text-white border-gray-900' : 'border-gray-200 bg-white hover:bg-gray-50 text-gray-700' %>">
+                      <%= i %>
+                    </button>
+                    <% } %>
+                      <% if (currentPage < totalPages) { %>
+                        <button data-page="<%= currentPage+1 %>"
+                          class="inline-flex items-center justify-center w-8 h-8 text-sm rounded border border-gray-200 bg-white hover:bg-gray-50 transition"><i
+                            class="bi bi-chevron-right text-xs"></i></button>
+                        <% } else { %>
+                          <span
+                            class="inline-flex items-center justify-center w-8 h-8 text-sm rounded border border-gray-200 bg-white opacity-40 cursor-not-allowed"><i
+                              class="bi bi-chevron-right text-xs"></i></span>
+                          <% } %>
+          </div>
+        </div>
+
+      </main>
+    </div>
+
+    <!-- ══════════ ORDER DETAIL MODAL ══════════ -->
+    <div id="orderModal" class="fixed inset-0 z-50 hidden items-center justify-center">
+      <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" onclick="closeOrderModal()"></div>
+      <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 flex flex-col max-h-[90vh]">
+
+        <div class="flex items-center justify-between px-6 pt-5 pb-4 border-b shrink-0">
+          <div>
+            <p id="modalOrderId" class="text-xs text-gray-400 font-mono mb-0.5"></p>
+            <h2 class="text-lg font-bold text-gray-900">Order Details</h2>
+          </div>
+          <button onclick="closeOrderModal()" class="text-gray-400 hover:text-gray-700 transition"><i
+              class="bi bi-x-lg text-sm"></i></button>
+        </div>
+
+        <div id="orderModalBody" class="overflow-y-auto flex-1 px-6 py-5 space-y-5 text-sm text-gray-700">
+          <div class="flex items-center justify-center py-10 text-gray-400">
+            <i class="bi bi-arrow-repeat animate-spin text-2xl mr-2"></i> Loading…
+          </div>
+        </div>
+
+        <div class="shrink-0 border-t px-6 py-4 bg-gray-50 rounded-b-2xl flex items-center justify-end gap-3">
+          <button onclick="closeOrderModal()"
+            class="px-5 py-2.5 border border-gray-200 bg-white hover:bg-gray-50 rounded-xl text-sm font-medium text-gray-700 transition">
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ ITEM STATUS MODAL ══════════ -->
+    <div id="itemStatusModal" class="fixed inset-0 z-[70] hidden items-center justify-center">
+      <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" onclick="closeItemStatusModal()"></div>
+      <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4">
+        <div class="px-6 pt-6 pb-4 border-b">
+          <h2 class="text-base font-bold text-gray-900">Update Item Status</h2>
+          <p id="itemModalSubtitle" class="text-xs text-gray-400 mt-1 truncate"></p>
+        </div>
+        <div class="px-6 py-5">
+          <label class="text-xs font-semibold text-gray-600 uppercase tracking-wide block mb-2">New Status</label>
+          <div class="relative">
+            <select id="itemStatusSelect"
+              class="w-full appearance-none pl-3 pr-8 py-2.5 border border-gray-200 rounded-lg bg-white text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-300 transition cursor-pointer">
+              <option value="pending">Pending</option>
+              <option value="confirmed">Confirmed</option>
+              <option value="processing">Processing</option>
+              <option value="shipped">Shipped</option>
+              <option value="out_for_delivery">Out for Delivery</option>
+              <option value="delivered">Delivered</option>
+              <option value="cancelled">Cancelled</option>
+              <option value="returned">Returned</option>
+            </select>
+            <i
+              class="bi bi-chevron-down absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none"></i>
+          </div>
+        </div>
+        <div class="flex gap-3 px-6 pb-6">
+          <button onclick="closeItemStatusModal()"
+            class="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition">Cancel</button>
+          <button onclick="saveItemStatus()"
+            class="flex-1 py-2.5 rounded-xl bg-gray-800 hover:bg-gray-900 text-white text-sm font-semibold transition flex items-center justify-center gap-2">
+            <i class="bi bi-check-lg"></i> Save
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ DELETE CONFIRM MODAL ══════════ -->
+    <div id="confirmModal" class="fixed inset-0 z-[80] hidden items-center justify-center">
+      <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" onclick="closeDeleteConfirm()"></div>
+      <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden">
+        <div class="flex flex-col items-center pt-8 pb-4 px-6 text-center">
+          <div class="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mb-4">
+            <i class="bi bi-trash3 text-red-600 text-2xl"></i>
+          </div>
+          <h3 class="text-lg font-bold text-gray-900 mb-1">Delete Order</h3>
+          <p id="confirmDesc" class="text-sm text-gray-500"></p>
+        </div>
+        <div class="flex gap-3 px-6 pb-7 pt-2">
+          <button onclick="closeDeleteConfirm()"
+            class="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition">Cancel</button>
+          <button id="confirmDeleteBtn"
+            class="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-sm font-semibold text-white transition">Delete</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TOAST -->
+    <div id="toast"
+      class="fixed top-[72px] right-5 z-[9999] hidden items-center gap-3 px-5 py-3.5 rounded-xl shadow-xl text-white text-sm font-medium min-w-[220px] max-w-xs">
+      <i id="toastIcon" class="text-lg shrink-0"></i>
+      <span id="toastMsg" class="leading-snug"></span>
+    </div>
+
+    <script>
+      let currentStatus = '<%= _status %>';
+      let debounceTimer = null;
+      let _deleteId = null;
+      let _openOrderId = null;
+      let _activeOrderId = null;
+      let _activeItemId = null;
+
+      const searchInput = document.getElementById('searchInput');
+      const sortSelect = document.getElementById('sortSelect');
+      const paginationWrap = document.getElementById('paginationWrap');
+      const showingInfo = document.getElementById('showingInfo');
+      const totalBadge = document.getElementById('totalBadge');
+      const clearBtn = document.getElementById('clearBtn');
+      const searchSpinner = document.getElementById('searchSpinner');
+      const searchSuggestions = document.getElementById('searchSuggestions');
+
+      const STATUS_CONFIG = {
+        pending: { label: 'Pending', bg: 'bg-gray-100', text: 'text-gray-700', dot: 'bg-gray-500' },
+        confirmed: { label: 'Confirmed', bg: 'bg-blue-100', text: 'text-blue-700', dot: 'bg-blue-500' },
+        processing: { label: 'Processing', bg: 'bg-yellow-100', text: 'text-yellow-700', dot: 'bg-yellow-500' },
+        shipped: { label: 'Shipped', bg: 'bg-cyan-100', text: 'text-cyan-700', dot: 'bg-cyan-500' },
+        out_for_delivery: { label: 'Out for Delivery', bg: 'bg-indigo-100', text: 'text-indigo-700', dot: 'bg-indigo-500' },
+        delivered: { label: 'Delivered', bg: 'bg-green-100', text: 'text-green-700', dot: 'bg-green-500' },
+        cancelled: { label: 'Cancelled', bg: 'bg-red-100', text: 'text-red-700', dot: 'bg-red-500' },
+        partially_cancelled: { label: 'Partially Cancelled', bg: 'bg-orange-100', text: 'text-orange-700', dot: 'bg-orange-500' },
+        returned: { label: 'Returned', bg: 'bg-purple-100', text: 'text-purple-700', dot: 'bg-purple-500' },
+      };
+
+      const PILL_CONFIG = {
+        pending: 'bg-gray-50 text-gray-600',
+        confirmed: 'bg-blue-50 text-blue-600',
+        processing: 'bg-yellow-50 text-yellow-700',
+        shipped: 'bg-cyan-50 text-cyan-700',
+        out_for_delivery: 'bg-indigo-50 text-indigo-700',
+        delivered: 'bg-green-50 text-green-700',
+        cancelled: 'bg-red-50 text-red-600',
+        returned: 'bg-purple-50 text-purple-700',
+      };
+
+      function statusBadgeHtml(status) {
+        const sc = STATUS_CONFIG[status] || { label: status, bg: 'bg-gray-100', text: 'text-gray-700', dot: 'bg-gray-400' };
+        return `<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium w-32 ${sc.bg} ${sc.text}">
+      <span class="w-1.5 h-1.5 rounded-full shrink-0 ${sc.dot} mr-1.5"></span><span class="truncate">${sc.label}</span></span>`;
+      }
+
+      function pillHtml(status) {
+        const cls = PILL_CONFIG[status] || 'bg-gray-50 text-gray-600';
+        const lbl = status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        return `<span class="text-[10px] px-1.5 py-0.5 rounded-full font-medium ${cls}">${lbl}</span>`;
+      }
+
+      function escHtml(s) {
+        return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+      }
+
+      // ── Change Order Status ────────────────────────────────────────────────
+      const ADMIN_FORWARD = {
+        pending: ['confirmed', 'processing', 'shipped', 'out_for_delivery', 'delivered', 'cancelled'],
+        confirmed: ['processing', 'shipped', 'out_for_delivery', 'delivered', 'cancelled'],
+        processing: ['shipped', 'out_for_delivery', 'delivered', 'cancelled'],
+        shipped: ['out_for_delivery', 'delivered', 'cancelled'],
+        out_for_delivery: ['delivered', 'cancelled'],
+        delivered: ['returned'],
+        partially_cancelled: ['cancelled'],
+        cancelled: [],
+        returned: [],
+        expired: [],
+      };
+
+      async function changeOrderStatus(orderId, newStatus) {
+        if (!newStatus) { showToast('Please select a next status first.', 'error'); return; }
+        try {
+          const res = await fetch(`/admin/orders/${orderId}/status`, {
+            method: 'PATCH',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: newStatus })
+          });
+          const data = await res.json();
+          if (data.success) {
+            showToast('Order status updated.', 'success');
+          } else {
+            showToast(data.message || 'Update failed.', 'error');
+          }
+          // Refresh current page regardless of success/fail to reflect latest state
+          let pg = 1;
+          document.querySelectorAll('#paginationWrap button[data-page]').forEach(b => { if (b.classList.contains('bg-gray-900')) pg = Number(b.dataset.page); });
+          fetchOrders(pg);
+        } catch {
+          showToast('Network error.', 'error');
+        }
+      }
+
+      // ── Export CSV ──────────────────────────────────────────────────────────
+      function exportCSV() {
+        const q = searchInput.value.trim();
+        const sort = sortSelect.value;
+        window.location.href = `/admin/orders/export?q=${encodeURIComponent(q)}&sort=${sort}&status=${currentStatus}`;
+      }
+
+      // ── Fetch ──────────────────────────────────────────────────────────────
+      function fetchOrders(page = 1) {
+        const q = searchInput.value.trim();
+        const sort = sortSelect.value;
+        searchSpinner.classList.remove('hidden');
+        fetch(`/admin/orders?q=${encodeURIComponent(q)}&sort=${sort}&status=${currentStatus}&page=${page}&ajax=1`, { credentials: 'include' })
+          .then(r => r.json())
+          .then(data => {
+            renderTable(data.orders);
+            renderPagination(data.currentPage, data.totalPages);
+            showingInfo.innerHTML = `Showing <span class="font-semibold">${data.showingFrom}–${data.showingTo}</span> of <span class="font-semibold">${data.total}</span> orders`;
+            totalBadge.textContent = `Total: ${data.total}`;
+            clearBtn.classList.toggle('hidden', !q);
+            history.pushState({}, '', `/admin/orders?q=${encodeURIComponent(q)}&sort=${sort}&status=${currentStatus}&page=${page}`);
+          })
+          .catch(() => showToast('Failed to load orders.', 'error'))
+          .finally(() => {
+            searchSpinner.classList.add('hidden');
+          });
+      }
+
+      //Debounced Suggestions 
+      function fetchSuggestions() {
+        const q = searchInput.value.trim();
+        if (!q) {
+          searchSuggestions.classList.add('hidden');
+          fetchOrders(1); // regular clear fetch
+          return;
+        }
+
+        searchSpinner.classList.remove('hidden');
+        searchSuggestions.classList.remove('hidden');
+
+        // Using the same endpoint but primarily we care about `data.orders` for suggestions
+        fetch(`/admin/orders?q=${encodeURIComponent(q)}&sort=${sortSelect.value}&status=${currentStatus}&page=1&ajax=1`, { credentials: 'include' })
+          .then(r => r.json())
+          .then(data => {
+            // Also update the table in the background for real-time filtering
+            renderTable(data.orders);
+            renderPagination(data.currentPage, data.totalPages);
+            showingInfo.innerHTML = `Showing <span class="font-semibold">${data.showingFrom}–${data.showingTo}</span> of <span class="font-semibold">${data.total}</span> orders`;
+            totalBadge.textContent = `Total: ${data.total}`;
+            clearBtn.classList.remove('hidden');
+
+            // Populate suggestion dropdown
+            if (!data.orders || data.orders.length === 0) {
+              searchSuggestions.innerHTML = `<div class="p-3 text-sm text-gray-500 text-center"><i class="bi bi-emoji-frown mr-1"></i> Not found</div>`;
+            } else {
+              searchSuggestions.innerHTML = data.orders.map(o => {
+                const firstName = o.shippingAddress?.firstName || '?';
+                const lastName = o.shippingAddress?.lastName || '';
+                return `<div class="px-3 py-2 border-b border-gray-100 last:border-0 hover:bg-gray-50 cursor-pointer flex flex-col" onclick="selectSuggestion('${escHtml(o.orderId)}')">
+                     <span class="font-mono text-xs font-semibold text-gray-800">${escHtml(o.orderId)}</span>
+                     <span class="text-[10px] text-gray-500">${escHtml(firstName)} ${escHtml(lastName)}</span>
+                   </div>`;
+              }).join('');
+            }
+          })
+          .catch(() => {
+            searchSuggestions.innerHTML = `<div class="p-3 text-sm text-red-400 text-center">Failed to load suggestions</div>`;
+          })
+          .finally(() => searchSpinner.classList.add('hidden'));
+      }
+
+      function selectSuggestion(orderId) {
+        searchInput.value = orderId;
+        searchSuggestions.classList.add('hidden');
+        fetchOrders(1);
+      }
+
+      // Hide suggestions when clicking outside
+      document.addEventListener('click', (e) => {
+        if (!searchInput.contains(e.target) && !searchSuggestions.contains(e.target)) {
+          searchSuggestions.classList.add('hidden');
+        }
+      });
+
+      searchInput.addEventListener('input', () => {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => fetchSuggestions(), 400);
+      });
+
+      // Also open on focus if input has value
+      searchInput.addEventListener('focus', () => {
+        if (searchInput.value.trim().length > 0 && searchSuggestions.innerHTML.trim() !== '') {
+          searchSuggestions.classList.remove('hidden');
+        }
+      });
+
+      sortSelect.addEventListener('change', () => fetchOrders(1));
+      paginationWrap.addEventListener('click', e => { const btn = e.target.closest('[data-page]'); if (btn) fetchOrders(Number(btn.dataset.page)); });
+      function clearSearch() { searchInput.value = ''; searchSuggestions.classList.add('hidden'); clearBtn.classList.add('hidden'); fetchOrders(1); }
+
+      document.getElementById('statusTabs').addEventListener('click', e => {
+        const btn = e.target.closest('[data-status]');
+        if (!btn) return;
+        currentStatus = btn.dataset.status;
+        document.querySelectorAll('.status-tab').forEach(b => {
+          const active = b.dataset.status === currentStatus;
+          b.className = `status-tab px-4 py-2 rounded text-sm font-medium transition border ${active ? 'bg-gray-900 text-white border-gray-900' : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'}`;
+        });
+        fetchOrders(1);
+      });
+
+      // ── Render Table ───────────────────────────────────────────────────────
+      function renderTable(orders) {
+        const tbody = document.getElementById('ordersTableBody');
+        if (!orders || orders.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="5" class="px-5 py-12 text-center text-gray-400">
+        <i class="bi bi-bag text-3xl block mb-2"></i>No orders found.</td></tr>`;
+          return;
+        }
+        tbody.innerHTML = orders.map(o => {
+          const firstName = o.shippingAddress?.firstName || '?';
+          const lastName = o.shippingAddress?.lastName || '';
+          const email = o.shippingAddress?.email || '';
+          const initial = firstName[0].toUpperCase();
+          const dateStr = new Date(o.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+
+          return `
+        <tr class="order-row transition align-top" data-order-id="${o._id}">
+          <td class="px-5 py-3.5">
+            <span class="font-mono text-xs font-semibold text-gray-800 block">${escHtml(o.orderId)}</span>
+          </td>
+          <td class="px-5 py-3.5 text-xs text-gray-500 whitespace-nowrap">${dateStr}</td>
+          <td class="px-5 py-3.5">
+            <div class="flex items-center gap-2">
+              <div class="w-9 h-9 shrink-0 rounded-full bg-gray-200 text-gray-700 flex items-center justify-center text-xs font-semibold">${initial}</div>
+              <div class="min-w-0">
+                <p class="text-sm font-medium text-gray-800 truncate">${escHtml(firstName)} ${escHtml(lastName)}</p>
+                <p class="text-[10px] text-gray-400 truncate max-w-[120px]">${escHtml(email)}</p>
+              </div>
+            </div>
+          </td>
+          <td class="px-5 py-3.5">
+            <div class="flex flex-col gap-2">
+              ${statusBadgeHtml(o.orderStatus)}
+            </div>
+          </td>
+          <td class="px-5 py-3.5">
+            <div class="flex items-center gap-2 text-sm font-medium">
+              <button onclick="openOrderModal('${o._id}')" class="text-blue-600 hover:text-blue-800 transition">View Detail</button>
+              <span class="text-gray-300">|</span>
+              <button onclick="openDeleteConfirm('${o._id}','${escHtml(o.orderId)}')" class="text-red-500 hover:text-red-700 transition">Delete</button>
+            </div>
+          </td>
+        </tr>`;
+        }).join('');
+      }
+
+      function renderPagination(current, total) {
+        if (total === 0) { paginationWrap.innerHTML = ''; return; }
+        let html = current > 1
+          ? `<button data-page="${current - 1}" class="inline-flex items-center justify-center w-8 h-8 text-sm rounded border border-gray-200 bg-white hover:bg-gray-50 transition"><i class="bi bi-chevron-left text-xs"></i></button>`
+          : `<span class="inline-flex items-center justify-center w-8 h-8 text-sm rounded border border-gray-200 bg-white opacity-40 cursor-not-allowed"><i class="bi bi-chevron-left text-xs"></i></span>`;
+        for (let i = 1; i <= total; i++) {
+          const cls = i === current ? 'bg-gray-900 text-white border-gray-900' : 'border-gray-200 bg-white hover:bg-gray-50 text-gray-700';
+          html += `<button data-page="${i}" class="inline-flex items-center justify-center w-8 h-8 text-sm rounded border transition ${cls}">${i}</button>`;
+        }
+        html += current < total
+          ? `<button data-page="${current + 1}" class="inline-flex items-center justify-center w-8 h-8 text-sm rounded border border-gray-200 bg-white hover:bg-gray-50 transition"><i class="bi bi-chevron-right text-xs"></i></button>`
+          : `<span class="inline-flex items-center justify-center w-8 h-8 text-sm rounded border border-gray-200 bg-white opacity-40 cursor-not-allowed"><i class="bi bi-chevron-right text-xs"></i></span>`;
+        paginationWrap.innerHTML = html;
+      }
+
+      // ── Order Detail Modal ─────────────────────────────────────────────────
+      function openOrderModal(orderId) {
+        _openOrderId = orderId;
+        const modal = document.getElementById('orderModal');
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        document.getElementById('orderModalBody').innerHTML =
+          `<div class="flex items-center justify-center py-10 text-gray-400"><i class="bi bi-arrow-repeat animate-spin text-2xl mr-2"></i> Loading…</div>`;
+        fetch(`/admin/orders/${orderId}?ajax=1`, { credentials: 'include' })
+          .then(r => r.json())
+          .then(data => { if (!data.success) { showToast('Failed to load order.', 'error'); closeOrderModal(); return; } renderOrderModal(data.order); })
+          .catch(() => { showToast('Network error.', 'error'); closeOrderModal(); });
+      }
+
+      function renderOrderModal(o) {
+        document.getElementById('modalOrderId').textContent = '#' + o.orderId;
+        const addr = o.shippingAddress || {};
+        const hasCoupon = (o.discount > 0);
+
+        // Payment badge
+        const payBadge = { paid: '<span class="px-2.5 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">Paid</span>', refunded: '<span class="px-2.5 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">Refunded</span>', pending: '<span class="px-2.5 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-medium">Unpaid</span>' }[o.paymentStatus]
+          || `<span class="px-2.5 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">${escHtml(o.paymentStatus || '—')}</span>`;
+
+        // Per-item offer discount = lineTotal - finalAmount
+        const itemsHtml = (o.items || []).map(item => {
+          const iStatus = (item.status && item.status !== 'pending') ? item.status : o.orderStatus;
+          const sc = STATUS_CONFIG[iStatus] || { label: iStatus, bg: 'bg-gray-100', text: 'text-gray-700', dot: 'bg-gray-400' };
+          const offerSave = (item.lineTotal || 0) - (item.finalAmount || 0) - (item.couponDiscount || 0);
+          return `
+        <div class="border border-gray-100 rounded-xl p-3">
+          <div class="flex gap-3 items-start">
+            <div class="w-14 h-14 shrink-0 rounded-lg overflow-hidden border border-gray-100 bg-gray-50 flex items-center justify-center">
+              <img src="${escHtml(item.productImage || '')}" class="w-full h-full object-cover"
+                onerror="this.style.display='none';this.parentNode.innerHTML='<i class=\\'bi bi-image text-gray-300 text-xl\\'></i>'"/>
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="font-medium text-gray-800 text-sm truncate">${escHtml(item.productName)}</p>
+              <p class="text-xs text-gray-400 mt-0.5">
+                Qty: ${item.quantity} &nbsp;·&nbsp;
+                MRP: ₹${Number(item.unitPrice).toLocaleString('en-IN')}
+                ${offerSave > 0 ? `&nbsp;·&nbsp; <span class="text-green-600">Offer −₹${Number(offerSave).toLocaleString('en-IN')}</span>` : ''}
+                ${(item.couponDiscount || 0) > 0 ? `&nbsp;·&nbsp; <span class="text-blue-600">Coupon −₹${Number(item.couponDiscount).toLocaleString('en-IN')}</span>` : ''}
+              </p>
+              ${item.cancelReason ? `<p class="text-xs text-red-500 mt-1"><i class="bi bi-x-circle mr-1"></i>${escHtml(item.cancelReason)}</p>` : ''}
+              ${item.returnReason ? `<p class="text-xs text-purple-500 mt-1"><i class="bi bi-arrow-return-left mr-1"></i>${escHtml(item.returnReason)}</p>` : ''}
+            </div>
+            <div class="text-right shrink-0 flex flex-col items-end gap-1.5">
+              <p class="font-bold text-gray-800">₹${Number(item.finalAmount ?? item.lineTotal ?? 0).toLocaleString('en-IN')}</p>
+              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium w-fit ${sc.bg} ${sc.text} item-modal-badge-${item._id}">
+                <span class="w-1.5 h-1.5 rounded-full ${sc.dot} mr-1"></span>${sc.label}
+              </span>
+              ${hasCoupon ?
+              `<span class="text-[10px] text-amber-600 italic bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100">Coupon: glob. updt only</span>` :
+              (!ADMIN_FORWARD[iStatus] || ADMIN_FORWARD[iStatus].length === 0) ? `<span class="text-[10px] text-gray-400 italic">Terminal state</span>` :
+                `<button onclick="openItemStatusModal('${o._id}','${item._id}','${escHtml(item.productName).replace(/'/g, "\\'")}','${iStatus}')"
+                class="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-medium bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-800 transition border border-blue-100"><i class="bi bi-pencil-fill" style="font-size:8px"></i> Edit Status</button>`
+            }
+            </div>
+          </div>
+        </div>`;
+        }).join('');
+
+        // Price breakdown
+        const subtotal = o.subtotal || 0;
+        const couponDiscount = o.discount || 0;  // order-level coupon
+        const shipping = o.shipping || 0;
+        const totalAmount = o.totalAmount || 0;
+        const refundAmount = o.refundAmount || 0;
+        // Offer discount = subtotal - (sum of lineTotals) if any
+        const sumLineTotals = (o.items || []).reduce((s, i) => s + (i.lineTotal || 0), 0);
+        const offerDiscount = sumLineTotals > 0 ? Math.max(0, sumLineTotals - subtotal) : 0;
+
+        document.getElementById('orderModalBody').innerHTML = `
+
+      <!-- Status row -->
+      <div class="flex items-center gap-2 flex-wrap pb-4 mb-4 border-b border-gray-100">
+        ${statusBadgeHtml(o.orderStatus)}
+        ${payBadge}
+        <span class="text-xs text-gray-400">via <span class="font-medium text-gray-600 uppercase">${escHtml(o.paymentMethod || '—')}</span></span>
+        <span class="ml-auto text-xs text-gray-400">${new Date(o.createdAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+      </div>
+
+      <!-- Global Update -->
+      ${(() => {
+            const nextList = ADMIN_FORWARD[o.orderStatus] || [];
+            if (nextList.length === 0) return '';
+            const opts = nextList.map(s => `<option value="${s}">${(STATUS_CONFIG[s] || { label: s }).label}</option>`).join('');
+            return `
+        <div class="bg-gray-50 border border-gray-200 rounded-lg p-3 flex items-center justify-between mb-4">
+          <div>
+            <p class="text-xs font-bold text-gray-800">Update Order Status</p>
+            ${hasCoupon ? '<p class="text-[9px] text-amber-600 italic">Coupon applied, individual items cannot be updated.</p>' : ''}
+          </div>
+          <div class="flex items-center gap-2">
+            <select id="modalGlobalStatusSelect" class="border rounded px-2 py-1.5 text-xs outline-none">
+              <option value="">— select next —</option>
+              ${opts}
+            </select>
+            <button onclick="changeOrderStatus('${o._id}', document.getElementById('modalGlobalStatusSelect').value); closeOrderModal();" class="px-3 py-1.5 bg-gray-900 text-white text-xs font-bold rounded hover:bg-black transition">
+              Apply
+            </button>
+          </div>
+        </div>
+        `;
+          })()}
+
+      <!-- Customer & Address -->
+      <div class="border border-gray-100 rounded-xl p-4">
+        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Customer & Delivery</p>
+        <div class="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+          <div>
+            <p class="text-xs text-gray-400">Name</p>
+            <p class="font-medium text-gray-800">${escHtml((addr.firstName || '') + ' ' + (addr.lastName || ''))}</p>
+          </div>
+          <div>
+            <p class="text-xs text-gray-400">Phone</p>
+            <p class="font-medium text-gray-800">${escHtml(addr.phone || '—')}</p>
+          </div>
+          <div>
+            <p class="text-xs text-gray-400">Email</p>
+            <p class="font-medium text-gray-800 break-all">${escHtml(addr.email || '—')}</p>
+          </div>
+          <div>
+            <p class="text-xs text-gray-400">Pincode</p>
+            <p class="font-medium text-gray-800">${escHtml(addr.pincode || '—')}</p>
+          </div>
+          <div class="col-span-2">
+            <p class="text-xs text-gray-400">Address</p>
+            <p class="font-medium text-gray-800 leading-relaxed">
+              ${[addr.addressLine, addr.street, addr.state, addr.country].filter(Boolean).map(escHtml).join(', ')}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Items -->
+      <div>
+        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Order Items</p>
+        <div class="space-y-2">${itemsHtml || '<p class="text-xs text-gray-400">No items.</p>'}</div>
+      </div>
+
+      <!-- Price Breakdown -->
+      <div class="border border-gray-100 rounded-xl p-4">
+        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Price Breakdown</p>
+        <div class="space-y-2 text-sm">
+          <div class="flex justify-between text-gray-600">
+            <span>MRP Total</span>
+            <span>₹${Number(sumLineTotals || subtotal).toLocaleString('en-IN')}</span>
+          </div>
+          ${offerDiscount > 0 ? `
+          <div class="flex justify-between text-green-600">
+            <span class="flex items-center gap-1"><i class="bi bi-tag-fill text-xs"></i> Offer Discount</span>
+            <span>−₹${Number(offerDiscount).toLocaleString('en-IN')}</span>
+          </div>` : ''}
+          <div class="flex justify-between text-gray-600">
+            <span>Subtotal</span>
+            <span>₹${Number(subtotal).toLocaleString('en-IN')}</span>
+          </div>
+          ${couponDiscount > 0 ? `
+          <div class="flex justify-between text-blue-600">
+            <span class="flex items-center gap-1.5">
+              <i class="bi bi-ticket-perforated-fill text-xs"></i> Coupon
+              ${o.couponCode ? `<span class="font-mono text-[10px] bg-blue-50 px-1.5 py-0.5 rounded">${escHtml(o.couponCode)}</span>` : ''}
+            </span>
+            <span>−₹${Number(couponDiscount).toLocaleString('en-IN')}</span>
+          </div>` : ''}
+          <div class="flex justify-between text-gray-600">
+            <span>Shipping</span>
+            <span class="${shipping === 0 ? 'text-green-600' : ''}">${shipping === 0 ? 'Free' : '₹' + Number(shipping).toLocaleString('en-IN')}</span>
+          </div>
+          <div class="flex justify-between pt-2 border-t border-gray-100 font-bold text-base text-gray-800">
+            <span>Total Paid</span>
+            <span>₹${Number(totalAmount).toLocaleString('en-IN')}</span>
+          </div>
+          ${refundAmount > 0 ? `
+          <div class="flex justify-between text-purple-600 pt-1">
+            <span class="flex items-center gap-1"><i class="bi bi-wallet2 text-xs"></i> Refunded to Wallet</span>
+            <span class="font-semibold">₹${Number(refundAmount).toLocaleString('en-IN')}</span>
+          </div>
+          <div class="flex justify-between text-gray-500 text-xs">
+            <span>Net Amount</span>
+            <span>₹${Number(totalAmount - refundAmount).toLocaleString('en-IN')}</span>
+          </div>` : ''}
+        </div>
+      </div>
+
+      ${o.razorpayOrderId ? `
+      <div class="border border-gray-100 rounded-xl p-4">
+        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Payment Reference</p>
+        <div class="space-y-1 text-xs font-mono text-gray-600 break-all">
+          <p><span class="text-gray-400">Order ID: </span>${escHtml(o.razorpayOrderId)}</p>
+          ${o.razorpayPaymentId ? `<p><span class="text-gray-400">Payment ID: </span>${escHtml(o.razorpayPaymentId)}</p>` : ''}
+        </div>
+      </div>` : ''}
+
+      ${o.cancelReason ? `
+      <div class="p-3 bg-red-50 border border-red-100 rounded-xl text-xs text-red-700 flex items-start gap-2">
+        <i class="bi bi-x-circle-fill mt-0.5 shrink-0"></i>
+        <span><b>Cancel Reason:</b> ${escHtml(o.cancelReason)}</span>
+      </div>` : ''}
+    `;
+      }
+
+      function closeOrderModal() {
+        document.getElementById('orderModal').classList.add('hidden');
+        document.getElementById('orderModal').classList.remove('flex');
+        _openOrderId = null;
+      }
+
+      // ── Item Status Modal ──────────────────────────────────────────────────
+      function openItemStatusModal(orderId, itemId, productName, currentItemStatus) {
+        _activeOrderId = orderId;
+        _activeItemId = itemId;
+        document.getElementById('itemModalSubtitle').textContent = productName;
+
+        const validNext = ADMIN_FORWARD[currentItemStatus] || [];
+        const select = document.getElementById('itemStatusSelect');
+        let opts = '<option value="">— select next —</option>';
+        validNext.forEach(st => {
+          opts += `<option value="${st}">${(STATUS_CONFIG[st] || { label: st }).label}</option>`;
+        });
+        select.innerHTML = opts;
+
+        // Hide the order modal backdrop to prevent double-dark overlay
+        const orderModal = document.getElementById('orderModal');
+        if (!orderModal.classList.contains('hidden')) {
+          orderModal.style.visibility = 'hidden';
+        }
+
+        const modal = document.getElementById('itemStatusModal');
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+      }
+
+      function closeItemStatusModal() {
+        document.getElementById('itemStatusModal').classList.add('hidden');
+        document.getElementById('itemStatusModal').classList.remove('flex');
+
+        // Restore order modal if it was behind
+        const orderModal = document.getElementById('orderModal');
+        orderModal.style.visibility = '';
+
+        _activeOrderId = null;
+        _activeItemId = null;
+      }
+
+      async function saveItemStatus() {
+        if (!_activeOrderId || !_activeItemId) return;
+        const newStatus = document.getElementById('itemStatusSelect').value;
+        try {
+          const res = await fetch(`/admin/orders/${_activeOrderId}/items/${_activeItemId}/status`, {
+            method: 'PATCH', credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: newStatus }),
+          });
+          const data = await res.json();
+          if (!data.success) { showToast(data.message || 'Update failed.', 'error'); return; }
+
+          showToast('Item status updated.', 'success');
+          closeItemStatusModal();
+
+          let pg = 1;
+          document.querySelectorAll('#paginationWrap button[data-page]').forEach(b => { if (b.classList.contains('bg-gray-900')) pg = Number(b.dataset.page); });
+          fetchOrders(pg);
+          if (_activeOrderId) openOrderModal(_activeOrderId);
+
+        } catch { showToast('Network error.', 'error'); }
+      }
+
+      // ── Delete ─────────────────────────────────────────────────────────────
+      function openDeleteConfirm(id, label) {
+        _deleteId = id;
+        document.getElementById('confirmDesc').textContent = `Permanently delete order ${label}? This cannot be undone.`;
+        document.getElementById('confirmModal').classList.remove('hidden');
+        document.getElementById('confirmModal').classList.add('flex');
+      }
+
+      function closeDeleteConfirm() {
+        document.getElementById('confirmModal').classList.add('hidden');
+        document.getElementById('confirmModal').classList.remove('flex');
+        _deleteId = null;
+      }
+
+      document.getElementById('confirmDeleteBtn').addEventListener('click', async () => {
+        const id = _deleteId;
+        closeDeleteConfirm();
+        try {
+          const res = await fetch(`/admin/orders/${id}/delete`, { method: 'DELETE', credentials: 'include' });
+          const data = await res.json();
+          if (data.success) {
+            let pg = 1;
+            document.querySelectorAll('#paginationWrap button[data-page]').forEach(b => { if (b.classList.contains('bg-gray-900')) pg = Number(b.dataset.page); });
+            const rows = document.querySelectorAll('#ordersTableBody tr[data-order-id]');
+            showToast('Order deleted.', 'success');
+            fetchOrders(rows.length <= 1 && pg > 1 ? pg - 1 : pg);
+          } else { showToast(data.message || 'Delete failed.', 'error'); }
+        } catch { showToast('Network error.', 'error'); }
+      });
+
+      // ── Toast ──────────────────────────────────────────────────────────────
+      let _toastTimer = null;
+      function showToast(msg, type = 'success') {
+        const toast = document.getElementById('toast');
+        document.getElementById('toastMsg').textContent = msg;
+        const icons = { success: 'bi bi-check-circle-fill', warning: 'bi bi-exclamation-circle-fill', error: 'bi bi-x-circle-fill' };
+        const bgs = { success: 'bg-green-600', warning: 'bg-amber-500', error: 'bg-red-600' };
+        document.getElementById('toastIcon').className = `${icons[type] || icons.success} text-lg shrink-0`;
+        toast.className = `fixed top-[72px] right-5 z-[9999] flex items-center gap-3 px-5 py-3.5 rounded-xl shadow-xl text-white text-sm font-medium min-w-[220px] max-w-xs ${bgs[type] || bgs.success}`;
+        toast.classList.remove('hidden');
+        if (_toastTimer) clearTimeout(_toastTimer);
+        _toastTimer = setTimeout(() => toast.classList.add('hidden'), 3500);
+      }
+    </script>
+  </body>
+
+  </html>

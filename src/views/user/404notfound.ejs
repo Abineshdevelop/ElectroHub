@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ElectroHub - Page Not Found</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+
+    .float {
+      animation: float 3s ease-in-out infinite;
+    }
+    @keyframes float {
+      0%, 100% { transform: translateY(0px); }
+      50%       { transform: translateY(-16px); }
+    }
+
+    .glow {
+      animation: glow 3s ease-in-out infinite;
+    }
+    @keyframes glow {
+      0%, 100% { opacity: 0.15; transform: scale(1); }
+      50%       { opacity: 0.25; transform: scale(1.05); }
+    }
+
+    .dash {
+      stroke-dasharray: 8 6;
+      animation: dash 1s linear infinite;
+    }
+    @keyframes dash {
+      to { stroke-dashoffset: -28; }
+    }
+
+    .bounce-dot {
+      animation: bounceDot 1.4s ease-in-out infinite;
+    }
+    .bounce-dot:nth-child(2) { animation-delay: 0.2s; }
+    .bounce-dot:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes bounceDot {
+      0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+      40%           { transform: scale(1);   opacity: 1; }
+    }
+  </style>
+</head>
+
+<body class="bg-gray-50 text-gray-800 overflow-x-hidden">
+
+  <%- include('./partials/navbar', { user }) %>
+
+  <div class="min-h-[calc(100vh-64px)] flex flex-col items-center justify-center px-4 py-16 relative">
+
+    <!-- Background blobs -->
+    <div class="absolute inset-0 overflow-hidden pointer-events-none">
+      <div class="glow absolute top-1/4 left-1/4 w-72 h-72 bg-red-400 rounded-full blur-3xl"></div>
+      <div class="glow absolute bottom-1/4 right-1/4 w-96 h-96 bg-orange-300 rounded-full blur-3xl" style="animation-delay:1.5s"></div>
+      <div class="glow absolute top-1/2 left-1/2 w-64 h-64 bg-pink-300 rounded-full blur-3xl" style="animation-delay:0.8s"></div>
+    </div>
+
+    <!-- Main card -->
+    <div class="relative z-10 bg-white rounded-3xl shadow-xl border border-gray-100 px-10 py-14 max-w-lg w-full text-center">
+
+      <!-- Floating illustration -->
+      <div class="float mb-6 flex justify-center">
+        <div class="relative">
+          <!-- Outer ring -->
+          <svg width="160" height="160" viewBox="0 0 160 160" class="absolute inset-0">
+            <circle cx="80" cy="80" r="74" fill="none" stroke="#fee2e2" stroke-width="2" class="dash"/>
+          </svg>
+          <!-- Circle bg -->
+          <div class="w-40 h-40 rounded-full bg-gradient-to-br from-red-50 to-orange-50 flex items-center justify-center border-4 border-red-100">
+            <!-- Cart with X -->
+            <div class="relative">
+              <i class="bi bi-cart3 text-6xl text-red-400"></i>
+              <div class="absolute -top-2 -right-2 w-7 h-7 bg-red-500 rounded-full flex items-center justify-center shadow-md">
+                <i class="bi bi-x text-white text-sm font-bold"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 404 -->
+      <div class="flex items-center justify-center gap-3 mb-3">
+        <div class="h-px flex-1 bg-gradient-to-r from-transparent to-red-200"></div>
+        <span class="text-8xl font-black bg-gradient-to-br from-red-500 to-orange-400 bg-clip-text text-transparent leading-none">
+          404
+        </span>
+        <div class="h-px flex-1 bg-gradient-to-l from-transparent to-red-200"></div>
+      </div>
+
+      <h2 class="text-2xl font-bold text-gray-800 mb-2">Page Not Found</h2>
+      <p class="text-gray-400 text-sm leading-relaxed mb-8">
+        Oops! The page you're looking for doesn't exist or has been moved.<br>
+        Let's get you back on track.
+      </p>
+
+      <!-- Loading dots -->
+      <div class="flex justify-center gap-2 mb-8">
+        <div class="bounce-dot w-2 h-2 bg-red-400 rounded-full"></div>
+        <div class="bounce-dot w-2 h-2 bg-red-400 rounded-full"></div>
+        <div class="bounce-dot w-2 h-2 bg-red-400 rounded-full"></div>
+      </div>
+
+      <!-- Buttons -->
+      <div class="flex flex-col sm:flex-row gap-3 justify-center">
+        <a href="/user/home"
+          class="flex items-center justify-center gap-2 bg-red-500 hover:bg-red-600 text-white font-semibold px-6 py-3 rounded-xl transition-all shadow-sm hover:shadow-md hover:-translate-y-0.5 text-sm">
+          <i class="bi bi-house-fill"></i> Back to Home
+        </a>
+        <a href="/user/list"
+          class="flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold px-6 py-3 rounded-xl transition-all text-sm">
+          <i class="bi bi-grid-fill"></i> Browse Products
+        </a>
+      </div>
+
+    </div>
+
+    <!-- Bottom hint -->
+    <p class="relative z-10 mt-8 text-xs text-gray-400 flex items-center gap-2">
+      <i class="bi bi-shield-check text-red-400"></i>
+      ElectroHub · Next-Gen Electronics
+    </p>
+
+  </div>
+
+</body>
+</html>

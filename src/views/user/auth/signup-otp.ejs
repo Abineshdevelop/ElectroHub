@@ -1,0 +1,297 @@
+<%- include('../partials/auth-header', { title: 'OTP Verification' }) %>
+
+<div id="toastContainer" class="fixed top-20 right-5 z-50 space-y-2"></div>
+
+<div class="w-full max-w-md bg-white shadow-lg rounded-xl p-8 text-center">
+
+  <h2 class="text-xl font-semibold text-gray-800 mb-6">OTP Verification</h2>
+
+  <form id="otpForm" class="space-y-4">
+
+    <div class="flex justify-center gap-4">
+      <input type="text" maxlength="1" inputmode="numeric"
+        class="otp-input w-12 h-12 text-center text-lg bg-gray-100 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 transition">
+      <input type="text" maxlength="1" inputmode="numeric"
+        class="otp-input w-12 h-12 text-center text-lg bg-gray-100 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 transition">
+      <input type="text" maxlength="1" inputmode="numeric"
+        class="otp-input w-12 h-12 text-center text-lg bg-gray-100 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 transition">
+      <input type="text" maxlength="1" inputmode="numeric"
+        class="otp-input w-12 h-12 text-center text-lg bg-gray-100 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 transition">
+    </div>
+
+    <p id="otpError" class="text-xs text-red-500 min-h-[16px]"></p>
+
+    <button type="submit" id="verifyBtn"
+      class="w-full bg-red-500 hover:bg-red-600 text-white py-2 rounded-md transition">
+      Verify OTP
+    </button>
+
+    <div class="text-sm">
+      <button type="button" id="resendBtn" disabled
+        class="text-gray-400 cursor-not-allowed">
+        Resend OTP?
+      </button>
+      <div class="text-gray-500 mt-1">
+        <span id="timer">--:--</span>
+      </div>
+    </div>
+
+    <p class="text-xs text-gray-400 mt-6">
+      By clicking continue, you agree to our
+      <a href="#" class="underline">Terms</a> &
+      <a href="#" class="underline">Privacy Policy</a>
+    </p>
+
+  </form>
+</div>
+
+<script>
+  // ✅ userId and otpExpiresAt injected server-side — no localStorage needed
+  let otpExpiresAt = <%= otpExpiresAt %>;
+  const userId = "<%= userId %>";
+
+  const otpForm = document.getElementById("otpForm");
+  const inputs = document.querySelectorAll(".otp-input");
+  const otpError = document.getElementById("otpError");
+  const resendBtn = document.getElementById("resendBtn");
+  const timerDisplay = document.getElementById("timer");
+  const verifyBtn = document.getElementById("verifyBtn");
+  const toastContainer = document.getElementById("toastContainer");
+
+  let timerInterval;
+  let maxAttemptLock = false;
+
+  // ─── Toast ────────────────────────────────────────────────
+  function showToast(message, type = "error") {
+    const toast = document.createElement("div");
+    toast.className = `px-4 py-2 rounded-lg shadow text-sm text-white transition ${
+      type === "success" ? "bg-green-600" :
+      type === "info"    ? "bg-blue-600"  : "bg-red-600"
+    }`;
+    toast.textContent = message;
+    toastContainer.appendChild(toast);
+    setTimeout(() => {
+      toast.classList.add("opacity-0");
+      setTimeout(() => toast.remove(), 300);
+    }, 3000);
+  }
+
+  // ─── Inline message ───────────────────────────────────────
+  function showMessage(message, type = "error") {
+    otpError.textContent = message;
+    otpError.className = "text-xs min-h-[16px] " + (
+      type === "success" ? "text-green-600" :
+      type === "info"    ? "text-blue-600"  : "text-red-500"
+    );
+    showToast(message, type);
+  }
+
+  // ─── Input helpers ────────────────────────────────────────
+  function clearInputs() {
+    inputs.forEach(i => (i.value = ""));
+    inputs[0]?.focus();
+  }
+
+  function resetInputs() {
+    inputs.forEach(i => {
+      i.value = "";
+      i.disabled = false;
+      i.classList.remove("bg-green-100", "ring-green-500", "ring-2");
+      i.classList.add("bg-gray-100");
+    });
+    verifyBtn.disabled = false;
+    verifyBtn.classList.remove("opacity-50", "cursor-not-allowed");
+    inputs[0]?.focus();
+  }
+
+  // ─── Lock / Unlock ────────────────────────────────────────
+  function lockInputsAndVerify() {
+    inputs.forEach(i => (i.disabled = true));
+    verifyBtn.disabled = true;
+    verifyBtn.classList.add("opacity-50", "cursor-not-allowed");
+  }
+
+  function unlockInputsAndVerify() {
+    inputs.forEach(i => (i.disabled = false));
+    verifyBtn.disabled = false;
+    verifyBtn.classList.remove("opacity-50", "cursor-not-allowed");
+  }
+
+  function lockResend() {
+    resendBtn.disabled = true;
+    resendBtn.classList.remove("text-blue-600", "hover:underline");
+    resendBtn.classList.add("text-gray-400", "cursor-not-allowed");
+  }
+
+  function unlockResend() {
+    resendBtn.disabled = false;
+    resendBtn.classList.remove("text-gray-400", "cursor-not-allowed");
+    resendBtn.classList.add("text-blue-600", "hover:underline");
+  }
+
+  // ─── OTP auto-move ────────────────────────────────────────
+  inputs.forEach((input, index) => {
+    input.addEventListener("input", () => {
+      input.value = input.value.replace(/[^0-9]/g, "");
+      if (input.value && index < inputs.length - 1) {
+        inputs[index + 1].focus();
+      }
+    });
+    input.addEventListener("keydown", e => {
+      if (e.key === "Backspace" && !input.value && index > 0) {
+        inputs[index - 1].focus();
+      }
+    });
+  });
+
+  // ─── Timer ────────────────────────────────────────────────
+  function startTimer(expiry) {
+    clearInterval(timerInterval);
+    lockResend();
+
+    timerInterval = setInterval(() => {
+      const diff = Math.max(0, Math.floor((expiry - Date.now()) / 1000));
+
+      if (diff <= 0) {
+        clearInterval(timerInterval);
+        timerDisplay.textContent = "Expired";
+
+        if (maxAttemptLock) {
+          maxAttemptLock = false;
+          unlockInputsAndVerify();
+        }
+
+        unlockResend();
+        showMessage("OTP expired. You can resend now.", "info");
+        return;
+      }
+
+      const m = String(Math.floor(diff / 60)).padStart(2, "0");
+      const s = String(diff % 60).padStart(2, "0");
+      timerDisplay.textContent = `${m}:${s}`;
+    }, 1000);
+  }
+
+  // Start on load
+  startTimer(otpExpiresAt);
+
+  // ─── Redirect helper ─────────────────────────────────────
+  function redirectToSignup(message) {
+    showMessage(message, "error");
+    lockInputsAndVerify();
+    lockResend();
+    setTimeout(() => {
+      window.location.replace("/user/signup");
+    }, 1500);
+  }
+
+  // ─── Verify OTP ───────────────────────────────────────────
+  otpForm.addEventListener("submit", async e => {
+    e.preventDefault();
+
+    if (maxAttemptLock) {
+      showMessage("Please wait until OTP expires.", "info");
+      return;
+    }
+
+    let otp = "";
+    inputs.forEach(i => (otp += i.value));
+
+    if (otp.length !== 4) {
+      clearInputs();
+      showMessage("Please enter 4 digit OTP.", "error");
+      return;
+    }
+
+    try {
+      const res = await fetch("/user/verify-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, otp })
+      });
+
+      const data = await res.json();
+
+      // ✅ Success
+      if (data.success) {
+        showMessage("OTP verified successfully!", "success");
+        clearInterval(timerInterval);
+        return setTimeout(() => {
+          window.location.replace(data.redirect);
+        }, 1200);
+      }
+
+      // Wrong OTP
+      if (data.code === "WRONG_OTP") {
+        showMessage(`Wrong OTP. Attempts left: ${data.attemptsLeft}`, "error");
+        resetInputs();
+        return;
+      }
+
+      // 5 wrong attempts — lock until timer expires
+      if (data.code === "LOCKED" || data.code === "WRONG_OTP" && data.attemptsLeft === 0) {
+        maxAttemptLock = true;
+        lockInputsAndVerify();
+        showMessage("Maximum attempts reached. Wait until OTP expires.", "info");
+        return;
+      }
+
+      // OTP expired
+      if (data.code === "OTP_EXPIRED") {
+        lockInputsAndVerify();
+        showMessage("OTP expired. Please resend.", "info");
+        return;
+      }
+
+      // Flow ended — delete user, redirect to signup
+      if (data.code === "RESTART_SIGNUP") {
+        redirectToSignup("Too many failed attempts. Please sign up again.");
+        return;
+      }
+
+      showMessage(data.message || "Verification failed.", "error");
+      resetInputs();
+
+    } catch (err) {
+      showMessage("Network error. Please try again.", "error");
+    }
+  });
+
+  // ─── Resend OTP ───────────────────────────────────────────
+  resendBtn.addEventListener("click", async () => {
+    lockResend();
+
+    try {
+      const res = await fetch("/user/resend-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId })
+      });
+
+      const data = await res.json();
+
+      // Flow ended — resend limit reached
+      if (!data.success && data.code === "FLOW_ENDED") {
+        redirectToSignup("Resend limit reached. Please sign up again.");
+        return;
+      }
+
+      if (!data.success) {
+        unlockResend();
+        showMessage(data.message || "Failed to resend OTP.", "error");
+        return;
+      }
+
+      otpExpiresAt = data.otpExpiresAt;
+      showMessage("New OTP sent!", "success");
+      resetInputs();
+      startTimer(otpExpiresAt);
+
+    } catch (err) {
+      unlockResend();
+      showMessage("Network error. Please try again.", "error");
+    }
+  });
+</script>
+
+<%- include('../partials/auth-footer') %>

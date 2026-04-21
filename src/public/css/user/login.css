@@ -1,0 +1,13 @@
+body {
+  background-color: #f8f9fa;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 420px;
+  background: #ffffff;
+}
+
+img {
+  max-width: 90%;
+}

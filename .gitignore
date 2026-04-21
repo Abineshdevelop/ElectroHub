@@ -1,0 +1,37 @@
+# Dependencies
+/node_modules
+/bower_components
+
+# Testing
+/coverage
+
+# Production
+/build
+/dist
+/tmp
+/out
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.log
+*.sqlite
+/express/logs
+
+# Environment variables
+.env
+.env.*
+
+# Editors and OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+node_modules
+.env
+.DS_Store

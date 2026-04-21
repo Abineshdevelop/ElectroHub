@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>ElectroHub - My Addresses</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  body { font-family: 'Inter', sans-serif; }
+
+  .nav-underline { position: relative; }
+  .nav-underline::after {
+    content: '';
+    position: absolute;
+    width: 0;
+    height: 2px;
+    bottom: -2px;
+    left: 0;
+    background-color: #dc3545;
+    transition: width 0.3s ease;
+  }
+  .nav-underline:hover::after { width: 100%; }
+
+  .dropdown-anim {
+    animation: fadeInDown 0.25s cubic-bezier(0.165, 0.84, 0.44, 1);
+  }
+  @keyframes fadeInDown {
+    from { opacity: 0; transform: translateY(10px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  #mobile-sidebar {
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  #mobile-sidebar.open { transform: translateX(0); }
+
+  #sidebar-overlay {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+  #sidebar-overlay.open {
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  #mobile-cat-list {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+  }
+  #mobile-cat-list.open { max-height: 200px; }
+
+  .sidebar-desktop { overflow-y: auto; }
+
+  /* ── Modal ── */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: .25s;
+    z-index: 1000;
+    padding: 16px;
+  }
+  .modal-overlay.show { opacity: 1; pointer-events: all; }
+
+  /* ── Field wrap ── */
+  .field-wrap { position: relative; }
+  .field-wrap label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    color: #6b7280;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  /* ── Input ── */
+  .input-style {
+    width: 100%;
+    padding: 11px 36px 11px 36px;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 12px;
+    background: #f9fafb;
+    font-size: 14px;
+    color: #111827;
+    transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+    box-sizing: border-box;
+  }
+  .input-style:focus {
+    outline: none;
+    border-color: #dc2626;
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(220,38,38,.1);
+  }
+  .input-style.valid   { border-color: #16a34a; background: #f0fdf4; }
+  .input-style.invalid { border-color: #dc2626; background: #fff5f5; }
+
+  /* ── Icons — fixed top so they never move ── */
+  .field-wrap .input-icon {
+    position: absolute;
+    left: 12px;
+    top: 42px;
+    transform: translateY(-50%);
+    color: #9ca3af;
+    font-size: 14px;
+    pointer-events: none;
+    transition: color 0.2s;
+    line-height: 1;
+  }
+  .check-icon {
+    position: absolute;
+    right: 10px;
+    top: 42px;
+    transform: translateY(-50%);
+    font-size: 14px;
+    color: #16a34a;
+    display: none;
+    line-height: 1;
+  }
+  .input-style.valid   ~ .check-icon  { display: block; }
+  .input-style.valid   ~ .input-icon  { color: #16a34a; }
+  .input-style.invalid ~ .input-icon  { color: #dc2626; }
+  .input-style:focus   ~ .input-icon  { color: #dc2626; }
+
+  /* ── Error text — always reserves space, no layout shift ── */
+  .error-text {
+    font-size: 11.5px;
+    color: #dc2626;
+    margin-top: 5px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-height: 18px;
+    visibility: hidden;
+  }
+  .error-text.hidden {
+    visibility: hidden;
+  }
+  .error-text:not(.hidden) {
+    visibility: visible;
+  }
+
+  /* ── Modal box ── */
+  .modal-box {
+    background: white;
+    border-radius: 24px;
+    padding: 32px;
+    width: 100%;
+    max-width: 520px;
+    max-height: 90vh;
+    overflow-y: auto;
+    position: relative;
+    box-shadow: 0 25px 60px rgba(0,0,0,0.15);
+  }
+  .modal-box::-webkit-scrollbar { width: 4px; }
+  .modal-box::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 4px; }
+
+  /* ── Address card action buttons ── */
+  .addr-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    height: 34px;
+    padding: 0 14px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 600;
+    transition: all 0.15s;
+    border: 1px solid transparent;
+    white-space: nowrap;
+    width: 140px;
+  }
+  .addr-btn-sm {
+    width: 80px;
+    min-width: unset;
+  }
+  .addr-btn:active { transform: scale(0.96); }
+  .addr-btn-blue  { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+  .addr-btn-blue:hover  { background: #dbeafe; }
+  .addr-btn-gray  { background: #f3f4f6; color: #4b5563; border-color: #e5e7eb; }
+  .addr-btn-gray:hover  { background: #e5e7eb; }
+  .addr-btn-amber { background: #fffbeb; color: #b45309; border-color: #fde68a; }
+  .addr-btn-amber:hover { background: #fef3c7; }
+  .addr-btn-red   { background: #fef2f2; color: #dc2626; border-color: #fecaca; }
+  .addr-btn-red:hover   { background: #fee2e2; }
+
+  .addr-btn-row {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 8px;
+    align-items: center;
+    padding-top: 12px;
+    border-top: 1px solid #f3f4f6;
+    min-height: 58px;
+  }
+</style>
+</head>
+
+<body class="bg-gray-50">
+
+  <%- include('../partials/navbar', { user }) %>
+
+  <div class="flex min-h-[calc(100vh-64px)]">
+    <%- include('../partials/sidebar', { user, activePage: 'address' }) %>
+
+    <main class="flex-1 px-4 md:px-8 py-6 md:py-8 overflow-x-hidden">
+
+      <div class="flex justify-between items-center mb-10">
+        <div>
+          <h2 class="text-3xl font-bold text-gray-900">My Addresses</h2>
+          <p class="text-sm text-gray-400 mt-1">Manage your saved delivery addresses</p>
+        </div>
+        <button onclick="openAddModal()"
+          class="bg-red-600 text-white px-5 py-2.5 rounded-xl font-semibold hover:bg-red-700 active:scale-95 transition-all flex items-center gap-2 shadow-md shadow-red-100">
+          <i class="bi bi-plus-lg"></i> Add Address
+        </button>
+      </div>
+
+      <% if (addresses.length === 0) { %>
+        <div class="flex flex-col items-center justify-center py-20 text-center">
+          <div class="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mb-4">
+            <i class="bi bi-geo-alt text-red-400 text-3xl"></i>
+          </div>
+          <h3 class="text-lg font-semibold text-gray-700 mb-1">No addresses yet</h3>
+          <p class="text-sm text-gray-400 mb-6">Add a delivery address to get started</p>
+          <button onclick="openAddModal()"
+            class="bg-red-600 text-white px-6 py-2.5 rounded-xl font-semibold hover:bg-red-700 transition shadow-md">
+            + Add First Address
+          </button>
+        </div>
+      <% } else { %>
+        <div class="grid md:grid-cols-2 gap-5">
+          <% addresses.forEach(addr => { %>
+            <div class="bg-white rounded-2xl p-7 shadow-sm border border-gray-100 relative hover:shadow-md transition-shadow duration-200">
+
+              <% if (addr.isDefault) { %>
+                <span class="absolute top-5 right-5 inline-flex items-center gap-1 bg-green-50 text-green-700 text-xs px-3 py-1 rounded-full font-semibold border border-green-100">
+                  <i class="bi bi-check-circle-fill text-green-500"></i> Default
+                </span>
+              <% } %>
+
+              <div class="flex items-start gap-4 mb-4">
+                <div class="w-11 h-11 rounded-full bg-red-50 flex items-center justify-center shrink-0">
+                  <i class="bi bi-person text-red-500 text-base"></i>
+                </div>
+                <div>
+                  <p class="font-bold text-gray-900 text-base leading-tight">
+                    <%= addr.firstName %> <%= addr.lastName %>
+                  </p>
+                  <p class="text-sm text-gray-400 mt-0.5">
+                    <%= addr.phone %> &nbsp;·&nbsp; <%= addr.email %>
+                  </p>
+                </div>
+              </div>
+
+              <div class="flex items-start gap-4 mb-5">
+                <div class="w-11 h-11 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
+                  <i class="bi bi-geo-alt text-blue-500 text-base"></i>
+                </div>
+                <p class="text-sm text-gray-600 leading-relaxed pt-2">
+                  <%= addr.address %>, <%= addr.street %>,<br>
+                  <%= addr.state %>, <%= addr.country %> –
+                  <span class="font-semibold text-gray-800"><%= addr.pincode %></span>
+                </p>
+              </div>
+
+              <div class="addr-btn-row">
+                <% if (!addr.isDefault) { %>
+                  <button onclick="setDefault('<%= addr._id %>')" class="addr-btn addr-btn-blue">
+                    <i class="bi bi-star"></i> Set Default
+                  </button>
+                <% } else { %>
+                  <button onclick="removeDefault('<%= addr._id %>')" class="addr-btn addr-btn-gray">
+                    <i class="bi bi-star-fill text-yellow-400"></i> Remove Default
+                  </button>
+                <% } %>
+
+                <button onclick="openEditModal(this)"
+                  data-id="<%= addr._id %>"
+                  data-firstname="<%= addr.firstName %>"
+                  data-lastname="<%= addr.lastName %>"
+                  data-phone="<%= addr.phone %>"
+                  data-email="<%= addr.email %>"
+                  data-address="<%= addr.address %>"
+                  data-street="<%= addr.street %>"
+                  data-state="<%= addr.state %>"
+                  data-country="<%= addr.country %>"
+                  data-pincode="<%= addr.pincode %>"
+                  class="addr-btn addr-btn-amber addr-btn-sm">
+                  <i class="bi bi-pencil"></i> Edit
+                </button>
+
+                <button onclick="openDeleteModal('<%= addr._id %>')" class="addr-btn addr-btn-red addr-btn-sm">
+                  <i class="bi bi-trash"></i> Delete
+                </button>
+              </div>
+
+            </div>
+          <% }) %>
+        </div>
+      <% } %>
+
+    </main>
+  </div>
+
+<!-- ── ADD MODAL ──────────────────────────────────────────────── -->
+<div id="addModal" class="modal-overlay">
+  <div class="modal-box">
+    <button onclick="closeAddModal()"
+      class="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 transition">
+      <i class="bi bi-x-lg text-sm"></i>
+    </button>
+    <div class="mb-6">
+      <h3 class="text-2xl font-bold text-gray-900">Add New Address</h3>
+      <p class="text-sm text-gray-400 mt-1">Fill in your delivery details below</p>
+    </div>
+    <form id="addForm" class="space-y-4" novalidate>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div class="field-wrap">
+          <label>First Name</label>
+          <input type="text" name="firstName" placeholder="John" class="input-style" autocomplete="given-name">
+          <i class="bi bi-person input-icon"></i>
+          <i class="bi bi-check-lg check-icon"></i>
+          <p class="error-text hidden"><i class="bi bi-exclamation-circle"></i><span></span></p>
+        </div>
+        <div class="field-wrap">
+          <label>Last Name</label>
+          <input type="text" name="lastName" placeholder="Doe" class="input-style" autocomplete="family-name">
+          <i class="bi bi-person input-icon"></i>
+          <i class="bi bi-check-lg check-icon"></i>
+          <p class="error-text hidden"><i class="bi bi-exclamation-circle"></i><span></span></p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div class="field-wrap">
+          <label>Phone</label>
+          <input type="tel" name="phone" placeholder="9876543210" class="input-style" maxlength="10" autocomplete="tel">
+          <i class="bi bi-telephone input-icon"></i>
+          <i class="bi bi-check-lg check-icon"></i>
+          <p class="error-text hidden"><i class="bi bi-exclamation-circle"></i><span></span></p>
+        </div>
+        <div class="field-wrap">
+          <label>Email</label>
+          <input type="email" name="email" placeholder="john@email.com" class="input-style" autocomplete="email">
+          <i class="bi bi-envelope input-icon"></i>
+          <i class="bi bi-check-lg check-icon"></i>
+          <p class="error-text hidden"><i class="bi bi-exclamation-circle"></i><span></span></p>
+        </div>
+      </div>
+
+      <div class="field-wrap">
+        <label>Address Line</label>
+        <input type="text" name="address" placeholder="House / Flat No, Building Name" class="input-style" autocomplete="address-line1">
+        <i class="bi bi-house input-icon"></i>
+        <i class="bi bi-check-lg check-icon"></i>
+        <p class="error-text hidden"><i class="bi bi-exclamation-circle"></i><span></span></p>
+      </div>
+
+      <div class="field-wrap">
+        <label>Street / Area</label>
+        <input type="text" name="street" placeholder="Street, Locality, Area" class="input-style" autocomplete="address-line2">
+        <i class="bi bi-signpost input-icon"></i>
+        <i class="bi bi-check-lg check-icon"></i>
+        <p class="error-text hidden"><i class="bi bi-exclamation-circle"></i><span></span></p>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div class="field-wrap">
+          <label>State</label>
+          <input type="text" name="state" placeholder="Kerala" class="input-style" autocomplete="address-level1">
+          <i class="bi bi-map input-icon"></i>
+          <i class="bi bi-check-lg check-icon"></i>
+          <p class="error-text hidden"><i class="bi bi-exclamation-circle"></i><span></span></p>
+        </div>
+        <div class="field-wrap">
+          <label>Country</label>
+          <input type="text" name="country" placeholder="India" class="input-style" autocomplete="country-name">
+          <i class="bi bi-globe input-icon"></i>
+          <i class="bi bi-check-lg check-icon"></i>
+          <p class="error-text hidden"><i class="bi bi-exclamation-circle"></i><span></span></p>
+        </div>
+      </div>
+
+      <div class="field-wrap">
+        <label>Pincode</label>
+        <input type="text" name="pincode" placeholder="682001" class="input-style" maxlength="6" autocomplete="postal-code">
+        <i class="bi bi-pin-map input-icon"></i>
+        <i class="bi bi-check-lg check-icon"></i>
+        <p class="error-text hidden"><i class="bi bi-exclamation-circle"></i><span></span></p>
+      </div>
+
+      <button type="submit"
+        class="w-full bg-red-600 text-white py-3 rounded-xl font-semibold hover:bg-red-700 active:scale-[0.98] transition-all shadow-md shadow-red-100 mt-2">
+        Save Address
+      </button>
+    </form>
+  </div>
+</div>
+
+<!-- ── EDIT MODAL ─────────────────────────────────────────────── -->
+<div id="editModal" class="modal-overlay">
+  <div class="modal-box">
+    <button onclick="closeEditModal()"
+      class="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 transition">
+      <i class="bi bi-x-lg text-sm"></i>
+    </button>
+    <div class="mb-6">
+      <h3 class="text-2xl font-bold text-gray-900">Edit Address</h3>
+      <p class="text-sm text-gray-400 mt-1">Update your delivery details below</p>
+    </div>
+    <form id="editForm" class="space-y-4" novalidate>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div class="field-wrap">
+          <label>First Name</label>
+          <input type="text" name="firstName" class="input-style" autocomplete="given-name">
+          <i class="bi bi-person input-icon"></i>
+          <i class="bi bi-check-lg check-icon"></i>
+          <p class="error-text hidden"><i class="bi bi-exclamation-circle"></i><span></span></p>
+        </div>
+        <div class="field-wrap">
+          <label>Last Name</label>
+          <input type="text" name="lastName" class="input-style" autocomplete="family-name">
+          <i class="bi bi-person input-icon"></i>
+          <i class="bi bi-check-lg check-icon"></i>
+          <p class="error-text hidden"><i class="bi bi-exclamation-circle"></i><span></span></p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div class="field-wrap">
+          <label>Phone</label>
+          <input type="tel" name="phone" class="input-style" maxlength="10" autocomplete="tel">
+          <i class="bi bi-telephone input-icon"></i>
+          <i class="bi bi-check-lg check-icon"></i>
+          <p class="error-text hidden"><i class="bi bi-exclamation-circle"></i><span></span></p>
+        </div>
+        <div class="field-wrap">
+          <label>Email</label>
+          <input type="email" name="email" class="input-style" autocomplete="email">
+          <i class="bi bi-envelope input-icon"></i>
+          <i class="bi bi-check-lg check-icon"></i>
+          <p class="error-text hidden"><i class="bi bi-exclamation-circle"></i><span></span></p>
+        </div>
+      </div>
+
+      <div class="field-wrap">
+        <label>Address Line</label>
+        <input type="text" name="address" class="input-style" autocomplete="address-line1">
+        <i class="bi bi-house input-icon"></i>
+        <i class="bi bi-check-lg check-icon"></i>
+        <p class="error-text hidden"><i class="bi bi-exclamation-circle"></i><span></span></p>
+      </div>
+
+      <div class="field-wrap">
+        <label>Street / Area</label>
+        <input type="text" name="street" class="input-style" autocomplete="address-line2">
+        <i class="bi bi-signpost input-icon"></i>
+        <i class="bi bi-check-lg check-icon"></i>
+        <p class="error-text hidden"><i class="bi bi-exclamation-circle"></i><span></span></p>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div class="field-wrap">
+          <label>State</label>
+          <input type="text" name="state" class="input-style" autocomplete="address-level1">
+          <i class="bi bi-map input-icon"></i>
+          <i class="bi bi-check-lg check-icon"></i>
+          <p class="error-text hidden"><i class="bi bi-exclamation-circle"></i><span></span></p>
+        </div>
+        <div class="field-wrap">
+          <label>Country</label>
+          <input type="text" name="country" class="input-style" autocomplete="country-name">
+          <i class="bi bi-globe input-icon"></i>
+          <i class="bi bi-check-lg check-icon"></i>
+          <p class="error-text hidden"><i class="bi bi-exclamation-circle"></i><span></span></p>
+        </div>
+      </div>
+
+      <div class="field-wrap">
+        <label>Pincode</label>
+        <input type="text" name="pincode" class="input-style" maxlength="6" autocomplete="postal-code">
+        <i class="bi bi-pin-map input-icon"></i>
+        <i class="bi bi-check-lg check-icon"></i>
+        <p class="error-text hidden"><i class="bi bi-exclamation-circle"></i><span></span></p>
+      </div>
+
+      <button type="submit"
+        class="w-full bg-red-600 text-white py-3 rounded-xl font-semibold hover:bg-red-700 active:scale-[0.98] transition-all shadow-md shadow-red-100 mt-2">
+        Update Address
+      </button>
+    </form>
+  </div>
+</div>
+
+<!-- ── DELETE MODAL ───────────────────────────────────────────── -->
+<div id="deleteModal" class="modal-overlay">
+  <div class="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+    <div class="flex items-center gap-3 mb-4">
+      <div class="w-10 h-10 bg-red-50 rounded-full flex items-center justify-center shrink-0">
+        <i class="bi bi-trash text-red-500"></i>
+      </div>
+      <div>
+        <h3 class="text-base font-bold text-gray-900">Delete Address</h3>
+        <p class="text-xs text-gray-400">This action cannot be undone</p>
+      </div>
+    </div>
+    <p class="text-sm text-gray-600 mb-6 bg-gray-50 rounded-xl p-3">
+      Are you sure you want to delete this address?
+    </p>
+    <div class="flex justify-end gap-3">
+      <button onclick="closeDeleteModal()"
+        class="px-5 py-2 rounded-xl border border-gray-200 text-sm font-medium hover:bg-gray-50 transition">
+        Cancel
+      </button>
+      <button id="confirmDeleteBtn"
+        class="px-5 py-2 rounded-xl bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition">
+        Delete
+      </button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="fixed top-6 right-6 hidden px-6 py-4 rounded-xl shadow-xl text-white font-medium z-[9999]"></div>
+
+<script>
+let editId = null, deleteId = null;
+const addModal    = document.getElementById("addModal");
+const editModal   = document.getElementById("editModal");
+const deleteModal = document.getElementById("deleteModal");
+
+function openAddModal()  { addModal.classList.add("show"); }
+function closeAddModal() { addModal.classList.remove("show"); }
+
+function openEditModal(btn) {
+  editId = btn.dataset.id;
+  const f = document.getElementById("editForm");
+  ["firstName","lastName","phone","email","address","street","state","country","pincode"].forEach(k => {
+    const input = f[k];
+    input.value = btn.dataset[k.toLowerCase()];
+    clearError(input);
+  });
+  editModal.classList.add("show");
+}
+function closeEditModal() { editModal.classList.remove("show"); editId = null; }
+
+function openDeleteModal(id) { deleteId = id; deleteModal.classList.add("show"); }
+function closeDeleteModal()  { deleteModal.classList.remove("show"); deleteId = null; }
+
+// ── Validation helpers ──────────────────────────────────────────
+function getErrorEl(input) {
+  return input.closest('.field-wrap').querySelector('.error-text');
+}
+function showError(input, msg) {
+  input.classList.remove("valid");
+  input.classList.add("invalid");
+  const p = getErrorEl(input);
+  p.querySelector("span").innerText = msg;
+  p.classList.remove("hidden");
+}
+function clearError(input) {
+  input.classList.remove("invalid", "valid");
+  const p = getErrorEl(input);
+  if (p) {
+    p.classList.add("hidden");
+    p.querySelector("span").innerText = "";
+  }
+}
+function markValid(input) {
+  input.classList.remove("invalid");
+  input.classList.add("valid");
+  const p = getErrorEl(input);
+  if (p) p.classList.add("hidden");
+}
+
+// ── Name validation ─────────────────────────────────────────────
+function validateName(val, fieldLabel) {
+  if (!val) return `${fieldLabel} is required`;
+  const minLen = fieldLabel === "Last name" ? 1 : 2;
+  if (val.length < minLen) return `${fieldLabel} must be at least ${minLen} character`;
+  if (val.length > 50)     return `${fieldLabel} must not exceed 50 characters`;
+  if (/\d/.test(val))      return `${fieldLabel} must not contain numbers`;
+  if (/[^a-zA-Z\s\-\']/.test(val)) return `${fieldLabel} must not contain special characters`;
+  if (/^\s|\s$/.test(val))          return `${fieldLabel} must not start or end with a space`;
+  if (/\s{2,}/.test(val))           return `${fieldLabel} must not contain consecutive spaces`;
+  return null;
+}
+
+// ── Per-field validation ────────────────────────────────────────
+function validateInput(input) {
+  const name = input.name;
+  const val  = input.value.trim();
+
+  if (name === "firstName") {
+    const err = validateName(val, "First name");
+    if (err) { showError(input, err); return false; }
+    markValid(input); return true;
+  }
+  if (name === "lastName") {
+    const err = validateName(val, "Last name");
+    if (err) { showError(input, err); return false; }
+    markValid(input); return true;
+  }
+
+  if (!val) { showError(input, "This field is required"); return false; }
+  if (name === "email"   && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) { showError(input, "Enter a valid email address"); return false; }
+  if (name === "phone"   && !/^\d{10}$/.test(val))                    { showError(input, "Enter a valid 10-digit number"); return false; }
+  if (name === "pincode" && !/^\d{6}$/.test(val))                     { showError(input, "Enter a valid 6-digit pincode"); return false; }
+  markValid(input);
+  return true;
+}
+
+function validateForm(form) {
+  let valid = true;
+  form.querySelectorAll('.input-style').forEach(input => {
+    if (!validateInput(input)) valid = false;
+  });
+  return valid;
+}
+
+// ── Block numbers in name fields ────────────────────────────────
+document.querySelectorAll('input[name="firstName"], input[name="lastName"]').forEach(input => {
+  input.addEventListener('keypress', e => {
+    if (/\d/.test(e.key)) e.preventDefault();
+  });
+});
+
+// ── Live validation ─────────────────────────────────────────────
+document.querySelectorAll('.input-style').forEach(input => {
+  input.addEventListener('blur', () => { if (input.value.trim()) validateInput(input); });
+  input.addEventListener('input', () => {
+    if (input.classList.contains('invalid')) validateInput(input);
+    if (input.name === 'phone'   && input.value.length === 10) validateInput(input);
+    if (input.name === 'pincode' && input.value.length === 6)  validateInput(input);
+    if ((input.name === 'firstName' || input.name === 'lastName') && input.value.trim().length >= 1) {
+      validateInput(input);
+    }
+  });
+});
+
+// ── Form submissions ────────────────────────────────────────────
+document.getElementById("addForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const form = e.target;
+  if (!validateForm(form)) return;
+  const data = Object.fromEntries(new FormData(form).entries());
+  const res  = await fetch("/user/address/add", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data)
+  });
+  const r = await res.json();
+  r.success ? location.reload() : alert(r.message || "Failed");
+});
+
+document.getElementById("editForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const form = e.target;
+  if (!validateForm(form)) return;
+  const data = Object.fromEntries(new FormData(form).entries());
+  const res  = await fetch(`/user/address/${editId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data)
+  });
+  const r = await res.json();
+  r.success ? location.reload() : alert(r.message || "Failed");
+});
+
+document.getElementById("confirmDeleteBtn").addEventListener("click", async () => {
+  const res = await fetch(`/user/address/delete/${deleteId}`, { method: "DELETE" });
+  const r   = await res.json();
+  r.success ? location.reload() : alert("Failed");
+});
+
+async function setDefault(id) {
+  const res = await fetch(`/user/address/default/${id}`, { method: "PATCH" });
+  const r   = await res.json();
+  r.success ? location.reload() : alert("Failed");
+}
+
+async function removeDefault(id) {
+  const res = await fetch(`/user/address/remove-default/${id}`, { method: "PATCH" });
+  const r   = await res.json();
+  r.success ? location.reload() : alert("Failed");
+}
+</script>
+
+<%- include('../partials/layout-scripts') %>
+
+</body>
+</html>

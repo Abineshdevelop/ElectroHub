@@ -1,0 +1,1442 @@
+<%
+  const _sort      = sort      || 'desc';
+  const _activeCat = activeCat || '';
+%>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Admin Products | ElectroHub</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css"/>
+  <style>
+    .variant-details-row { display: none; }
+    .variant-details-row.open { display: table-row; }
+    .crop-overlay { position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:9997;display:flex;align-items:center;justify-content:center; }
+    .arrow-icon { transition: transform 0.2s ease; }
+    .arrow-icon.open { transform: rotate(90deg); color: #2563eb; }
+    input[type=number]::-webkit-inner-spin-button,
+    input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    input[type=number] { -moz-appearance: textfield; }
+    .img-slot { position:relative; width:110px; height:110px; border-radius:12px; overflow:hidden; border:2px dashed #d1d5db; background:#f9fafb; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:all 0.2s; flex-shrink:0; }
+    .img-slot:hover { border-color:#6b7280; background:#f3f4f6; }
+    .img-slot.has-image { border-style:solid; border-color:#e5e7eb; cursor:default; }
+    .img-slot.is-main { border-color:#1f2937 !important; border-width:2.5px; }
+    .img-slot.drag-over { border-color:#2563eb !important; background:#eff6ff; }
+    .img-slot .slot-remove { position:absolute; top:4px; right:4px; width:22px; height:22px; border-radius:50%; background:rgba(239,68,68,0.9); color:#fff; display:none; align-items:center; justify-content:center; cursor:pointer; font-size:11px; z-index:10; }
+    .img-slot:hover .slot-remove { display:flex; }
+    .img-slot .slot-main-badge { position:absolute; bottom:4px; left:50%; transform:translateX(-50%); background:#1f2937; color:#fff; font-size:9px; padding:1px 6px; border-radius:4px; white-space:nowrap; pointer-events:none; }
+    .img-slot .slot-placeholder { display:flex; flex-direction:column; align-items:center; gap:4px; pointer-events:none; }
+    .img-slot input[type=file] { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%; }
+    .img-slot.has-image input[type=file] { display:none; }
+    .copy-banner { animation: slideDown 0.25s ease; }
+    @keyframes slideDown { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:translateY(0); } }
+
+    #productTableBody tr td,
+    #productTableBody tr th { overflow: hidden; }
+    .col-expand  { width: 40px;  min-width: 40px;  max-width: 40px; }
+    .col-product { width: 230px; min-width: 230px; }
+    .col-cat     { width: 110px; min-width: 110px; max-width: 110px; }
+    .col-price   { width: 100px; min-width: 100px; max-width: 100px; }
+    .col-stock   { width: 90px;  min-width: 90px;  max-width: 90px; }
+    .col-status  { width: 90px;  min-width: 90px;  max-width: 90px; }
+    .col-actions { width: 210px; min-width: 210px; max-width: 210px; }
+
+    .action-btns { display: inline-flex; align-items: center; white-space: nowrap; width: 100%; }
+    .action-btns .sep { color: #d1d5db; user-select: none; padding: 0 5px; flex-shrink: 0; }
+    .action-btns button { white-space: nowrap; background: none; border: none; padding: 0; cursor: pointer; font-size: 0.875rem; font-weight: 500; flex-shrink: 0; }
+
+    .toggle-btn-wrap { display: inline-block; width: 52px; flex-shrink: 0; text-align: left; }
+    .toggle-btn-wrap button { width: 100%; text-align: left; }
+
+    .variant-toggle-btn-wrap { display: inline-flex; align-items: center; width: 62px; flex-shrink: 0; }
+    .variant-toggle-btn-wrap button { white-space: nowrap; background: none; border: none; padding: 0; cursor: pointer; font-size: 0.75rem; font-weight: 500; width: 100%; text-align: left; }
+
+    /* Variant status badge — inline styles so Tailwind CDN scan is not needed */
+    .vt-badge-active  { display:inline-flex; align-items:center; padding:4px 10px; border-radius:9999px; font-size:0.75rem; font-weight:500; background:#dcfce7; color:#15803d; }
+    .vt-badge-blocked { display:inline-flex; align-items:center; padding:4px 10px; border-radius:9999px; font-size:0.75rem; font-weight:500; background:#fee2e2; color:#b91c1c; }
+    .vt-dot-active    { width:6px; height:6px; border-radius:50%; background:#22c55e; margin-right:6px; display:inline-block; flex-shrink:0; }
+    .vt-dot-blocked   { width:6px; height:6px; border-radius:50%; background:#ef4444; margin-right:6px; display:inline-block; flex-shrink:0; }
+  </style>
+</head>
+<body class="bg-gray-100">
+
+<header class="bg-white shadow-sm">
+  <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+    <div class="flex items-center gap-2">
+      <span class="text-xl font-bold">ElectroHub</span>
+      <span class="text-xs text-gray-500 ml-2">Next-Gen Electronics</span>
+    </div>
+    <nav class="flex items-center gap-6 text-sm font-medium">
+      <a href="#" class="hover:text-black text-gray-600">Home</a>
+      <a href="#" class="hover:text-black text-gray-600">Contact</a>
+      <a href="#" class="hover:text-black text-gray-600">About</a>
+      <a href="/admin/logout" class="text-red-600 hover:underline">Logout</a>
+    </nav>
+  </div>
+</header>
+
+<div class="flex">
+  <aside class="w-64 min-h-[calc(100vh-64px)] bg-white border-r flex flex-col justify-between">
+    <div>
+      <div class="p-6 font-semibold">ElectroHub Admin</div>
+      <nav class="px-4 space-y-1 text-sm">
+        <a href="/admin/dashboard"    class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 text-gray-700"><i class="bi bi-house"></i> Dashboard</a>
+        <a href="/admin/orders"       class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 text-gray-700"><i class="bi bi-bag"></i> Orders</a>
+        <a href="/admin/products"     class="flex items-center gap-2 px-3 py-2 rounded bg-gray-100 font-semibold text-gray-900"><i class="bi bi-box"></i> Products</a>
+        <a href="/admin/category"     class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 text-gray-700"><i class="bi bi-tags"></i> Category</a>
+        <a href="/admin/offers"       class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 text-gray-700"><i class="bi bi-percent"></i> Offers</a>
+        <a href="/admin/coupons"      class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 text-gray-700"><i class="bi bi-ticket"></i> Coupons</a>
+        <a href="/admin/banners"      class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 text-gray-700"><i class="bi bi-image"></i> Banners</a>
+        <a href="/admin/customers"    class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 text-gray-700"><i class="bi bi-people"></i> Customers</a>
+        <a href="/admin/sales-report" class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 text-gray-700"><i class="bi bi-graph-up"></i> Sales Report</a>
+      </nav>
+    </div>
+    <div class="px-4 pb-6">
+      <a href="/admin/logout" class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 text-gray-700 text-sm">
+        <i class="bi bi-box-arrow-left"></i> Logout
+      </a>
+    </div>
+  </aside>
+
+  <main class="flex-1 p-8 min-w-0">
+
+    <!-- ══════════ LIST VIEW ══════════ -->
+    <div id="listView">
+      <div class="flex items-center justify-between mb-6">
+        <h1 class="text-2xl font-semibold">Products</h1>
+        <button onclick="openForm('create')"
+          class="bg-gray-800 hover:bg-gray-900 text-white text-sm px-4 py-2 rounded flex items-center gap-2 transition">
+          <i class="bi bi-plus-lg"></i> Add New Product
+        </button>
+      </div>
+
+      <div class="bg-white p-4 rounded shadow mb-5 flex flex-wrap gap-3 items-center">
+        <div class="relative flex-1 min-w-[200px] max-w-sm">
+          <i class="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+          <input id="searchInput" type="text" value="<%= query || '' %>"
+            placeholder="Search products…" autocomplete="off"
+            class="w-full pl-9 pr-8 py-2 border border-gray-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 transition"/>
+          <i id="searchSpinner" class="bi bi-arrow-repeat animate-spin absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm hidden"></i>
+          <!-- Suggestions Dropdown -->
+          <div id="searchSuggestions" class="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 hidden max-h-60 overflow-y-auto"></div>
+        </div>
+        <div class="relative">
+          <i class="bi bi-sort-down absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none"></i>
+          <select id="sortSelect"
+            class="appearance-none pl-9 pr-8 py-2 border border-gray-200 rounded bg-white text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-300 transition cursor-pointer">
+            <option value="desc" <%= (_sort==='desc')?'selected':'' %>>Latest First</option>
+            <option value="asc"  <%= (_sort==='asc') ?'selected':'' %>>Oldest First</option>
+          </select>
+          <i class="bi bi-chevron-down absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none"></i>
+        </div>
+        <button id="clearBtn" onclick="clearSearch()"
+          class="px-4 py-2 border border-gray-200 bg-white hover:bg-gray-50 rounded text-gray-600 text-sm transition <%= query ? '' : 'hidden' %>">Clear</button>
+        <button onclick="exportCSV()"
+          class="flex items-center gap-2 px-4 py-2 border border-gray-200 bg-white hover:bg-gray-50 rounded text-sm text-gray-700 transition">
+          <i class="bi bi-download"></i> Export Data
+        </button>
+      </div>
+
+      <!-- Category Tabs -->
+      <div class="flex items-center gap-2 mb-5 flex-wrap">
+        <button data-cat="" onclick="filterByCategory(this,'')"
+          class="cat-tab px-4 py-2 rounded text-sm font-medium transition border <%= !_activeCat ? 'bg-gray-900 text-white border-gray-900' : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50' %>">
+          All Products
+        </button>
+        <% categories.forEach(cat => { %>
+          <button data-cat="<%= cat._id %>" onclick="filterByCategory(this,'<%= cat._id %>')"
+            class="cat-tab px-4 py-2 rounded text-sm font-medium transition border <%= _activeCat===String(cat._id) ? 'bg-gray-900 text-white border-gray-900' : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50' %>">
+            <%= cat.categoryName %>
+          </button>
+        <% }) %>
+      </div>
+
+      <!-- Table -->
+      <div class="bg-white rounded shadow overflow-hidden mb-5">
+        <table class="w-full text-sm table-fixed">
+          <thead>
+            <tr class="bg-gray-50 border-b border-gray-200">
+              <th class="col-expand px-3 py-3.5 text-center"><i class="bi bi-chevron-expand text-gray-300 text-xs"></i></th>
+              <th class="col-product text-left px-4 py-3.5 font-semibold text-gray-600">Product</th>
+              <th class="col-cat text-left px-4 py-3.5 font-semibold text-gray-600">Category</th>
+              <th class="col-price text-left px-4 py-3.5 font-semibold text-gray-600">Price From</th>
+              <th class="col-stock text-left px-4 py-3.5 font-semibold text-gray-600">Stock</th>
+              <th class="col-status text-left px-4 py-3.5 font-semibold text-gray-600">Status</th>
+              <th class="col-actions text-left px-4 py-3.5 font-semibold text-gray-600">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="productTableBody" class="divide-y divide-gray-100">
+            <% if (products.length === 0) { %>
+              <tr><td colspan="7" class="px-5 py-12 text-center text-gray-400">
+                <i class="bi bi-box text-3xl block mb-2"></i>No products found.
+              </td></tr>
+            <% } %>
+            <% products.forEach(prod => { %>
+              <%
+                const minPrice   = prod.variants?.length ? Math.min(...prod.variants.map(v=>v.price||0)) : 0;
+                const totalStock = prod.variants?.length ? prod.variants.reduce((s,v)=>s+(v.stock||0),0) : 0;
+                const mainImage  = prod.variants?.[0]?.images?.[0] || null;
+              %>
+              <tr class="hover:bg-gray-50 transition cursor-pointer"
+                data-product-id="<%= prod._id %>"
+                onclick="toggleVariants('<%= prod._id %>')">
+                <td class="col-expand px-3 py-3.5 text-center">
+                  <i id="arrow_<%= prod._id %>" class="bi bi-chevron-right arrow-icon text-gray-400 text-xs"></i>
+                </td>
+                <td class="col-product px-4 py-3.5">
+                  <div class="flex items-center gap-3">
+                    <div class="w-11 h-11 rounded-lg border border-gray-100 bg-gray-50 flex items-center justify-center overflow-hidden shrink-0">
+                      <% if (mainImage) { %>
+                        <img src="<%= mainImage %>" alt="" class="w-full h-full object-cover"
+                          onerror="this.parentNode.innerHTML='<i class=\'bi bi-image text-gray-300 text-lg\'></i>'"/>
+                      <% } else { %>
+                        <i class="bi bi-image text-gray-300 text-lg"></i>
+                      <% } %>
+                    </div>
+                    <div class="min-w-0">
+                      <p class="font-medium text-gray-800 truncate"><%= prod.productName %></p>
+                      <p class="text-xs text-gray-400 truncate"><%= prod.brandName || '' %></p>
+                    </div>
+                  </div>
+                </td>
+                <td class="col-cat px-4 py-3.5 text-gray-600 truncate"><%= prod.category?.categoryName || '—' %></td>
+                <td class="col-price px-4 py-3.5 font-medium text-gray-800">₹<%= minPrice.toLocaleString('en-IN') %></td>
+                <td class="col-stock px-4 py-3.5 text-gray-700"><%= totalStock %> units</td>
+                <td class="col-status px-4 py-3.5" data-status-cell>
+                  <% if (prod.isActive) { %>
+                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                      <span class="w-1.5 h-1.5 rounded-full bg-green-500 mr-1.5"></span>Active
+                    </span>
+                  <% } else { %>
+                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">
+                      <span class="w-1.5 h-1.5 rounded-full bg-red-500 mr-1.5"></span>Inactive
+                    </span>
+                  <% } %>
+                </td>
+                <td class="col-actions px-4 py-3.5" onclick="event.stopPropagation()" data-action-cell>
+                  <div class="action-btns">
+                    <button onclick="openViewModal('<%= prod._id %>')" class="text-blue-600 hover:text-blue-800">View</button>
+                    <span class="sep">|</span>
+                    <button onclick="openForm('edit','<%= prod._id %>')" class="text-blue-600 hover:text-blue-800">Edit</button>
+                    <span class="sep">|</span>
+                    <span class="toggle-btn-wrap" id="toggleWrap_<%= prod._id %>">
+                      <% if (prod.isActive) { %>
+                        <button class="text-yellow-600 hover:text-yellow-800"
+                          onclick="openProductConfirm('toggle','<%= prod._id %>',true,'<%= prod.productName %>')">Block</button>
+                      <% } else { %>
+                        <button class="text-green-600 hover:text-green-800"
+                          onclick="openProductConfirm('toggle','<%= prod._id %>',false,'<%= prod.productName %>')">Unblock</button>
+                      <% } %>
+                    </span>
+                    <span class="sep">|</span>
+                    <button onclick="openDeleteConfirm('<%= prod._id %>','<%= prod.productName %>')" class="text-red-500 hover:text-red-700">Delete</button>
+                  </div>
+                </td>
+              </tr>
+
+              <!-- Variant detail row -->
+              <tr id="variantRow_<%= prod._id %>" class="variant-details-row bg-slate-50">
+                <td colspan="7" class="px-6 py-5">
+                  <div class="flex items-center gap-2 mb-4">
+                    <i class="bi bi-layout-three-columns text-gray-500 text-sm"></i>
+                    <h3 class="text-sm font-semibold text-gray-700 uppercase tracking-wide">All Variant Details</h3>
+                    <span class="ml-1 px-2 py-0.5 bg-gray-200 rounded-full text-xs font-medium text-gray-600">
+                      <%= prod.variants?.length || 0 %> variant<%= (prod.variants?.length||0)!==1?'s':'' %>
+                    </span>
+                  </div>
+                  <% if (prod.variants && prod.variants.length > 0) { %>
+                    <div class="grid grid-cols-1 gap-3">
+                      <% prod.variants.forEach(vt => { %>
+                        <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm" id="variantCard_<%= vt._id %>">
+                          <div class="flex gap-4 items-start">
+                            <div class="flex gap-2 shrink-0 flex-wrap">
+                              <% (vt.images||[]).forEach((img,ii) => { %>
+                                <div class="w-14 h-14 rounded-lg border-2 overflow-hidden bg-gray-50 <%= ii===0?'border-gray-800':'border-gray-200' %>">
+                                  <img src="<%= img %>" class="w-full h-full object-cover"
+                                    onerror="this.parentNode.style.background='#f3f4f6';this.style.display='none'"/>
+                                </div>
+                              <% }) %>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                              <div class="flex flex-wrap gap-1.5 mb-3">
+                                <% Object.entries(vt.options||{}).forEach(([k,val]) => { %>
+                                  <span class="px-2.5 py-0.5 bg-gray-100 rounded-full text-xs font-medium text-gray-700"><%= k %>: <%= val %></span>
+                                <% }) %>
+                              </div>
+                              <div class="grid grid-cols-2 gap-4 text-sm mb-3">
+                                <div>
+                                  <p class="text-xs text-gray-400 mb-0.5">Price</p>
+                                  <p class="font-semibold text-gray-800">₹<%= (vt.price||0).toLocaleString('en-IN') %></p>
+                                </div>
+                                <div>
+                                  <p class="text-xs text-gray-400 mb-0.5">Stock</p>
+                                  <p class="font-semibold <%= (vt.stock||0)>0?'text-green-700':'text-red-600' %>"><%= vt.stock||0 %> units</p>
+                                </div>
+                              </div>
+                              <div class="flex items-center gap-3">
+                                <span id="variantStatusBadge_<%= vt._id %>" class="<%= (vt.isActive !== false) ? 'vt-badge-active' : 'vt-badge-blocked' %>">
+                                  <span class="<%= (vt.isActive !== false) ? 'vt-dot-active' : 'vt-dot-blocked' %>"></span>
+                                  <%= (vt.isActive !== false) ? 'Active' : 'Blocked' %>
+                                </span>
+                                <span id="variantToggleBtn_<%= vt._id %>" class="variant-toggle-btn-wrap">
+                                  <% if (vt.isActive !== false) { %>
+                                    <button onclick="openVariantConfirm('<%= prod._id %>','<%= vt._id %>',true)"
+                                      class="text-yellow-600 hover:text-yellow-800 transition">Block</button>
+                                  <% } else { %>
+                                    <button onclick="openVariantConfirm('<%= prod._id %>','<%= vt._id %>',false)"
+                                      class="text-green-600 hover:text-green-800 transition">Unblock</button>
+                                  <% } %>
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      <% }) %>
+                    </div>
+                  <% } else { %>
+                    <p class="text-xs text-gray-400 py-2">No variants found.</p>
+                  <% } %>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination -->
+      <div class="flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-600">
+        <div id="showingInfo">
+          Showing <span class="font-semibold"><%= showingFrom %>–<%= showingTo %></span>
+          of <span class="font-semibold"><%= total %></span> products
+        </div>
+        <div id="paginationWrap" class="flex items-center gap-1.5 flex-wrap">
+          <% if (currentPage > 1) { %>
+            <button data-page="<%= currentPage-1 %>" class="inline-flex items-center justify-center w-8 h-8 text-sm rounded border border-gray-200 bg-white hover:bg-gray-50 transition"><i class="bi bi-chevron-left text-xs"></i></button>
+          <% } else { %>
+            <span class="inline-flex items-center justify-center w-8 h-8 text-sm rounded border border-gray-200 bg-white opacity-40 cursor-not-allowed"><i class="bi bi-chevron-left text-xs"></i></span>
+          <% } %>
+          <% for (let i=1; i<=totalPages; i++) { %>
+            <button data-page="<%= i %>" class="inline-flex items-center justify-center w-8 h-8 text-sm rounded border transition <%= i===currentPage?'bg-gray-900 text-white border-gray-900':'border-gray-200 bg-white hover:bg-gray-50 text-gray-700' %>"><%= i %></button>
+          <% } %>
+          <% if (currentPage < totalPages) { %>
+            <button data-page="<%= currentPage+1 %>" class="inline-flex items-center justify-center w-8 h-8 text-sm rounded border border-gray-200 bg-white hover:bg-gray-50 transition"><i class="bi bi-chevron-right text-xs"></i></button>
+          <% } else { %>
+            <span class="inline-flex items-center justify-center w-8 h-8 text-sm rounded border border-gray-200 bg-white opacity-40 cursor-not-allowed"><i class="bi bi-chevron-right text-xs"></i></span>
+          <% } %>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ FORM VIEW ══════════ -->
+    <div id="formView" class="hidden w-full">
+      <div class="flex items-center gap-3 mb-6">
+        <button onclick="closeForm()" class="text-gray-400 hover:text-gray-700 transition">
+          <i class="bi bi-arrow-left text-xl"></i>
+        </button>
+        <div>
+          <p class="text-xs text-gray-400 mb-0.5">
+            Products <i class="bi bi-chevron-right text-[10px]"></i>
+            <span id="formBreadcrumb" class="text-gray-700 font-medium">Add New Product</span>
+          </p>
+          <h1 id="formTitle" class="text-2xl font-semibold text-gray-900">Add New Product</h1>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-6 items-start">
+        <!-- LEFT COLUMN -->
+        <div class="flex flex-col gap-5">
+          <div class="bg-white rounded shadow p-6">
+            <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-5">Basic Details</h2>
+            <div class="mb-4">
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">Product Name <span class="text-red-500">*</span></label>
+              <input id="fProductName" type="text" maxlength="100" placeholder="e.g. High-End Gaming Laptop"
+                class="w-full px-3.5 py-2.5 border border-gray-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 transition"/>
+              <p id="nameErr" class="text-red-500 text-xs mt-1 hidden"></p>
+            </div>
+            <div class="mb-4">
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">Brand Name <span class="text-red-500">*</span></label>
+              <input id="fBrandName" type="text" maxlength="50" placeholder="e.g. Dell, Sony, Apple"
+                class="w-full px-3.5 py-2.5 border border-gray-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 transition"/>
+              <p id="brandErr" class="text-red-500 text-xs mt-1 hidden"></p>
+            </div>
+            <div class="mb-4">
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">Description <span class="text-red-500">*</span></label>
+              <textarea id="fDescription" rows="4" maxlength="1000" placeholder="Describe the product…"
+                class="w-full px-3.5 py-2.5 border border-gray-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 transition resize-none"></textarea>
+              <div class="flex justify-between mt-1">
+                <p id="descErr" class="text-red-500 text-xs hidden"></p>
+                <p class="text-xs text-gray-400 ml-auto"><span id="descCount">0</span>/1000</p>
+              </div>
+            </div>
+            <div class="mb-4">
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">Category <span class="text-red-500">*</span></label>
+              <div class="relative">
+                <select id="fCategory" onchange="onCategoryChange(this.value)"
+                  class="w-full appearance-none px-3.5 py-2.5 border border-gray-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 transition bg-white cursor-pointer">
+                  <option value="">— Select Category —</option>
+                  <% categories.forEach(cat => { %>
+                    <option value="<%= cat._id %>"
+                      data-specs='<%- JSON.stringify(cat.specificationsConfig||[]) %>'
+                      data-variants='<%- JSON.stringify(cat.variantOptions||[]) %>'>
+                      <%= cat.categoryName %>
+                    </option>
+                  <% }) %>
+                </select>
+                <i class="bi bi-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none"></i>
+              </div>
+              <p id="catErr" class="text-red-500 text-xs mt-1 hidden"></p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
+              <div class="flex items-center gap-5">
+                <label class="flex items-center gap-2 cursor-pointer text-sm text-gray-700">
+                  <input type="radio" name="fStatus" id="statusActive" value="true" checked class="accent-gray-800"/> Active
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm text-gray-700">
+                  <input type="radio" name="fStatus" id="statusInactive" value="false" class="accent-gray-800"/> Inactive
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-white rounded shadow p-6">
+            <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-1">Detailed Specifications</h2>
+            <p class="text-xs text-gray-400 mb-5">Fill in specification values for this product.</p>
+            <div id="specsFields" class="grid grid-cols-1 gap-4">
+              <p class="text-xs text-gray-400">Select a category to see specification fields.</p>
+            </div>
+          </div>
+
+          <div class="bg-white rounded shadow p-5 flex items-center gap-3">
+            <button type="button" onclick="closeForm()"
+              class="flex-1 px-6 py-2.5 border border-gray-200 bg-white hover:bg-gray-50 rounded text-sm font-medium text-gray-700 transition">
+              Cancel
+            </button>
+            <button type="button" id="submitBtn" onclick="submitForm()"
+              class="flex-[2] px-8 py-2.5 bg-gray-800 hover:bg-gray-900 text-white rounded text-sm font-semibold transition flex items-center justify-center gap-2">
+              <i class="bi bi-check-lg"></i> <span id="submitBtnLabel">Save Product</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- RIGHT COLUMN -->
+        <div class="flex flex-col gap-5">
+          <div class="mb-1">
+            <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-widest">Variant Info</h2>
+          </div>
+          <p class="text-xs text-gray-400 mb-5">
+            Each variant needs options, price, stock and
+            <span class="text-red-400 font-medium">all 5 images are compulsory</span>.
+            The <span class="font-medium text-gray-600">first slot = main thumbnail</span>.
+          </p>
+          <div id="variantRowsContainer" class="space-y-4"></div>
+          <div id="variantEmptyMsg" class="border border-dashed border-gray-200 rounded-lg py-8 text-center text-xs text-gray-400">
+            Select a category and click "Add Variant" to begin.
+          </div>
+          <div class="mt-4 pt-4 border-t border-gray-100">
+            <button type="button" onclick="addVariantRow()"
+              class="w-full flex items-center justify-center gap-2 px-3 py-2.5 bg-gray-800 hover:bg-gray-900 text-white rounded text-sm font-semibold transition">
+              <i class="bi bi-plus-lg"></i> Add Variant
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- CROP MODAL -->
+<div id="cropOverlay" class="crop-overlay hidden">
+  <div class="bg-white rounded-2xl p-5 w-full max-w-lg mx-4 shadow-2xl">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="font-semibold text-gray-900 flex items-center gap-2">
+        <i class="bi bi-crop text-gray-600"></i> Crop Image
+      </h3>
+      <span id="cropCounter" class="text-xs text-gray-400 mx-auto"></span>
+      <button onclick="closeCropModal()" class="text-gray-400 hover:text-gray-700"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div class="bg-gray-100 rounded-xl overflow-hidden" style="max-height:360px">
+      <img id="cropImg" src="" alt="" style="max-width:100%;display:block"/>
+    </div>
+    <div class="flex gap-2 mt-4 justify-end">
+      <button onclick="skipCrop()" class="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">Skip</button>
+      <button onclick="applyCrop()" class="px-5 py-2 bg-gray-800 hover:bg-gray-900 text-white rounded-lg text-sm font-semibold">
+        <i class="bi bi-check-lg mr-1"></i>Crop & Use
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- VIEW MODAL -->
+<div id="viewModal" class="fixed inset-0 z-50 hidden items-center justify-center">
+  <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" onclick="closeViewModal()"></div>
+  <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 overflow-hidden">
+    <div class="flex items-center justify-between px-6 pt-5 pb-4 border-b">
+      <h2 id="viewModalTitle" class="text-lg font-bold text-gray-900"></h2>
+      <button onclick="closeViewModal()" class="text-gray-400 hover:text-gray-700"><i class="bi bi-x-lg text-sm"></i></button>
+    </div>
+    <div id="viewModalBody" class="px-6 py-5 text-sm text-gray-700 space-y-4 max-h-[65vh] overflow-y-auto"></div>
+    <div class="px-6 pb-6 pt-3 flex gap-3">
+      <button onclick="closeViewModal()" class="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50">Close</button>
+      <button id="viewEditBtn" class="flex-1 py-2.5 rounded-xl bg-gray-900 hover:bg-black text-sm font-semibold text-white">Edit</button>
+    </div>
+  </div>
+</div>
+
+<!-- CONFIRM MODAL -->
+<div id="confirmModal" class="fixed inset-0 z-50 hidden items-center justify-center">
+  <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" onclick="closeConfirm()"></div>
+  <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden">
+    <div class="flex flex-col items-center pt-8 pb-4 px-6 text-center">
+      <div id="confirmIconWrap" class="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mb-4">
+        <i id="confirmIcon" class="bi bi-trash3 text-red-600 text-2xl"></i>
+      </div>
+      <h3 id="confirmTitle" class="text-lg font-bold text-gray-900 mb-1">Delete Product</h3>
+      <p id="confirmDesc" class="text-sm text-gray-500"></p>
+    </div>
+    <div class="flex gap-3 px-6 pb-7 pt-2">
+      <button onclick="closeConfirm()" class="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50">Cancel</button>
+      <button id="confirmActionBtn" class="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-sm font-semibold text-white">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast" class="fixed top-[72px] right-5 z-[9999] hidden items-center gap-3 px-5 py-3.5 rounded-xl shadow-xl text-white text-sm font-medium min-w-[220px] max-w-xs">
+  <i id="toastIcon" class="text-lg shrink-0"></i>
+  <span id="toastMsg" class="leading-snug"></span>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+<script>
+// ── helper: build variant badge HTML using pre-defined CSS classes (no Tailwind scan needed) ──
+function vtBadgeHtml(isActive) {
+  return isActive
+    ? `<span class="vt-badge-active"><span class="vt-dot-active"></span>Active</span>`
+    : `<span class="vt-badge-blocked"><span class="vt-dot-blocked"></span>Blocked</span>`;
+}
+
+let _editingId      = null;
+let _variants       = [];
+let _specValues     = {};
+let _catSpecsConfig = [];
+let _catVariantOpts = [];
+let _activeCat      = '<%= _activeCat %>';
+let _cropperInst    = null;
+let _cropVi         = null;
+let _cropSlotIdx    = null;
+let _cropFile       = null;
+const _optCheckTimers = {};
+
+let _confirmMode  = null;
+let _deleteId     = null;
+let _prodToggleId = null;
+let _prodIsActive = null;
+let _prodName     = null;
+
+let _variantConfirmMode = null;
+let _variantProductId   = null;
+let _variantId          = null;
+let _variantIsActive    = null;
+
+// ══════════════════════════════════
+//  LIST
+// ══════════════════════════════════
+function toggleVariants(productId) {
+  const row   = document.getElementById(`variantRow_${productId}`);
+  const arrow = document.getElementById(`arrow_${productId}`);
+  if (!row) return;
+  const isOpen = row.classList.contains('open');
+  document.querySelectorAll('.variant-details-row.open').forEach(r => r.classList.remove('open'));
+  document.querySelectorAll('.arrow-icon.open').forEach(a => a.classList.remove('open'));
+  if (!isOpen) { row.classList.add('open'); arrow.classList.add('open'); }
+}
+
+const searchInput       = document.getElementById('searchInput');
+const sortSelect        = document.getElementById('sortSelect');
+const paginationWrap    = document.getElementById('paginationWrap');
+const showingInfo       = document.getElementById('showingInfo');
+const clearBtn          = document.getElementById('clearBtn');
+const searchSpinner     = document.getElementById('searchSpinner');
+const searchSuggestions = document.getElementById('searchSuggestions');
+let debounceTimer       = null;
+
+function fetchProducts(page = 1) {
+  const q    = searchInput.value.trim();
+  const sort = sortSelect.value;
+  searchSpinner.classList.remove('hidden');
+  fetch(`/admin/products?q=${encodeURIComponent(q)}&sort=${sort}&page=${page}&cat=${_activeCat}&ajax=1`, { credentials: 'include' })
+    .then(r => r.json())
+    .then(data => {
+      renderTable(data.products);
+      renderPagination(data.currentPage, data.totalPages);
+      showingInfo.innerHTML = data.total === 0
+        ? `Showing <span class="font-semibold">0</span> of <span class="font-semibold">0</span> products`
+        : `Showing <span class="font-semibold">${data.showingFrom}–${data.showingTo}</span> of <span class="font-semibold">${data.total}</span> products`;
+      clearBtn.classList.toggle('hidden', !q);
+      history.pushState({}, '', `/admin/products?q=${encodeURIComponent(q)}&sort=${sort}&page=${page}&cat=${_activeCat}`);
+    })
+    .catch(() => showToast('Failed to load products.', 'error'))
+    .finally(() => searchSpinner.classList.add('hidden'));
+}
+
+// ── Debounced Suggestions ──────────────────────────────────────────────
+function fetchSuggestions() {
+  const q = searchInput.value.trim();
+  if (!q) {
+    searchSuggestions.classList.add('hidden');
+    fetchProducts(1);
+    return;
+  }
+
+  searchSpinner.classList.remove('hidden');
+  searchSuggestions.classList.remove('hidden');
+
+  fetch(`/admin/products?q=${encodeURIComponent(q)}&sort=${sortSelect.value}&page=1&cat=${_activeCat}&ajax=1`, { credentials: 'include' })
+    .then(r => r.json())
+    .then(data => {
+      renderTable(data.products);
+      renderPagination(data.currentPage, data.totalPages);
+      showingInfo.innerHTML = data.total === 0
+        ? `Showing <span class="font-semibold">0</span> of <span class="font-semibold">0</span> products`
+        : `Showing <span class="font-semibold">${data.showingFrom}–${data.showingTo}</span> of <span class="font-semibold">${data.total}</span> products`;
+      clearBtn.classList.remove('hidden');
+
+      if (!data.products || data.products.length === 0) {
+        searchSuggestions.innerHTML = `<div class="p-3 text-sm text-gray-500 text-center"><i class="bi bi-emoji-frown mr-1"></i> Not found</div>`;
+      } else {
+        searchSuggestions.innerHTML = data.products.map(p => {
+          return `<div class="px-3 py-2 border-b border-gray-100 last:border-0 hover:bg-gray-50 cursor-pointer flex flex-col" onclick="selectSuggestion('${escHtml(p.productName)}')">
+                   <span class="font-medium text-xs text-gray-800">${escHtml(p.productName)}</span>
+                   <span class="text-[10px] text-gray-500">${escHtml(p.category?.categoryName || '—')}</span>
+                 </div>`;
+        }).join('');
+      }
+    })
+    .catch(() => searchSuggestions.innerHTML = `<div class="p-3 text-sm text-red-400 text-center">Failed</div>`)
+    .finally(() => searchSpinner.classList.add('hidden'));
+}
+
+function selectSuggestion(name) {
+  searchInput.value = name;
+  searchSuggestions.classList.add('hidden');
+  fetchProducts(1);
+}
+
+document.addEventListener('click', (e) => {
+  if (!searchInput.contains(e.target) && !searchSuggestions.contains(e.target)) {
+    searchSuggestions.classList.add('hidden');
+  }
+});
+
+searchInput.addEventListener('input', () => { 
+  clearTimeout(debounceTimer); 
+  debounceTimer = setTimeout(() => fetchSuggestions(), 400); 
+});
+
+searchInput.addEventListener('focus', () => {
+  if (searchInput.value.trim().length > 0 && searchSuggestions.innerHTML.trim() !== '') {
+    searchSuggestions.classList.remove('hidden');
+  }
+});
+
+sortSelect.addEventListener('change', () => fetchProducts(1));
+paginationWrap.addEventListener('click', e => { const btn = e.target.closest('[data-page]'); if (btn) fetchProducts(Number(btn.dataset.page)); });
+function clearSearch() { searchInput.value = ''; searchSuggestions.classList.add('hidden'); clearBtn.classList.add('hidden'); fetchProducts(1); }
+
+function filterByCategory(el, catId) {
+  _activeCat = catId;
+  document.querySelectorAll('.cat-tab').forEach(btn => {
+    const active = btn.dataset.cat === catId;
+    btn.className = `cat-tab px-4 py-2 rounded text-sm font-medium transition border ${active ? 'bg-gray-900 text-white border-gray-900' : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'}`;
+  });
+  fetchProducts(1);
+}
+
+function renderTable(products) {
+  const tbody = document.getElementById('productTableBody');
+  if (!products || products.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" class="px-5 py-12 text-center text-gray-400"><i class="bi bi-box text-3xl block mb-2"></i>No products found.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = products.map(prod => {
+    const minPrice   = prod.variants?.length ? Math.min(...prod.variants.map(v => v.price || 0)) : 0;
+    const totalStock = prod.variants?.length ? prod.variants.reduce((s, v) => s + (v.stock || 0), 0) : 0;
+    const mainImage  = prod.variants?.[0]?.images?.[0] || null;
+    const thumbHtml  = mainImage
+      ? `<img src="${escHtml(mainImage)}" class="w-full h-full object-cover" onerror="this.parentNode.innerHTML='<i class=\\'bi bi-image text-gray-300 text-lg\\'></i>'"/>`
+      : `<i class="bi bi-image text-gray-300 text-lg"></i>`;
+    const statusBadge = prod.isActive
+      ? `<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700"><span class="w-1.5 h-1.5 rounded-full bg-green-500 mr-1.5"></span>Active</span>`
+      : `<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700"><span class="w-1.5 h-1.5 rounded-full bg-red-500 mr-1.5"></span>Inactive</span>`;
+
+    const variantCards = (prod.variants || []).map(vt => {
+      const isVtActive = vt.isActive !== false;
+      const badges = Object.entries(vt.options || {}).map(([k, val]) =>
+        `<span class="px-2.5 py-0.5 bg-gray-100 rounded-full text-xs font-medium text-gray-700">${escHtml(k)}: ${escHtml(String(val))}</span>`).join('');
+      const imgs = (vt.images || []).map((img, ii) =>
+        `<div class="w-14 h-14 rounded-lg border-2 overflow-hidden bg-gray-50 ${ii === 0 ? 'border-gray-800' : 'border-gray-200'}">
+          <img src="${escHtml(img)}" class="w-full h-full object-cover" onerror="this.parentNode.style.background='#f3f4f6';this.style.display='none'"/>
+        </div>`).join('');
+      const vtToggleBtn = isVtActive
+        ? `<button onclick="openVariantConfirm('${prod._id}','${vt._id}',true)" class="text-xs font-medium text-yellow-600 hover:text-yellow-800 transition">Block</button>`
+        : `<button onclick="openVariantConfirm('${prod._id}','${vt._id}',false)" class="text-xs font-medium text-green-600 hover:text-green-800 transition">Unblock</button>`;
+      return `
+        <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm" id="variantCard_${vt._id}">
+          <div class="flex gap-4 items-start">
+            <div class="flex gap-2 shrink-0 flex-wrap">${imgs || `<div class="w-14 h-14 rounded-lg border border-dashed border-gray-200 bg-gray-50 flex items-center justify-center"><i class="bi bi-image text-gray-300 text-xl"></i></div>`}</div>
+            <div class="flex-1 min-w-0">
+              <div class="flex flex-wrap gap-1.5 mb-3">${badges || '<span class="text-xs text-gray-400">No options</span>'}</div>
+              <div class="grid grid-cols-2 gap-4 text-sm mb-3">
+                <div><p class="text-xs text-gray-400 mb-0.5">Price</p><p class="font-semibold text-gray-800">₹${Number(vt.price || 0).toLocaleString('en-IN')}</p></div>
+                <div><p class="text-xs text-gray-400 mb-0.5">Stock</p><p class="font-semibold ${(vt.stock || 0) > 0 ? 'text-green-700' : 'text-red-600'}">${vt.stock || 0} units</p></div>
+              </div>
+              <div class="flex items-center gap-3">
+                <span id="variantStatusBadge_${vt._id}">${vtBadgeHtml(isVtActive)}</span>
+                <span id="variantToggleBtn_${vt._id}" class="variant-toggle-btn-wrap">${vtToggleBtn}</span>
+              </div>
+            </div>
+          </div>
+        </div>`;
+    }).join('');
+
+    const vc = (prod.variants || []).length;
+    return `
+      <tr class="hover:bg-gray-50 transition cursor-pointer" data-product-id="${prod._id}" onclick="toggleVariants('${prod._id}')">
+        <td class="col-expand px-3 py-3.5 text-center"><i id="arrow_${prod._id}" class="bi bi-chevron-right arrow-icon text-gray-400 text-xs"></i></td>
+        <td class="col-product px-4 py-3.5">
+          <div class="flex items-center gap-3">
+            <div class="w-11 h-11 rounded-lg border border-gray-100 bg-gray-50 flex items-center justify-center overflow-hidden shrink-0">${thumbHtml}</div>
+            <div class="min-w-0"><p class="font-medium text-gray-800 truncate">${escHtml(prod.productName)}</p><p class="text-xs text-gray-400 truncate">${escHtml(prod.brandName || '')}</p></div>
+          </div>
+        </td>
+        <td class="col-cat px-4 py-3.5 text-gray-600 text-sm truncate">${escHtml(prod.category?.categoryName || '—')}</td>
+        <td class="col-price px-4 py-3.5 font-medium text-gray-800">₹${minPrice.toLocaleString('en-IN')}</td>
+        <td class="col-stock px-4 py-3.5 text-gray-700">${totalStock} units</td>
+        <td class="col-status px-4 py-3.5" data-status-cell>${statusBadge}</td>
+        <td class="col-actions px-4 py-3.5" onclick="event.stopPropagation()" data-action-cell>
+          <div class="action-btns">
+            <button onclick="openViewModal('${prod._id}')" class="text-blue-600 hover:text-blue-800">View</button>
+            <span class="sep">|</span>
+            <button onclick="openForm('edit','${prod._id}')" class="text-blue-600 hover:text-blue-800">Edit</button>
+            <span class="sep">|</span>
+            <span class="toggle-btn-wrap" id="toggleWrap_${prod._id}">
+              ${prod.isActive
+                ? `<button class="text-yellow-600 hover:text-yellow-800" onclick="openProductConfirm('toggle','${prod._id}',true,'${escHtml(prod.productName)}')">Block</button>`
+                : `<button class="text-green-600 hover:text-green-800" onclick="openProductConfirm('toggle','${prod._id}',false,'${escHtml(prod.productName)}')">Unblock</button>`
+              }
+            </span>
+            <span class="sep">|</span>
+            <button onclick="openDeleteConfirm('${prod._id}','${escHtml(prod.productName)}')" class="text-red-500 hover:text-red-700">Delete</button>
+          </div>
+        </td>
+      </tr>
+      <tr id="variantRow_${prod._id}" class="variant-details-row bg-slate-50">
+        <td colspan="7" class="px-6 py-5">
+          <div class="flex items-center gap-2 mb-4">
+            <i class="bi bi-layout-three-columns text-gray-500 text-sm"></i>
+            <h3 class="text-sm font-semibold text-gray-700 uppercase tracking-wide">All Variant Details</h3>
+            <span class="ml-1 px-2 py-0.5 bg-gray-200 rounded-full text-xs font-medium text-gray-600">${vc} variant${vc !== 1 ? 's' : ''}</span>
+          </div>
+          <div class="grid grid-cols-1 gap-3">${variantCards || '<p class="text-xs text-gray-400">No variants found.</p>'}</div>
+        </td>
+      </tr>`;
+  }).join('');
+}
+
+function renderPagination(current, total) {
+  if (total === 0) { paginationWrap.innerHTML = ''; return; }
+  let html = current > 1
+    ? `<button data-page="${current - 1}" class="inline-flex items-center justify-center w-8 h-8 text-sm rounded border border-gray-200 bg-white hover:bg-gray-50 transition"><i class="bi bi-chevron-left text-xs"></i></button>`
+    : `<span class="inline-flex items-center justify-center w-8 h-8 text-sm rounded border border-gray-200 bg-white opacity-40 cursor-not-allowed"><i class="bi bi-chevron-left text-xs"></i></span>`;
+  for (let i = 1; i <= total; i++) {
+    const cls = i === current ? 'bg-gray-900 text-white border-gray-900' : 'border-gray-200 bg-white hover:bg-gray-50 text-gray-700';
+    html += `<button data-page="${i}" class="inline-flex items-center justify-center w-8 h-8 text-sm rounded border transition ${cls}">${i}</button>`;
+  }
+  html += current < total
+    ? `<button data-page="${current + 1}" class="inline-flex items-center justify-center w-8 h-8 text-sm rounded border border-gray-200 bg-white hover:bg-gray-50 transition"><i class="bi bi-chevron-right text-xs"></i></button>`
+    : `<span class="inline-flex items-center justify-center w-8 h-8 text-sm rounded border border-gray-200 bg-white opacity-40 cursor-not-allowed"><i class="bi bi-chevron-right text-xs"></i></span>`;
+  paginationWrap.innerHTML = html;
+}
+
+// ══════════════════════════════════
+//  VARIANT TOGGLE WITH CONFIRMATION
+// ══════════════════════════════════
+function openVariantConfirm(productId, variantId, isCurrentlyActive) {
+  _variantConfirmMode = 'toggle';
+  _variantProductId   = productId;
+  _variantId          = variantId;
+  _variantIsActive    = isCurrentlyActive;
+
+  if (isCurrentlyActive) {
+    document.getElementById('confirmIconWrap').className = 'w-16 h-16 rounded-full bg-yellow-100 flex items-center justify-center mb-4';
+    document.getElementById('confirmIcon').className     = 'bi bi-slash-circle text-yellow-600 text-2xl';
+    document.getElementById('confirmTitle').textContent  = 'Block Variant';
+    document.getElementById('confirmDesc').textContent   = 'Block this variant? It will be hidden from customers.';
+    document.getElementById('confirmActionBtn').textContent = 'Block';
+    document.getElementById('confirmActionBtn').className   = 'flex-1 py-2.5 rounded-xl bg-yellow-500 hover:bg-yellow-600 text-sm font-semibold text-white';
+  } else {
+    document.getElementById('confirmIconWrap').className = 'w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mb-4';
+    document.getElementById('confirmIcon').className     = 'bi bi-unlock text-green-600 text-2xl';
+    document.getElementById('confirmTitle').textContent  = 'Unblock Variant';
+    document.getElementById('confirmDesc').textContent   = 'Unblock this variant? It will become visible to customers again.';
+    document.getElementById('confirmActionBtn').textContent = 'Unblock';
+    document.getElementById('confirmActionBtn').className   = 'flex-1 py-2.5 rounded-xl bg-green-600 hover:bg-green-700 text-sm font-semibold text-white';
+  }
+  showModal('confirmModal');
+}
+
+async function toggleVariant(productId, variantId, isCurrentlyActive) {
+  try {
+    const res  = await fetch(`/admin/products/${productId}/variants/${variantId}/toggle`, {
+      method: 'PATCH', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    const data = await res.json();
+    if (!data.success) { showToast(data.message || 'Failed.', 'error'); return; }
+    const newActive = data.isActive;
+
+    const badgeWrap = document.getElementById(`variantStatusBadge_${variantId}`);
+    if (badgeWrap) {
+      badgeWrap.innerHTML = vtBadgeHtml(newActive);
+    }
+
+    const btnWrap = document.getElementById(`variantToggleBtn_${variantId}`);
+    if (btnWrap) {
+      btnWrap.innerHTML = newActive
+        ? `<button onclick="openVariantConfirm('${productId}','${variantId}',true)" class="text-xs font-medium text-yellow-600 hover:text-yellow-800 transition">Block</button>`
+        : `<button onclick="openVariantConfirm('${productId}','${variantId}',false)" class="text-xs font-medium text-green-600 hover:text-green-800 transition">Unblock</button>`;
+    }
+    showToast(newActive ? 'Variant unblocked.' : 'Variant blocked.', newActive ? 'success' : 'warning');
+  } catch { showToast('Network error.', 'error'); }
+}
+
+// ══════════════════════════════════
+//  PRODUCT CONFIRM MODAL
+// ══════════════════════════════════
+function openDeleteConfirm(id, name) {
+  _confirmMode = 'delete'; _deleteId = id;
+  document.getElementById('confirmIconWrap').className = 'w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mb-4';
+  document.getElementById('confirmIcon').className     = 'bi bi-trash3 text-red-600 text-2xl';
+  document.getElementById('confirmTitle').textContent  = 'Delete Product';
+  document.getElementById('confirmDesc').textContent   = `Are you sure you want to delete "${name}"? This cannot be undone.`;
+  document.getElementById('confirmActionBtn').textContent = 'Delete';
+  document.getElementById('confirmActionBtn').className   = 'flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-sm font-semibold text-white';
+  showModal('confirmModal');
+}
+
+function openProductConfirm(action, productId, isActive, name) {
+  _confirmMode = 'toggle'; _prodToggleId = productId; _prodIsActive = isActive; _prodName = name;
+  if (isActive) {
+    document.getElementById('confirmIconWrap').className = 'w-16 h-16 rounded-full bg-yellow-100 flex items-center justify-center mb-4';
+    document.getElementById('confirmIcon').className     = 'bi bi-slash-circle text-yellow-600 text-2xl';
+    document.getElementById('confirmTitle').textContent  = 'Block Product';
+    document.getElementById('confirmDesc').textContent   = `Block "${name}"? It will be hidden from customers.`;
+    document.getElementById('confirmActionBtn').textContent = 'Block';
+    document.getElementById('confirmActionBtn').className   = 'flex-1 py-2.5 rounded-xl bg-yellow-500 hover:bg-yellow-600 text-sm font-semibold text-white';
+  } else {
+    document.getElementById('confirmIconWrap').className = 'w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mb-4';
+    document.getElementById('confirmIcon').className     = 'bi bi-unlock text-green-600 text-2xl';
+    document.getElementById('confirmTitle').textContent  = 'Unblock Product';
+    document.getElementById('confirmDesc').textContent   = `Unblock "${name}"? It will become visible to customers again.`;
+    document.getElementById('confirmActionBtn').textContent = 'Unblock';
+    document.getElementById('confirmActionBtn').className   = 'flex-1 py-2.5 rounded-xl bg-green-600 hover:bg-green-700 text-sm font-semibold text-white';
+  }
+  showModal('confirmModal');
+}
+
+function closeConfirm() {
+  hideModal('confirmModal');
+  _confirmMode = _deleteId = _prodToggleId = _prodIsActive = _prodName = null;
+  _variantConfirmMode = _variantProductId = _variantId = _variantIsActive = null;
+}
+
+document.getElementById('confirmActionBtn').addEventListener('click', async () => {
+  if (_variantConfirmMode === 'toggle') {
+    const productId = _variantProductId;
+    const variantId = _variantId;
+    const isActive  = _variantIsActive;
+    closeConfirm();
+    await toggleVariant(productId, variantId, isActive);
+    return;
+  }
+
+  if (_confirmMode === 'toggle') {
+    const pid = _prodToggleId;
+    closeConfirm();
+    try {
+      const res  = await fetch(`/admin/products/${pid}/toggle-status`, { method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' } });
+      const data = await res.json();
+      if (!data.success) { showToast(data.message || 'Failed.', 'error'); return; }
+      const row = document.querySelector(`tr[data-product-id="${pid}"]`);
+      if (row) {
+        const statusCell = row.querySelector('[data-status-cell]');
+        if (statusCell) {
+          statusCell.innerHTML = data.isActive
+            ? `<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700"><span class="w-1.5 h-1.5 rounded-full bg-green-500 mr-1.5"></span>Active</span>`
+            : `<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700"><span class="w-1.5 h-1.5 rounded-full bg-red-500 mr-1.5"></span>Inactive</span>`;
+        }
+        const wrap = document.getElementById(`toggleWrap_${pid}`);
+        if (wrap) {
+          wrap.innerHTML = data.isActive
+            ? `<button class="text-yellow-600 hover:text-yellow-800" onclick="openProductConfirm('toggle','${pid}',true,'${escHtml(data.productName || '')}')">Block</button>`
+            : `<button class="text-green-600 hover:text-green-800" onclick="openProductConfirm('toggle','${pid}',false,'${escHtml(data.productName || '')}')">Unblock</button>`;
+        }
+      }
+      showToast(data.isActive ? 'Product unblocked.' : 'Product blocked.', data.isActive ? 'success' : 'warning');
+    } catch { showToast('Network error.', 'error'); }
+    return;
+  }
+
+  if (_confirmMode === 'delete') {
+    const id = _deleteId;
+    closeConfirm();
+    try {
+      const res  = await fetch(`/admin/products/${id}/delete`, { method: 'DELETE', credentials: 'include', headers: { 'Content-Type': 'application/json' } });
+      const data = await res.json();
+      if (data.success) {
+        let currentPage = 1;
+        document.querySelectorAll('#paginationWrap button[data-page]').forEach(btn => {
+          if (btn.classList.contains('bg-gray-900')) currentPage = Number(btn.dataset.page);
+        });
+        const remainingRows = document.querySelectorAll('#productTableBody tr[data-product-id]');
+        const targetPage    = (remainingRows.length <= 1 && currentPage > 1) ? currentPage - 1 : currentPage;
+        showToast('Product deleted successfully.', 'success');
+        fetchProducts(targetPage);
+      } else { showToast(data.message || 'Delete failed.', 'error'); }
+    } catch { showToast('Network error. Please try again.', 'error'); }
+  }
+});
+
+// ══════════════════════════════════
+//  FORM
+// ══════════════════════════════════
+function buildSlots(images) {
+  const slots = [];
+  for (let i = 0; i < 5; i++) {
+    slots.push(i < images.length
+      ? { type: 'existing', url: images[i], file: null }
+      : { type: null, url: null, file: null });
+  }
+  return slots;
+}
+
+function openForm(mode, id = null) {
+  _editingId = id; _variants = []; _specValues = {};
+  _catSpecsConfig = []; _catVariantOpts = [];
+  document.getElementById('listView').classList.add('hidden');
+  document.getElementById('formView').classList.remove('hidden');
+  ['fProductName', 'fBrandName', 'fDescription'].forEach(fid => document.getElementById(fid).value = '');
+  document.getElementById('fCategory').value       = '';
+  document.getElementById('descCount').textContent = '0';
+  document.getElementById('statusActive').checked  = true;
+  ['nameErr', 'brandErr', 'descErr', 'catErr'].forEach(eid => document.getElementById(eid).classList.add('hidden'));
+  document.getElementById('submitBtn').disabled         = false;
+  document.getElementById('submitBtnLabel').textContent = mode === 'create' ? 'Save Product' : 'Save Changes';
+  renderVariantRows();
+  renderSpecFields([]);
+  if (mode === 'create') {
+    document.getElementById('formTitle').textContent      = 'Add New Product';
+    document.getElementById('formBreadcrumb').textContent = 'Add New Product';
+  } else {
+    document.getElementById('formTitle').textContent      = 'Edit Product';
+    document.getElementById('formBreadcrumb').textContent = 'Edit Product';
+    fetch(`/admin/products/${id}`, { credentials: 'include' })
+      .then(r => r.json())
+      .then(data => {
+        if (!data.success) { showToast('Failed to load product.', 'error'); return; }
+        const p = data.product;
+        document.getElementById('fProductName').value    = p.productName || '';
+        document.getElementById('fBrandName').value      = p.brandName   || '';
+        document.getElementById('fDescription').value    = p.description || '';
+        document.getElementById('descCount').textContent = (p.description || '').length;
+        if (!p.isActive) document.getElementById('statusInactive').checked = true;
+        const catId = p.category?._id || p.category;
+        if (catId) { document.getElementById('fCategory').value = String(catId); onCategoryChange(String(catId)); }
+        _variants = (p.variants || []).map(v => ({
+          _id: v._id ? String(v._id) : null, options: v.options || {},
+          price: v.price || 0, stock: v.stock || 0, slots: buildSlots(v.images || []),
+        }));
+        _specValues = p.specifications || {};
+        setTimeout(() => { renderVariantRows(); renderSpecFields(_catSpecsConfig, _specValues); }, 200);
+      })
+      .catch(() => showToast('Network error.', 'error'));
+  }
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function closeForm() {
+  document.getElementById('formView').classList.add('hidden');
+  document.getElementById('listView').classList.remove('hidden');
+  document.getElementById('submitBtn').disabled         = false;
+  document.getElementById('submitBtnLabel').textContent = 'Save Product';
+  _editingId = null; _variants = []; _specValues = {};
+}
+
+function onCategoryChange(catId) {
+  if (!catId) { _catSpecsConfig = []; _catVariantOpts = []; renderSpecFields([]); renderVariantRows(); return; }
+  const opt = document.querySelector(`#fCategory option[value="${catId}"]`);
+  if (!opt) return;
+  try { _catSpecsConfig = JSON.parse(opt.dataset.specs    || '[]'); } catch { _catSpecsConfig = []; }
+  try { _catVariantOpts = JSON.parse(opt.dataset.variants || '[]'); } catch { _catVariantOpts = []; }
+  _variants = [];
+  renderVariantRows();
+  renderSpecFields(_catSpecsConfig, _specValues);
+  document.getElementById('catErr').classList.add('hidden');
+}
+
+function renderSpecFields(specs, values = {}) {
+  const container = document.getElementById('specsFields');
+  if (!specs || specs.length === 0) {
+    container.innerHTML = '<p class="text-xs text-gray-400">Select a category to see specification fields.</p>';
+    return;
+  }
+  container.innerHTML = specs.map(s => `
+    <div>
+      <label class="block text-xs font-medium text-gray-600 mb-1.5">
+        ${escHtml(s.name)}${s.required ? ' <span class="text-red-500">*</span>' : ' <span class="text-xs text-gray-400 font-normal">(optional)</span>'}
+      </label>
+      <input type="text" value="${escHtml(values[s.name] || '')}" placeholder="Enter ${escHtml(s.name)}"
+        oninput="_specValues['${escHtml(s.name)}']=this.value"
+        class="w-full px-3 py-2 border border-gray-200 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gray-300 transition"/>
+    </div>`).join('');
+}
+
+function updateVariantOption(vi, optName, val) {
+  if (!_variants[vi]) return;
+  _variants[vi].options[optName] = val;
+  clearTimeout(_optCheckTimers[vi]);
+  _optCheckTimers[vi] = setTimeout(() => { _variants.forEach((_, idx) => checkDuplicateAndUpdateBanner(idx)); }, 400);
+}
+
+function findMatchingVariant(vi) {
+  const current = _variants[vi];
+  const keys    = _catVariantOpts.map(o => o.variantName);
+  if (keys.length === 0) return -1;
+  let bestIdx = -1, bestScore = 0;
+  for (let i = 0; i < _variants.length; i++) {
+    if (i === vi) continue;
+    const hasImages = (_variants[i].slots || []).some(s => s.type !== null);
+    if (!hasImages) continue;
+    let score = 0;
+    for (const k of keys) {
+      const a = (current.options[k] || '').trim().toUpperCase();
+      const b = (_variants[i].options[k] || '').trim().toUpperCase();
+      if (a && b && a === b) score++;
+    }
+    if (score > 0 && score > bestScore) { bestScore = score; bestIdx = i; }
+  }
+  return bestIdx;
+}
+
+function checkDuplicateAndUpdateBanner(vi) {
+  const bannerEl = document.getElementById(`copyBanner_${vi}`);
+  if (!bannerEl) return;
+  const currentHasImages = (_variants[vi].slots || []).some(s => s.type !== null);
+  const matchIdx         = findMatchingVariant(vi);
+  if (matchIdx !== -1 && !currentHasImages) {
+    const matchedOpts   = _variants[matchIdx].options;
+    const keys          = _catVariantOpts.map(o => o.variantName);
+    const matchedFields = keys.filter(k => {
+      const a = (_variants[vi].options[k] || '').trim().toUpperCase();
+      const b = (matchedOpts[k] || '').trim().toUpperCase();
+      return a && b && a === b;
+    });
+    const matchLabel = matchedFields.map(k =>
+      `<span class="font-semibold text-amber-900">${escHtml(k)}: ${escHtml(String(matchedOpts[k]))}</span>`).join(' · ');
+    const previews = (_variants[matchIdx].slots || []).filter(s => s.type !== null).map((s, i) =>
+      `<img src="${escHtml(s.url || '')}" class="w-10 h-10 rounded-lg object-cover border-2 ${i === 0 ? 'border-gray-700' : 'border-gray-200'} shrink-0" onerror="this.style.display='none'"/>`).join('');
+    bannerEl.innerHTML = `
+      <div class="copy-banner flex items-center gap-3 px-3.5 py-2.5 bg-amber-50 border border-amber-200 rounded-xl mb-3">
+        <i class="bi bi-images text-amber-500 text-lg shrink-0"></i>
+        <div class="flex-1 min-w-0">
+          <p class="text-xs font-medium text-amber-800 leading-snug mb-1.5">Variant ${matchIdx + 1} matches on ${matchLabel} — has images, want to use them?</p>
+          <div class="flex gap-1.5 flex-wrap">${previews}</div>
+        </div>
+        <button type="button" onclick="copyImagesFromVariant(${vi},${matchIdx})"
+          class="shrink-0 flex items-center gap-1.5 px-3 py-2 bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold rounded-lg transition whitespace-nowrap">
+          <i class="bi bi-copy text-xs"></i> Use These
+        </button>
+      </div>`;
+    bannerEl.classList.remove('hidden');
+  } else {
+    bannerEl.innerHTML = '';
+    bannerEl.classList.add('hidden');
+  }
+}
+
+function copyImagesFromVariant(targetVi, sourceVi) {
+  if (!_variants[targetVi] || !_variants[sourceVi]) return;
+  _variants[targetVi].slots = (_variants[sourceVi].slots || []).map(s =>
+    s.type !== null ? { type: s.type, url: s.url, file: s.file } : { type: null, url: null, file: null });
+  renderVariantRows();
+  showToast(`Images copied from Variant ${sourceVi + 1}.`, 'success');
+}
+
+function addVariantRow() {
+  if (!document.getElementById('fCategory').value) {
+    document.getElementById('catErr').textContent = 'Select a category first.';
+    document.getElementById('catErr').classList.remove('hidden');
+    showToast('Please select a category first.', 'error');
+    return;
+  }
+  const defaultOptions = {};
+  _catVariantOpts.forEach(v => { defaultOptions[v.variantName] = ''; });
+  _variants.push({ _id: null, options: defaultOptions, price: '', stock: '',
+    slots: Array(5).fill(null).map(() => ({ type: null, url: null, file: null })) });
+  renderVariantRows();
+  setTimeout(() => {
+    const rows = document.querySelectorAll('.variant-row');
+    if (rows.length) rows[rows.length - 1].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }, 50);
+}
+
+function removeVariantRow(idx) { _variants.splice(idx, 1); renderVariantRows(); }
+
+function numericOnly(e) {
+  const allowed = [8, 9, 13, 27, 37, 38, 39, 40, 46];
+  if (allowed.includes(e.keyCode)) return;
+  if ((e.ctrlKey || e.metaKey) && [65, 67, 86, 88].includes(e.keyCode)) return;
+  if (e.key < '0' || e.key > '9') e.preventDefault();
+}
+
+function renderVariantRows() {
+  const container = document.getElementById('variantRowsContainer');
+  const emptyMsg  = document.getElementById('variantEmptyMsg');
+  if (_variants.length === 0) { container.innerHTML = ''; emptyMsg.classList.remove('hidden'); return; }
+  emptyMsg.classList.add('hidden');
+  container.innerHTML = _variants.map((v, vi) => {
+    if (!v.slots) v.slots = Array(5).fill(null).map(() => ({ type: null, url: null, file: null }));
+    const optionFieldsHtml = _catVariantOpts.map(opt => {
+      const cur   = v.options[opt.variantName] || '';
+      const label = escHtml(opt.variantName);
+      if (!opt.usesSuffix) {
+        const hasVals = opt.plainValues?.length > 0 && opt.plainValues.some(x => x.trim());
+        if (hasVals) {
+          const opts = opt.plainValues.filter(x => x.trim())
+            .map(val => `<option value="${escHtml(val)}" ${cur === val ? 'selected' : ''}>${escHtml(val)}</option>`).join('');
+          return `<div><label class="block text-xs font-medium text-gray-600 mb-1">${label} <span class="text-red-500">*</span></label>
+            <div class="relative"><select onchange="updateVariantOption(${vi},'${escHtml(opt.variantName)}',this.value)"
+              class="w-full appearance-none px-3 py-2 border border-gray-200 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gray-300 bg-white cursor-pointer">
+              <option value="">— Select —</option>${opts}</select>
+              <i class="bi bi-chevron-down absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none"></i>
+            </div></div>`;
+        }
+        return `<div><label class="block text-xs font-medium text-gray-600 mb-1">${label} <span class="text-red-500">*</span></label>
+          <input type="text" value="${escHtml(cur)}" placeholder="Enter ${label}"
+            oninput="const u=this.value.toUpperCase();this.value=u;updateVariantOption(${vi},'${escHtml(opt.variantName)}',u)"
+            style="text-transform:uppercase"
+            class="w-full px-3 py-2 border border-gray-200 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gray-300 transition uppercase"/></div>`;
+      } else {
+        const allVals = [];
+        (opt.suffixes || []).forEach(s => (s.values || []).forEach(val => { if (val.trim()) allVals.push(`${val}${s.unit}`); }));
+        if (allVals.length > 0) {
+          const opts = allVals.map(val => `<option value="${escHtml(val)}" ${cur === val ? 'selected' : ''}>${escHtml(val)}</option>`).join('');
+          return `<div><label class="block text-xs font-medium text-gray-600 mb-1">${label} <span class="text-red-500">*</span></label>
+            <div class="relative"><select onchange="updateVariantOption(${vi},'${escHtml(opt.variantName)}',this.value)"
+              class="w-full appearance-none px-3 py-2 border border-gray-200 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gray-300 bg-white cursor-pointer">
+              <option value="">— Select —</option>${opts}</select>
+              <i class="bi bi-chevron-down absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none"></i>
+            </div></div>`;
+        }
+        return `<div><label class="block text-xs font-medium text-gray-600 mb-1">${label} <span class="text-red-500">*</span></label>
+          <input type="text" value="${escHtml(cur)}" placeholder="e.g. 8GB"
+            oninput="updateVariantOption(${vi},'${escHtml(opt.variantName)}',this.value)"
+            class="w-full px-3 py-2 border border-gray-200 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gray-300 transition"/></div>`;
+      }
+    }).join('');
+    const filledCount = v.slots.filter(s => s.type !== null).length;
+    const imgLabel = filledCount === 5
+      ? `<span class="text-green-600 font-medium"><i class="bi bi-check-circle-fill"></i> All 5 images added</span>`
+      : `<span class="text-red-400 font-medium">${5 - filledCount} more required</span>`;
+    const slotsHtml = v.slots.map((slot, si) => {
+      const isMain = si === 0, isEmpty = slot.type === null;
+      if (isEmpty) return `
+        <div class="img-slot ${isMain ? 'is-main' : ''}" id="slot_${vi}_${si}"
+          ondragover="slotDragOver(event,${vi},${si})" ondragleave="slotDragLeave(event,${vi},${si})" ondrop="slotDrop(event,${vi},${si})">
+          <div class="slot-placeholder">
+            <i class="bi bi-plus-lg text-gray-400 text-lg"></i>
+            <span class="text-[10px] text-gray-400">${isMain ? 'Main' : `Img ${si + 1}`}</span>
+          </div>
+          <input type="file" accept="image/*" onchange="slotFileSelect(${vi},${si},this)"/>
+        </div>`;
+      return `
+        <div class="img-slot has-image ${isMain ? 'is-main' : ''}" id="slot_${vi}_${si}"
+          ondragover="slotDragOver(event,${vi},${si})" ondragleave="slotDragLeave(event,${vi},${si})" ondrop="slotDrop(event,${vi},${si})">
+          <img src="${escHtml(slot.url || '')}" class="w-full h-full object-cover" onerror="this.parentNode.style.background='#f3f4f6';this.style.display='none'"/>
+          ${isMain ? '<span class="slot-main-badge">Main</span>' : ''}
+          <button type="button" class="slot-remove" onclick="removeSlot(${vi},${si})"><i class="bi bi-x" style="font-size:12px"></i></button>
+        </div>`;
+    }).join('');
+    return `
+      <div class="variant-row border border-gray-200 rounded-xl overflow-hidden" id="vrow_${vi}">
+        <div class="flex items-center justify-between px-4 py-2.5 bg-gray-50 border-b border-gray-200">
+          <span class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Variant ${vi + 1}</span>
+          <button type="button" onclick="removeVariantRow(${vi})" class="text-xs text-red-500 hover:text-red-700 font-medium flex items-center gap-1">
+            <i class="bi bi-trash3 text-xs"></i> Remove
+          </button>
+        </div>
+        <div class="p-4">
+          <div class="grid grid-cols-2 gap-3 mb-4">
+            ${optionFieldsHtml || '<p class="text-xs text-gray-400 col-span-2">No variant options defined for this category.</p>'}
+          </div>
+          <div class="grid grid-cols-2 gap-3 mb-5">
+            <div>
+              <label class="block text-xs font-medium text-gray-600 mb-1">Price (₹) <span class="text-red-500">*</span></label>
+              <input type="number" inputmode="numeric" min="0" value="${escHtml(String(v.price || ''))}" placeholder="55000"
+                onkeydown="numericOnly(event)"
+                oninput="this.value=this.value.replace(/[^0-9]/g,'');_variants[${vi}].price=parseInt(this.value)||0"
+                class="w-full px-3 py-2 border border-gray-200 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gray-300 transition"/>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-600 mb-1">Stock <span class="text-red-500">*</span></label>
+              <input type="number" inputmode="numeric" min="0" value="${escHtml(String(v.stock || ''))}" placeholder="100"
+                onkeydown="numericOnly(event)"
+                oninput="this.value=this.value.replace(/[^0-9]/g,'');_variants[${vi}].stock=parseInt(this.value)||0"
+                class="w-full px-3 py-2 border border-gray-200 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gray-300 transition"/>
+            </div>
+          </div>
+          <div>
+            <div class="flex items-center justify-between mb-1.5">
+              <label class="block text-xs font-medium text-gray-600">Images <span class="text-red-500">*</span> <span class="text-gray-400 font-normal ml-1">(all 5 compulsory)</span></label>
+              <span class="text-xs">${imgLabel}</span>
+            </div>
+            <p class="text-xs text-gray-400 mb-2"><i class="bi bi-info-circle"></i> Click a slot or drag & drop. Slot 1 = main thumbnail. Hover to remove.</p>
+            <div id="copyBanner_${vi}" class="hidden"></div>
+            <div class="flex flex-wrap gap-3">${slotsHtml}</div>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+  setTimeout(() => { _variants.forEach((_, vi) => checkDuplicateAndUpdateBanner(vi)); }, 0);
+}
+
+function slotFileSelect(vi, si, input) { const file = input.files?.[0]; if (!file) return; input.value = ''; startCropForSlot(vi, si, file); }
+function slotDragOver(e, vi, si) { e.preventDefault(); const slot = _variants[vi]?.slots?.[si]; if (slot?.type !== null) return; document.getElementById(`slot_${vi}_${si}`)?.classList.add('drag-over'); }
+function slotDragLeave(e, vi, si) { document.getElementById(`slot_${vi}_${si}`)?.classList.remove('drag-over'); }
+function slotDrop(e, vi, si) { e.preventDefault(); document.getElementById(`slot_${vi}_${si}`)?.classList.remove('drag-over'); const slot = _variants[vi]?.slots?.[si]; if (slot?.type !== null) return; const file = e.dataTransfer.files?.[0]; if (!file || !file.type.startsWith('image/')) { showToast('Please drop an image file.', 'error'); return; } startCropForSlot(vi, si, file); }
+function removeSlot(vi, si) { if (!_variants[vi]) return; _variants[vi].slots[si] = { type: null, url: null, file: null }; renderVariantRows(); }
+
+function startCropForSlot(vi, si, file) {
+  _cropVi = vi; _cropSlotIdx = si; _cropFile = file;
+  const img = document.getElementById('cropImg');
+  img.src = URL.createObjectURL(file);
+  document.getElementById('cropCounter').textContent = `Slot ${si + 1} of 5`;
+  document.getElementById('cropOverlay').classList.remove('hidden');
+  if (_cropperInst) { _cropperInst.destroy(); _cropperInst = null; }
+  img.onload = () => { _cropperInst = new Cropper(img, { aspectRatio: 1, viewMode: 1, autoCropArea: 0.9, movable: true, zoomable: true }); };
+}
+
+function applyCrop() {
+  if (!_cropperInst) return;
+  _cropperInst.getCroppedCanvas({ maxWidth: 1200, maxHeight: 1200 }).toBlob(blob => {
+    const file = new File([blob], _cropFile.name, { type: 'image/jpeg' });
+    const url  = URL.createObjectURL(blob);
+    _variants[_cropVi].slots[_cropSlotIdx] = { type: 'new', url, file };
+    closeCropModal(); renderVariantRows();
+  }, 'image/jpeg', 0.92);
+}
+
+function skipCrop() {
+  const url = URL.createObjectURL(_cropFile);
+  _variants[_cropVi].slots[_cropSlotIdx] = { type: 'new', url, file: _cropFile };
+  closeCropModal(); renderVariantRows();
+}
+
+function closeCropModal() {
+  document.getElementById('cropOverlay').classList.add('hidden');
+  if (_cropperInst) { _cropperInst.destroy(); _cropperInst = null; }
+}
+
+function validateForm() {
+  const name = document.getElementById('fProductName').value.trim();
+  if (!name) { document.getElementById('nameErr').textContent = 'Product name is required.'; document.getElementById('nameErr').classList.remove('hidden'); showToast('Product name is required.', 'error'); document.getElementById('fProductName').focus(); return false; }
+  document.getElementById('nameErr').classList.add('hidden');
+  const brand = document.getElementById('fBrandName').value.trim();
+  if (!brand) { document.getElementById('brandErr').textContent = 'Brand name is required.'; document.getElementById('brandErr').classList.remove('hidden'); showToast('Brand name is required.', 'error'); document.getElementById('fBrandName').focus(); return false; }
+  document.getElementById('brandErr').classList.add('hidden');
+  const desc = document.getElementById('fDescription').value.trim();
+  if (!desc) { document.getElementById('descErr').textContent = 'Description is required.'; document.getElementById('descErr').classList.remove('hidden'); showToast('Description is required.', 'error'); document.getElementById('fDescription').focus(); return false; }
+  document.getElementById('descErr').classList.add('hidden');
+  const catId = document.getElementById('fCategory').value;
+  if (!catId) { document.getElementById('catErr').textContent = 'Please select a category.'; document.getElementById('catErr').classList.remove('hidden'); showToast('Please select a category.', 'error'); return false; }
+  document.getElementById('catErr').classList.add('hidden');
+  if (_variants.length === 0) { showToast('At least one variant is required.', 'error'); return false; }
+  const fieldRules = {
+    'color': { pattern: /^[a-zA-Z\s]+$/, msg: 'Color must contain only letters.' },
+    'ram':   { pattern: /^\d+\s*(gb|tb|mb)$/i, msg: 'RAM must be a number with unit (e.g. 8GB).' },
+    'ssd':   { pattern: /^\d+\s*(gb|tb|mb)$/i, msg: 'SSD must be a number with unit (e.g. 256GB).' },
+    'storage': { pattern: /^\d+\s*(gb|tb|mb)$/i, msg: 'Storage must be a number with unit.' },
+    'screen size': { pattern: /^\d+(\.\d+)?\s*(inch|in|")?$/i, msg: 'Screen Size must be a number.' },
+    'screen':  { pattern: /^\d+(\.\d+)?\s*(inch|in|")?$/i, msg: 'Screen must be a number.' },
+    'display': { pattern: /^\d+(\.\d+)?\s*(inch|in|")?$/i, msg: 'Display must be a number.' },
+  };
+  for (let vi = 0; vi < _variants.length; vi++) {
+    const v = _variants[vi];
+    for (const opt of _catVariantOpts) {
+      const val = (v.options[opt.variantName] || '').trim();
+      if (!val) { showToast(`Variant ${vi + 1}: "${opt.variantName}" is required.`, 'error'); return false; }
+      const rule = fieldRules[opt.variantName.toLowerCase().trim()];
+      if (rule && val) {
+        const hasPredefined = opt.plainValues?.some(x => x.trim()) || (opt.suffixes || []).some(s => (s.values || []).some(x => x.trim()));
+        if (!hasPredefined && !rule.pattern.test(val)) { showToast(`Variant ${vi + 1}: ${rule.msg}`, 'error'); return false; }
+      }
+    }
+    if (!v.price && v.price !== 0) { showToast(`Variant ${vi + 1}: Price is required.`, 'error'); return false; }
+    if (Number(v.price) <= 0) { showToast(`Variant ${vi + 1}: Price must be greater than 0.`, 'error'); return false; }
+    if (v.stock === '' || v.stock === undefined || v.stock === null) { showToast(`Variant ${vi + 1}: Stock is required.`, 'error'); return false; }
+    if (Number(v.stock) < 0) { showToast(`Variant ${vi + 1}: Stock cannot be negative.`, 'error'); return false; }
+    const filledCount = (v.slots || []).filter(s => s.type !== null).length;
+    if (filledCount < 5) { showToast(`Variant ${vi + 1}: All 5 images are compulsory (${filledCount}/5 added).`, 'error'); return false; }
+  }
+  for (let i = 0; i < _variants.length; i++) {
+    for (let j = i + 1; j < _variants.length; j++) {
+      const isDup = _catVariantOpts.every(opt =>
+        (_variants[i].options[opt.variantName] || '').trim().toUpperCase() ===
+        (_variants[j].options[opt.variantName] || '').trim().toUpperCase());
+      if (isDup) {
+        const combo = _catVariantOpts.map(opt => `${opt.variantName}: ${_variants[i].options[opt.variantName]}`).join(', ');
+        showToast(`Duplicate variant: Variants ${i + 1} and ${j + 1} have identical options (${combo}).`, 'error');
+        return false;
+      }
+    }
+  }
+  for (const s of _catSpecsConfig) {
+    if (s.required && !(_specValues[s.name] || '').trim()) { showToast(`"${s.name}" specification is required.`, 'error'); return false; }
+  }
+  return true;
+}
+
+async function submitForm() {
+  if (!validateForm()) return;
+  const btn = document.getElementById('submitBtn');
+  const lbl = document.getElementById('submitBtnLabel');
+  btn.disabled = true; lbl.textContent = _editingId ? 'Saving…' : 'Creating…';
+  try {
+    const fd = new FormData();
+    fd.append('productName',    document.getElementById('fProductName').value.trim());
+    fd.append('brandName',      document.getElementById('fBrandName').value.trim());
+    fd.append('description',    document.getElementById('fDescription').value.trim());
+    fd.append('category',       document.getElementById('fCategory').value);
+    fd.append('isActive',       document.getElementById('statusActive').checked);
+    fd.append('specifications', JSON.stringify(_specValues));
+    const variantsMeta = _variants.map(v => ({
+      _id: v._id || null, options: v.options, price: v.price, mrp: 0, stock: v.stock,
+      existingImages: (v.slots || []).map(s => s.type === 'existing' ? s.url : null),
+    }));
+    fd.append('variantsMeta', JSON.stringify(variantsMeta));
+    _variants.forEach((v, vi) => {
+      (v.slots || []).forEach((slot, si) => {
+        if (slot.type === 'new' && slot.file) fd.append(`variantImages_${vi}_${si}`, slot.file);
+      });
+    });
+    const url    = _editingId ? `/admin/products/${_editingId}/edit` : '/admin/products/create';
+    const method = _editingId ? 'PUT' : 'POST';
+    const res    = await fetch(url, { method, credentials: 'include', body: fd });
+    const data   = await res.json();
+    if (data.success) {
+      showToast(data.message || (_editingId ? 'Product updated!' : 'Product created!'), 'success');
+      setTimeout(() => { closeForm(); fetchProducts(1); }, 900);
+    } else {
+      showToast(data.message || 'Something went wrong.', 'error');
+      btn.disabled = false; lbl.textContent = _editingId ? 'Save Changes' : 'Save Product';
+    }
+  } catch (err) {
+    console.error(err);
+    showToast('Network error. Please try again.', 'error');
+    btn.disabled = false; lbl.textContent = _editingId ? 'Save Changes' : 'Save Product';
+  }
+}
+
+function openViewModal(id) {
+  fetch(`/admin/products/${id}`, { credentials: 'include' })
+    .then(r => r.json())
+    .then(data => {
+      if (!data.success) { showToast('Product not found.', 'error'); return; }
+      const p = data.product;
+      document.getElementById('viewModalTitle').textContent = p.productName;
+      document.getElementById('viewEditBtn').onclick = () => { closeViewModal(); openForm('edit', p._id); };
+      const statusBadge = p.isActive
+        ? `<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700"><span class="w-1.5 h-1.5 rounded-full bg-green-500 mr-1.5"></span>Active</span>`
+        : `<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700"><span class="w-1.5 h-1.5 rounded-full bg-red-500 mr-1.5"></span>Inactive</span>`;
+      let html = `
+        <div class="grid grid-cols-2 gap-4 pb-3 border-b border-gray-100">
+          <div><p class="text-xs text-gray-400 uppercase tracking-wide mb-1">Brand</p><p class="font-semibold text-gray-800">${escHtml(p.brandName || '—')}</p></div>
+          <div><p class="text-xs text-gray-400 uppercase tracking-wide mb-1">Status</p>${statusBadge}</div>
+          <div><p class="text-xs text-gray-400 uppercase tracking-wide mb-1">Category</p><p class="font-semibold text-gray-800">${escHtml(p.category?.categoryName || '—')}</p></div>
+          <div><p class="text-xs text-gray-400 uppercase tracking-wide mb-1">Total Variants</p><p class="font-semibold text-gray-800">${(p.variants || []).length}</p></div>
+        </div>`;
+      if (p.description) html += `<div><p class="text-xs text-gray-400 uppercase tracking-wide mb-1">Description</p><p class="text-gray-700">${escHtml(p.description)}</p></div>`;
+      if (p.variants?.length) {
+        html += `<div><p class="text-xs text-gray-400 uppercase tracking-wide mb-2">Variants</p><div class="space-y-3">`;
+        p.variants.forEach(v => {
+          const badges = Object.entries(v.options || {}).map(([k, val]) =>
+            `<span class="px-2 py-0.5 bg-gray-100 rounded-full text-xs font-medium text-gray-700">${escHtml(k)}: ${escHtml(String(val))}</span>`).join(' ');
+          const imgs = (v.images || []).map((img, ii) =>
+            `<div class="w-14 h-14 rounded-lg border-2 ${ii === 0 ? 'border-gray-800' : 'border-gray-200'} overflow-hidden bg-gray-50 shrink-0">
+              <img src="${escHtml(img)}" class="w-full h-full object-cover" onerror="this.parentNode.style.background='#f3f4f6';this.style.display='none'"/>
+            </div>`).join('');
+          html += `<div class="border border-gray-100 rounded-xl p-3">
+            <div class="flex items-center justify-between mb-2">
+              <div class="flex gap-1 flex-wrap">${badges}</div>
+              <div class="text-xs text-gray-600 shrink-0 ml-3">Stock: <b>${v.stock}</b> | ₹${Number(v.price).toLocaleString('en-IN')}</div>
+            </div>
+            <div class="flex gap-1.5 flex-wrap">${imgs}</div>
+          </div>`;
+        });
+        html += `</div></div>`;
+      }
+      if (p.specifications && Object.keys(p.specifications).length) {
+        html += `<div><p class="text-xs text-gray-400 uppercase tracking-wide mb-2">Specifications</p><div class="grid grid-cols-2 gap-2">`;
+        Object.entries(p.specifications).forEach(([k, val]) => {
+          html += `<div class="border border-gray-100 rounded px-3 py-2"><p class="text-xs text-gray-400">${escHtml(k)}</p><p class="text-sm font-medium text-gray-800">${escHtml(String(val))}</p></div>`;
+        });
+        html += `</div></div>`;
+      }
+      document.getElementById('viewModalBody').innerHTML = html;
+      showModal('viewModal');
+    })
+    .catch(() => showToast('Failed to load product.', 'error'));
+}
+function closeViewModal() { hideModal('viewModal'); }
+
+function exportCSV() {
+  const rows = [['Product Name', 'Category', 'Price From', 'Stock', 'Status']];
+  document.querySelectorAll('#productTableBody tr[data-product-id]').forEach(tr => {
+    const c = tr.querySelectorAll('td');
+    rows.push([c[1]?.querySelector('p.font-medium')?.textContent.trim() || '', c[2]?.textContent.trim(), c[3]?.textContent.trim(), c[4]?.textContent.trim(), c[5]?.textContent.trim()]);
+  });
+  const csv = rows.map(r => r.map(v => `"${(v || '').replace(/"/g, '""')}"`).join(',')).join('\n');
+  const a = document.createElement('a'); a.href = 'data:text/csv,' + encodeURIComponent(csv); a.download = 'products.csv'; a.click();
+  showToast('Exported successfully.', 'success');
+}
+
+document.getElementById('fDescription').addEventListener('input', function () {
+  document.getElementById('descCount').textContent = this.value.length;
+});
+
+function escHtml(s) {
+  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+function showModal(id) { const m = document.getElementById(id); m.classList.remove('hidden'); m.classList.add('flex'); }
+function hideModal(id) { const m = document.getElementById(id); m.classList.add('hidden'); m.classList.remove('flex'); }
+
+let _toastTimer = null;
+function showToast(msg, type = 'success') {
+  const toast = document.getElementById('toast');
+  document.getElementById('toastMsg').textContent = msg;
+  const icons = { success: 'bi bi-check-circle-fill text-lg shrink-0', warning: 'bi bi-exclamation-circle-fill text-lg shrink-0', error: 'bi bi-x-circle-fill text-lg shrink-0' };
+  const bgs   = { success: 'bg-green-600', warning: 'bg-amber-500', error: 'bg-red-600' };
+  document.getElementById('toastIcon').className = icons[type] || icons.success;
+  toast.className = `fixed top-[72px] right-5 z-[9999] flex items-center gap-3 px-5 py-3.5 rounded-xl shadow-xl text-white text-sm font-medium min-w-[220px] max-w-xs ${bgs[type] || bgs.success}`;
+  toast.classList.remove('hidden');
+  if (_toastTimer) clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => toast.classList.add('hidden'), 3500);
+}
+</script>
+</body>
+</html>

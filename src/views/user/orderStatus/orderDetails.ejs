@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Order Details - ElectroHub</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+
+    #toast-container {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      pointer-events: none;
+    }
+
+    .toast {
+      min-width: 260px;
+      max-width: 340px;
+      padding: 13px 16px;
+      border-radius: 12px;
+      font-size: 13.5px;
+      font-weight: 500;
+      color: #fff;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.13);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      animation: toastIn 0.3s ease, toastOut .4s ease 2.6s forwards;
+    }
+
+    .toast.success { background: #22c55e; }
+    .toast.error   { background: #ef4444; }
+    .toast.warn    { background: #f59e0b; }
+
+    @keyframes toastIn {
+      from { transform: translateX(110%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+
+    @keyframes toastOut {
+      from { opacity: 1; }
+      to { opacity: 0; transform: translateX(110%); }
+    }
+
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: 0.25s;
+      z-index: 1000;
+      padding: 16px;
+    }
+
+    .modal-overlay.show {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    .modal-box {
+      background: #fff;
+      border-radius: 20px;
+      padding: 24px;
+      width: 100%;
+      max-width: 440px;
+      position: relative;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+    }
+  </style>
+</head>
+
+<body class="bg-gray-50 text-gray-800">
+  <div id="toast-container"></div>
+  <%- include('../partials/navbar', { user }) %>
+
+    <div class="flex min-h-[calc(100vh-64px)]">
+      <%- include('../partials/sidebar', { user, activePage: 'orders' }) %>
+
+        <main class="flex-1 px-4 md:px-8 py-6 overflow-x-hidden">
+          <!-- Breadcrumb -->
+          <nav class="text-sm text-gray-400 mb-5">
+            <a href="/user/home" class="hover:text-red-500">Home</a>
+            <span class="mx-2">/</span>
+            <a href="/user/orders" class="hover:text-red-500">Orders</a>
+            <span class="mx-2">/</span>
+            <span class="text-gray-700 font-medium tracking-tight">Order Details</span>
+          </nav>
+
+          <div class="flex items-center justify-between mb-6">
+            <div>
+              <h2 class="text-2xl font-bold">Order Details</h2>
+              <p class="text-sm text-gray-400">Order ID: <span class="font-mono text-gray-600">#<%= order.orderId %>
+                    </span></p>
+            </div>
+            <div class="flex items-center gap-3">
+              <div class="text-right">
+                <p class="text-[10px] uppercase font-bold text-gray-400 tracking-widest">Ordered On</p>
+                <p class="text-sm font-semibold text-gray-700">
+                  <%= new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) %>
+                </p>
+              </div>
+            </div>
+          </div>
+
+            <% 
+              const isFailed = order.paymentStatus === 'failed';
+              const steps = ['confirmed', 'processing', 'shipped', 'out_for_delivery', 'delivered'];
+              const currentIdx = steps.indexOf(order.orderStatus);
+              const statusConfig = {
+                pending: { label: 'Pending', icon: 'bi-hourglass-split', color: 'gray' },
+                confirmed: { label: 'Confirmed', icon: 'bi-check-circle', color: 'blue' },
+                processing: { label: 'Processing', icon: 'bi-gear', color: 'amber' },
+                shipped: { label: 'Shipped', icon: 'bi-truck', color: 'indigo' },
+                out_for_delivery: { label: 'Out for Delivery', icon: 'bi-geo', color: 'sky' },
+                delivered: { label: 'Delivered', icon: 'bi-house-check', color: 'green' },
+                cancelled: { label: 'Cancelled', icon: 'bi-x-circle', color: 'red' },
+                partially_cancelled: { label: 'Partially Cancelled', icon: 'bi-exclamation-circle', color: 'orange' },
+                returned: { label: 'Returned', icon: 'bi-arrow-return-left', color: 'gray' }
+              };
+              const currentStatus = statusConfig[order.orderStatus] || statusConfig.pending;
+              const hasCoupon = !!order.couponCode || order.paymentStatus === 'adjusted';
+            %>
+
+            <!-- Payment Cancelled Alert -->
+            <% if (isFailed) { %>
+              <div
+                class="bg-red-50 border border-red-100 rounded-xl p-5 mb-8 flex flex-col md:flex-row items-center justify-between gap-4">
+                <div class="flex items-center gap-3">
+                  <div class="w-10 h-10 bg-red-500 rounded-full flex items-center justify-center text-white shrink-0">
+                    <i class="bi bi-shield-x text-xl"></i>
+                  </div>
+                  <div>
+                    <h4 class="font-bold text-red-900">Payment Cancelled</h4>
+                    <p class="text-xs text-red-600 font-medium">Your last payment attempt failed or was cancelled.
+                      Please retry to confirm your order.</p>
+                  </div>
+                </div>
+                <button onclick="retryPayment('<%= order._id %>')" id="retryBtn"
+                  class="w-full md:w-auto px-6 py-2.5 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700 transition-all flex items-center justify-center gap-2 text-sm shadow-sm shadow-red-100 active:scale-95">
+                  <i class="bi bi-arrow-repeat"></i> Retry Payment
+                </button>
+              </div>
+              <% } %>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+                  <!-- Left: Status & Items -->
+                  <div class="lg:col-span-2 space-y-6">
+
+                    <!-- Status Banner -->
+                    <div class="bg-white border rounded-2xl p-6 shadow-sm">
+                      <div class="flex items-center gap-4 mb-8">
+                        <div
+                          class="w-12 h-12 bg-<%= currentStatus.color %>-50 text-<%= currentStatus.color %>-600 rounded-xl flex items-center justify-center border border-<%= currentStatus.color %>-100">
+                          <i class="bi <%= currentStatus.icon %> text-2xl"></i>
+                        </div>
+                        <div>
+                          <p class="text-[10px] uppercase font-black text-gray-400 tracking-widest leading-none mb-1">
+                            Current Status</p>
+                          <h3 class="text-xl font-bold text-gray-900 capitalize">
+                            <%= currentStatus.label %>
+                          </h3>
+                        </div>
+                      </div>
+
+                      <!-- Tracker -->
+                      <% if (!['cancelled', 'returned' ].includes(order.orderStatus)) { %>
+                        <div class="relative pt-2 pb-6">
+                          <!-- Line -->
+                          <div class="absolute top-7 left-0 w-full h-1 bg-gray-100 rounded-full">
+                            <div class="h-full bg-green-500 rounded-full transition-all duration-700 shadow-sm"
+                              style="width: <%= Math.max(0, (currentIdx / (steps.length - 1)) * 100) %>%"></div>
+                          </div>
+                          <!-- Nodes -->
+                          <div class="relative flex justify-between">
+                            <% steps.forEach((st, idx)=> {
+                              const isDone = idx <= currentIdx; const isActive=idx===currentIdx; %>
+                                <div class="flex flex-col items-center">
+                                  <div
+                                    class="w-10 h-10 rounded-full flex items-center justify-center relative z-10 transition-all duration-500 <%= isActive ? 'bg-blue-600 text-white ring-4 ring-blue-50' : isDone ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-400 border border-gray-200' %>">
+                                    <i
+                                      class="bi <%= isDone && !isActive ? 'bi-check-lg' : statusConfig[st].icon %> text-lg"></i>
+                                  </div>
+                                  <span
+                                    class="mt-2 text-[10px] font-bold uppercase tracking-wider <%= isDone ? 'text-gray-900' : 'text-gray-400' %>">
+                                    <%= statusConfig[st].label %>
+                                  </span>
+                                </div>
+                                <% }) %>
+                          </div>
+                        </div>
+                        <% } %>
+                    </div>
+
+                    <!-- Items List -->
+                    <div class="bg-white border rounded-2xl shadow-sm overflow-hidden">
+                      <div class="px-6 py-4 border-b bg-gray-50/50 flex justify-between items-center">
+                        <h3 class="font-bold text-gray-900">Order Items (<%= order.items.length %>)</h3>
+                        <div class="flex items-center gap-3">
+                          <% if (order.discount > 0) { %>
+                            <span class="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-700">
+                              <i class="bi bi-info-circle-fill"></i>
+                              Coupon applied — full order cancel only
+                            </span>
+                          <% } %>
+                          <% if (order.orderStatus==='delivered' ) { %>
+                            <a href="/user/orders/<%= order._id %>/invoice"
+                              class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition active:scale-95">
+                              <i class="bi bi-file-earmark-arrow-down text-lg"></i> Download Invoice
+                            </a>
+                          <% } %>
+                        </div>
+                      </div>
+                      <div class="divide-y">
+                        <% order.items.forEach(item=> {
+                          const itemStatus = (item.status && item.status !== 'pending') ? item.status :
+                          order.orderStatus;
+                          const iCfg = statusConfig[itemStatus];
+                          // Hide Cancel/Return button if coupon/offer applied — only full-order cancel/return is allowed
+                          const canCancel = ['confirmed','processing'].includes(itemStatus) && order.discount === 0;
+                          const canReturn = itemStatus === 'delivered' && order.discount === 0;
+                          %>
+                          <div class="p-6 hover:bg-gray-50/30 transition-colors">
+                            <div class="flex flex-col sm:flex-row gap-5">
+                              <div class="w-24 h-24 bg-gray-50 border rounded-xl overflow-hidden shrink-0">
+                                <img src="<%= item.productImage %>" class="w-full h-full object-cover">
+                              </div>
+                              <div class="flex-1">
+                                <div class="flex justify-between items-start mb-2">
+                                  <h4 class="font-bold text-gray-900">
+                                    <%= item.productName %>
+                                  </h4>
+                                  <p class="font-bold text-gray-900">₹<%= (item.finalAmount ?? item.lineTotal ??
+                                      0).toLocaleString('en-IN') %>
+                                  </p>
+                                </div>
+                                <div class="flex flex-wrap gap-4 text-xs text-gray-500 mb-4">
+                                  <span>Quantity: <b class="text-gray-700">
+                                      <%= item.quantity %>
+                                    </b></span>
+                                  <% if (item.variantAttributes) { %>
+                                    <% Object.entries(item.variantAttributes).forEach(([k,v])=> { %>
+                                      <span>
+                                        <%= k %>: <b class="text-gray-700 capitalize">
+                                            <%= v %>
+                                          </b>
+                                      </span>
+                                      <% }) %>
+                                        <% } %>
+                                          <span
+                                            class="inline-flex items-center px-2 py-0.5 rounded-full bg-<%= iCfg.color %>-50 text-<%= iCfg.color %>-600 border border-<%= iCfg.color %>-100 font-bold uppercase text-[9px] tracking-widest">
+                                            <%= iCfg.label %>
+                                          </span>
+                                </div>
+                                <div class="flex justify-end gap-3">
+                                  <% if (canCancel) { %>
+                                    <button onclick="openModal('cancel', '<%= item._id %>', '<%= item.productName %>')"
+                                      class="text-[10px] font-black uppercase tracking-widest text-red-500 hover:text-red-700 px-3 py-1.5 border border-red-200 rounded-lg bg-red-50/50 transition">Cancel</button>
+                                  <% } if (canReturn) { %>
+                                    <button
+                                      onclick="openModal('return', '<%= item._id %>', '<%= item.productName %>')"
+                                      class="text-[10px] font-black uppercase tracking-widest text-blue-600 hover:text-blue-800 px-3 py-1.5 border border-blue-200 rounded-lg bg-blue-50/50 transition">Return</button>
+                                  <% } %>
+                                </div>
+
+                              </div>
+                            </div>
+                          </div>
+                          <% }) %>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Right: Summary & Address -->
+                  <div class="space-y-6">
+
+                    <!-- Summary Card -->
+                    <div class="bg-white border rounded-2xl p-6 shadow-sm">
+                      <h3 class="font-bold text-gray-900 mb-5 border-b pb-3">Payment Summary</h3>
+                      <div class="space-y-3 text-sm">
+                        <div class="flex justify-between text-gray-500 font-medium">
+                          <span>Subtotal</span>
+                          <span class="text-gray-900 font-semibold">₹<%= order.subtotal.toLocaleString('en-IN') %>
+                              </span>
+                        </div>
+                        <% if (order.discount> 0) { %>
+                          <div class="flex justify-between text-gray-500 font-medium">
+                            <span>Discount</span>
+                            <span class="text-green-600 font-semibold">- ₹<%= order.discount.toLocaleString('en-IN') %>
+                                </span>
+                          </div>
+                          <% } %>
+                            <div class="flex justify-between text-gray-500 font-medium border-b border-dashed pb-3">
+                              <span>Shipping</span>
+                              <span class="text-green-600 font-bold uppercase text-[10px] tracking-widest">Free</span>
+                            </div>
+                            <div class="flex justify-between pt-1">
+                              <span class="text-lg font-bold text-gray-900">Total Paid</span>
+                              <span class="text-xl font-black text-red-600">₹<%=
+                                  order.totalAmount.toLocaleString('en-IN') %></span>
+                            </div>
+                            <div class="mt-6 pt-5 border-t space-y-1">
+                              <% if (order.couponCode) { %>
+                                <div class="flex justify-between items-center mb-2 p-2 rounded-lg bg-gray-50 border border-dashed border-gray-200">
+                                  <div class="flex flex-col">
+                                    <span class="text-[10px] uppercase font-bold text-gray-400 tracking-widest">Coupon Status</span>
+                                    <span class="text-xs font-bold <%= order.couponStatus === 'removed' ? 'text-red-500' : 'text-blue-600' %>">
+                                      <% if (order.couponStatus === 'removed') { %>
+                                        Removed (Min-purchase not met)
+                                      <% } else if (order.couponStatus === 'adjusted') { %>
+                                        Adjusted (<%= order.couponCode %>)
+                                      <% } else { %>
+                                        Applied (<%= order.couponCode %>)
+                                      <% } %>
+                                    </span>
+                                  </div>
+                                  <span class="text-sm font-bold <%= order.couponStatus === 'removed' ? 'text-red-500' : 'text-blue-600' %>">
+                                    <% if (order.couponStatus === 'removed') { %>
+                                      <span class="line-through text-gray-400">₹0</span>
+                                    <% } else { %>
+                                      - ₹<%= order.discount.toLocaleString('en-IN') %>
+                                    <% } %>
+                                  </span>
+                                </div>
+                              <% } %>
+                              <div class="flex justify-between items-center">
+                                <span class="text-[10px] uppercase font-bold text-gray-400 tracking-widest">Payment
+                                  Method</span>
+                                <span class="text-xs font-bold text-gray-700 capitalize">
+                                  <%= order.paymentMethod.replace(/_/g, ' ' ) %>
+                                </span>
+                              </div>
+                              <div class="flex justify-between items-center pt-2">
+                                <span class="text-[10px] uppercase font-bold text-gray-400 tracking-widest">Payment
+                                  Status</span>
+                                <span
+                                  class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-<%= isFailed ? 'red' : (order.paymentStatus==='paid'||order.paymentStatus==='adjusted') ? 'green' : 'gray' %>-50 text-<%= isFailed ? 'red' : (order.paymentStatus==='paid'||order.paymentStatus==='adjusted') ? 'green' : 'gray' %>-600 border border-<%= isFailed ? 'red' : (order.paymentStatus==='paid'||order.paymentStatus==='adjusted') ? 'green' : 'gray' %>-100 uppercase tracking-widest">
+                                  <%= order.paymentStatus %>
+                                </span>
+                              </div>
+                            </div>
+                            <% const canCancelFull = ['confirmed', 'processing', 'partially_cancelled'].includes(order.orderStatus); %>
+                            <% const canReturnFull = order.orderStatus === 'delivered'; %>
+                            <% if (canCancelFull) { %>
+                              <div class="mt-6 pt-5 border-t">
+                                <button onclick="openModal('cancel', null, 'Entire Order #<%= order.orderId %>')"
+                                  class="w-full py-2.5 bg-white border border-red-200 text-red-600 font-bold rounded-xl hover:bg-red-50 transition-all text-xs shadow-sm active:scale-95 flex items-center justify-center gap-2">
+                                  <i class="bi bi-x-circle"></i> Cancel Entire Order
+                                </button>
+                                <p class="text-[10px] text-gray-400 text-center mt-2 px-4 italic">Cancelling the entire order will refund the full amount to your wallet.</p>
+                              </div>
+                            <% } else if (canReturnFull) { %>
+                              <div class="mt-6 pt-5 border-t">
+                                <button onclick="openModal('return', null, 'Entire Order #<%= order.orderId %>')"
+                                  class="w-full py-2.5 bg-white border border-indigo-200 text-indigo-600 font-bold rounded-xl hover:bg-indigo-50 transition-all text-xs shadow-sm active:scale-95 flex items-center justify-center gap-2">
+                                  <i class="bi bi-box-arrow-left"></i> Return Entire Order
+                                </button>
+                                <p class="text-[10px] text-gray-400 text-center mt-2 px-4 italic">Returning the entire order will refund the full amount to your wallet upon approval.</p>
+                              </div>
+                            <% } %>
+                      </div>
+                    </div>
+
+                    <!-- Address Card -->
+                    <div class="bg-white border rounded-2xl p-6 shadow-sm">
+                      <h3 class="font-bold text-gray-900 mb-4 flex items-center gap-2"><i
+                          class="bi bi-geo-alt text-red-600"></i> Delivery Address</h3>
+                      <div class="text-sm font-medium text-gray-600 space-y-1">
+                        <p class="font-bold text-gray-900">
+                          <%= order.shippingAddress.firstName %>
+                            <%= order.shippingAddress.lastName %>
+                        </p>
+                        <p>
+                          <%= order.shippingAddress.addressLine %>, <%= order.shippingAddress.street %>
+                        </p>
+                        <p>
+                          <%= order.shippingAddress.state %>, <%= order.shippingAddress.country %>
+                        </p>
+                        <p class="font-bold text-gray-900 pt-1">PIN: <%= order.shippingAddress.pincode %>
+                        </p>
+                        <p class="pt-2 text-xs text-gray-400 italic">Contact: <%= order.shippingAddress.phone %>
+                        </p>
+                      </div>
+                    </div>
+
+                  </div>
+                </div>
+        </main>
+    </div>
+
+    <!-- Action Modal -->
+    <div id="actionModal" class="modal-overlay">
+      <div class="modal-box">
+        <h3 id="modalTitle" class="text-xl font-bold text-gray-900 mb-2"></h3>
+        <p id="modalDesc" class="text-sm text-gray-500 mb-6"></p>
+        <div class="mb-5">
+          <label class="text-[11px] font-bold text-gray-400 uppercase tracking-widest block mb-2">Share your
+            reason</label>
+          <textarea id="actionReason" rows="3"
+            class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 focus:ring-2 focus:ring-red-100 outline-none transition-all text-sm font-medium"></textarea>
+        </div>
+        <div class="flex gap-3">
+          <button onclick="closeModal()"
+            class="flex-1 py-2.5 rounded-xl border border-gray-200 font-bold text-gray-500 hover:bg-gray-50 transition text-sm">Cancel</button>
+          <button id="modalConfirmBtn"
+            class="flex-1 py-2.5 rounded-xl font-bold text-white transition-all shadow-md active:scale-95 text-sm"></button>
+        </div>
+      </div>
+    </div>
+
+    <!-- STOCK ERROR MODAL -->
+    <div id="stockErrorModal" class="modal-overlay">
+      <div class="modal-box text-center" style="max-width:400px; padding: 2.5rem 2rem;">
+        <div class="w-20 h-20 bg-amber-100 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-5">
+          <i class="bi bi-exclamation-triangle-fill text-4xl"></i>
+        </div>
+          <h3 class="text-2xl font-bold text-gray-900 mb-2">Stock Unavailable</h3>
+          <p class="text-gray-500 mb-6 font-medium text-sm px-2">Some items in this order are currently out of stock. You cannot re-pay for this order at this moment.</p>
+          <button onclick="document.getElementById('stockErrorModal').classList.remove('show')"
+            class="block w-full py-3.5 px-4 bg-gray-900 hover:bg-black text-white font-bold rounded-xl transition shadow-sm text-center">
+            Close
+          </button>
+      </div>
+    </div>
+
+    <!-- RETRY CHOICE MODAL -->
+    <div id="retryModal" class="modal-overlay">
+      <div class="modal-box text-center" style="max-width:400px; padding: 2rem;">
+        <h3 class="text-xl font-bold text-gray-900 mb-4">Select Payment Method</h3>
+        <div class="mb-6 bg-gray-50 border border-gray-100 rounded-xl p-4 text-left">
+          <div class="flex justify-between text-sm mb-1">
+            <span class="text-gray-500 font-medium">Order Total:</span>
+            <span class="text-gray-900 font-bold" id="retryOrderAmount">₹0.00</span>
+          </div>
+          <div class="flex justify-between text-sm">
+            <span class="text-gray-500 font-medium">Wallet Balance:</span>
+            <span class="text-gray-900 font-bold" id="retryWalletBalance">₹0.00</span>
+          </div>
+        </div>
+        <p class="text-xs text-gray-500 mb-6 font-medium">Choose how you'd like to pay for this order retry.</p>
+        <div class="flex flex-col gap-3">
+          <button id="retryWalletBtn" onclick="executeRetry('wallet')"
+            class="w-full py-3 px-4 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl transition shadow-sm text-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:grayscale">
+            <i class="bi bi-wallet2"></i> Pay with Wallet
+          </button>
+          <button onclick="executeRetry('razorpay')"
+            class="w-full py-3 px-4 border border-gray-200 text-gray-700 font-bold rounded-xl hover:bg-gray-50 transition text-sm flex items-center justify-center gap-2">
+            <i class="bi bi-credit-card"></i> Pay Online (Razorpay)
+          </button>
+          <button onclick="document.getElementById('retryModal').classList.remove('show')"
+            class="w-full py-2 px-4 text-gray-400 font-semibold hover:text-gray-600 transition text-xs mt-2 underline">
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAYMENT CANCELLATION MODAL -->
+    <div id="paymentErrorModal" class="modal-overlay text-center">
+      <div class="modal-box" style="max-width:400px; padding: 2.5rem 2rem;">
+        <div class="w-16 h-16 bg-red-100 text-red-500 rounded-full flex items-center justify-center mx-auto mb-5">
+          <i class="bi bi-x-circle-fill text-3xl"></i>
+        </div>
+        <h3 class="text-xl font-bold text-gray-900 mb-2">Payment Cancelled</h3>
+        <p class="text-sm text-gray-500 mb-8 font-medium">Your payment attempt was cancelled. Would you like to try again or stay on this page?</p>
+        <div class="flex flex-col gap-3">
+          <button onclick="reopenRazorpay()" 
+            class="w-full py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl transition shadow-md active:scale-95 text-sm">
+            Retry Payment
+          </button>
+          <button onclick="document.getElementById('paymentErrorModal').classList.remove('show')"
+            class="w-full py-3 border border-gray-200 text-gray-500 font-bold rounded-xl hover:bg-gray-50 transition text-sm">
+            Cancel & Stay Here
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const ORDER_ID = '<%= order._id %>';
+      let activeItem = '';
+      let activeAction = '';
+      let lastRazorpayData = null;
+
+      function showToast(msg, type = 'success') {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.innerHTML = `<i class="bi bi-${type === 'success' ? 'check-circle' : 'exclamation-triangle'}"></i><span>${msg}</span>`;
+        container.appendChild(toast);
+        setTimeout(() => toast.remove(), 3500);
+      }
+
+      async function retryPayment(orderId) {
+        // Show modal immediately with loading state
+        document.getElementById('retryOrderAmount').innerText = 'Loading...';
+        document.getElementById('retryWalletBalance').innerText = 'Loading...';
+        document.getElementById('retryWalletBtn').disabled = true;
+        document.getElementById('retryModal').classList.add('show');
+
+        try {
+          const res = await fetch('/user/checkout/retry-payment', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ orderId: ORDER_ID })
+          });
+          const data = await res.json();
+
+          if (data.success && data.infoOnly) {
+            document.getElementById('retryOrderAmount').innerText = `₹${data.totalAmount.toLocaleString('en-IN')}`;
+            document.getElementById('retryWalletBalance').innerText = `₹${data.walletBalance.toLocaleString('en-IN')}`;
+            
+            if (data.walletBalance < data.totalAmount) {
+              document.getElementById('retryWalletBtn').disabled = true;
+              document.getElementById('retryWalletBtn').classList.add('opacity-50');
+            } else {
+              document.getElementById('retryWalletBtn').disabled = false;
+              document.getElementById('retryWalletBtn').classList.remove('opacity-50');
+            }
+          } else {
+            if (data.message && data.message.toLowerCase().includes('stock')) {
+              document.getElementById('stockErrorModal').classList.add('show');
+            } else {
+              showToast(data.message || 'Failed to fetch retry info', 'error');
+            }
+            document.getElementById('retryModal').classList.remove('show');
+          }
+        } catch (e) {
+          showToast('Network error', 'error');
+          document.getElementById('retryModal').classList.remove('show');
+        }
+      }
+
+      async function executeRetry(paymentMethod) {
+        document.getElementById('retryModal').classList.remove('show');
+        const btn = document.getElementById('retryBtn');
+        const originalHTML = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = `<i class="bi bi-arrow-repeat animate-spin"></i> Loading...`;
+        try {
+          const resp = await fetch('/user/checkout/retry-payment', { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' }, 
+            body: JSON.stringify({ orderId: ORDER_ID, paymentMethod }) 
+          });
+          const data = await resp.json();
+          if (!data.success) {
+            if (data.message && data.message.toLowerCase().includes('stock')) {
+              document.getElementById('stockErrorModal').classList.add('show');
+            } else {
+              showToast(data.message || 'Retry failed', 'error');
+            }
+            btn.disabled = false; btn.innerHTML = originalHTML; return;
+          }
+
+          if (data.redirectUrl) {
+            window.location.href = data.redirectUrl;
+            return;
+          }
+
+          lastRazorpayData = res;
+          initiateRazorpay(res, btn, originalHTML);
+        } catch { showToast('Connection failed.', 'error'); btn.disabled = false; btn.innerHTML = originalHTML; }
+      }
+
+      function reopenRazorpay() {
+        document.getElementById('paymentErrorModal').classList.remove('show');
+        if (lastRazorpayData) {
+          const btn = document.getElementById('retryBtn');
+          const originalHTML = btn.innerHTML;
+          initiateRazorpay(lastRazorpayData, btn, originalHTML);
+        }
+      }
+
+      function initiateRazorpay(res, btn, originalHTML) {
+        const rzp = new Razorpay({
+          key: res.keyId, amount: res.amount, currency: res.currency, name: "ElectroHub", order_id: res.orderId,
+          prefill: { name: res.user.name, email: res.user.email, contact: res.user.phone },
+          theme: { color: "#ef4444" },
+          handler: (response) => verifyPayment(response, res.dbOrderId),
+          modal: {
+            ondismiss: async () => {
+              document.getElementById('paymentErrorModal').classList.add('show');
+              await fetch('/user/checkout/payment-failure', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ dbOrderId: res.dbOrderId }),
+              });
+              btn.disabled = false; btn.innerHTML = originalHTML;
+              showToast('Payment cancelled.', 'error');
+            }
+          }
+        });
+        rzp.on('payment.failed', async (response) => {
+          document.getElementById('paymentErrorModal').classList.add('show');
+          await fetch('/user/checkout/payment-failure', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ dbOrderId: res.dbOrderId }),
+          });
+          btn.disabled = false; btn.innerHTML = originalHTML;
+        });
+        rzp.open();
+      }
+
+      async function verifyPayment(rzp, dbOrderId) {
+        try {
+          const resp = await fetch('/user/checkout/verify-payment', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ razorpayPaymentId: rzp.razorpay_payment_id, razorpayOrderId: rzp.razorpay_order_id, razorpaySignature: rzp.razorpay_signature, dbOrderId })
+          });
+          const data = await resp.json();
+          if (data.success) window.location.href = data.redirectUrl;
+          else { showToast(data.message, 'error'); setTimeout(() => location.reload(), 2000); }
+        } catch { showToast('Verification failed.', 'error'); }
+      }
+
+      function openModal(action, itemId, name) {
+        activeAction = action; activeItem = itemId;
+        const modal = document.getElementById('actionModal');
+        const btn = document.getElementById('modalConfirmBtn');
+
+        document.getElementById('actionReason').value = '';
+
+        if (action === 'cancel') {
+          document.getElementById('modalTitle').innerText = itemId ? 'Cancel Item' : 'Cancel Entire Order';
+          document.getElementById('modalDesc').innerText = `Confirm cancellation of "${name}".`;
+          btn.innerText = 'Confirm Cancel';
+          btn.className = 'flex-1 py-2.5 rounded-xl font-bold text-white bg-red-600 hover:bg-red-700 transition shadow-md active:scale-95 text-sm';
+        } else {
+          document.getElementById('modalTitle').innerText = 'Return Item';
+          document.getElementById('modalDesc').innerText = `Initiate return for "${name}". Refund will be credited upon approval.`;
+          btn.innerText = 'Confirm Return';
+          btn.className = 'flex-1 py-2.5 rounded-xl font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition shadow-md active:scale-95 text-sm';
+        }
+        btn.onclick = submitAction;
+        modal.classList.add('show');
+      }
+
+      function closeModal() { document.getElementById('actionModal').classList.remove('show'); }
+
+      async function submitAction() {
+        const reason = document.getElementById('actionReason').value.trim();
+        if (!reason) { showToast('Please provide a reason.', 'error'); return; }
+        const btn = document.getElementById('modalConfirmBtn');
+        btn.disabled = true; btn.innerText = 'Processing...';
+        try {
+          const resp = await fetch(`/user/orders/${ORDER_ID}/${activeAction}`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reason, itemId: activeItem })
+          });
+          const data = await resp.json();
+          if (data.success) { showToast(data.message, 'success'); closeModal(); setTimeout(() => location.reload(), 1500); }
+          else { showToast(data.message, 'error'); btn.disabled = false; btn.innerText = 'Confirm'; }
+        } catch { showToast('Error occurred.', 'error'); btn.disabled = false; }
+      }
+
+      // Close modals on overlay click
+      ['stockErrorModal', 'retryModal', 'paymentErrorModal', 'actionModal'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+          el.addEventListener('click', function (e) { if (e.target === this) this.classList.remove('show'); });
+        }
+      });
+    </script>
+    <%- include('../partials/layout-scripts') %>
+</body>
+
+</html>

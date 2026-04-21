@@ -1,0 +1,1115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ElectroHub - Checkout</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    #toast-container {
+      position: fixed; top: 20px; right: 20px; z-index: 9999;
+      display: flex; flex-direction: column; gap: 10px; pointer-events: none;
+    }
+    .toast {
+      min-width: 260px; max-width: 340px; padding: 13px 16px; border-radius: 12px;
+      font-size: 13.5px; font-weight: 500; color: #fff;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.13); display: flex; align-items: center; gap: 10px;
+      animation: toastIn 0.3s ease, toastOut 0.4s ease 2.6s forwards;
+    }
+    .toast.success { background: #22c55e; }
+    .toast.error   { background: #ef4444; }
+    .toast.info    { background: #3b82f6; }
+    .toast.warn    { background: #d97706; }
+    @keyframes toastIn  { from { transform: translateX(110%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    @keyframes toastOut { from { opacity: 1; } to { opacity: 0; transform: translateX(110%); } }
+
+    .address-card-selected {
+      border: 2px solid #ef4444 !important;
+      background: #fff5f5;
+      border-radius: 16px;
+      padding: 16px;
+      transition: all 0.2s ease;
+    }
+    .payment-option { transition: all 0.2s ease; cursor: pointer; }
+    .payment-option.selected { border-color: #ef4444 !important; background: #fff5f5; }
+
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0; pointer-events: none; transition: .25s; z-index: 1000; padding: 16px;
+    }
+    .modal-overlay.show { opacity: 1; pointer-events: all; }
+    .modal-box {
+      background: white; border-radius: 24px; padding: 32px;
+      width: 100%; max-width: 540px; max-height: 90vh; overflow-y: auto;
+      position: relative; box-shadow: 0 25px 60px rgba(0,0,0,0.15);
+      animation: modalIn 0.3s ease;
+    }
+    @keyframes modalIn { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+    .field-wrap { position: relative; }
+    .field-wrap label {
+      display: block; font-size: 11px; font-weight: 600; color: #6b7280;
+      margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em;
+    }
+    .input-style {
+      width: 100%; padding: 11px 36px 11px 36px; border: 1.5px solid #e5e7eb;
+      border-radius: 12px; background: #f9fafb; font-size: 14px; color: #111827;
+      transition: border-color 0.2s, box-shadow 0.2s, background 0.2s; box-sizing: border-box;
+    }
+    .input-style:focus {
+      outline: none; border-color: #ef4444; background: #fff;
+      box-shadow: 0 0 0 3px rgba(239,68,68,.1);
+    }
+    .input-style.valid   { border-color: #16a34a; background: #f0fdf4; }
+    .input-style.invalid { border-color: #dc2626; background: #fff5f5; }
+    .field-wrap .input-icon {
+      position: absolute; left: 12px; top: 42px; transform: translateY(-50%);
+      color: #9ca3af; font-size: 14px; pointer-events: none; line-height: 1;
+    }
+    .check-icon {
+      position: absolute; right: 10px; top: 42px; transform: translateY(-50%);
+      font-size: 14px; color: #16a34a; display: none; line-height: 1;
+    }
+    .input-style.valid   ~ .check-icon { display: block; }
+    .input-style.valid   ~ .input-icon { color: #16a34a; }
+    .input-style.invalid ~ .input-icon { color: #dc2626; }
+    .input-style:focus   ~ .input-icon { color: #ef4444; }
+    .error-text {
+      font-size: 11.5px; color: #dc2626; margin-top: 4px;
+      display: flex; align-items: center; gap: 4px; min-height: 18px; visibility: hidden;
+    }
+    .error-text.show { visibility: visible; }
+    .product-img-wrap {
+      width: 56px; height: 56px; border-radius: 12px;
+      overflow: hidden; background: #f3f4f6; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .product-img-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .product-img-fallback { font-size: 22px; color: #d1d5db; }
+    .modal-addr-card {
+      border: 2px solid #f3f4f6; border-radius: 14px; padding: 14px;
+      cursor: pointer; transition: all 0.2s ease;
+    }
+    .modal-addr-card:hover { border-color: #fca5a5; background: #fff9f9; }
+    .modal-addr-card.selected { border-color: #ef4444 !important; background: #fff5f5; }
+  </style>
+</head>
+
+<body class="bg-gray-50 text-gray-800">
+  <div id="toast-container"></div>
+  <%- include('../partials/navbar', { user }) %>
+
+  <div class="flex min-h-[calc(100vh-64px)]">
+    <%- include('../partials/sidebar', { user, activePage: 'checkout' }) %>
+
+    <main class="flex-1 px-4 md:px-8 py-6 md:py-8 overflow-x-hidden">
+
+      <nav class="text-sm text-gray-400 mb-5">
+        <a href="/user/home" class="hover:text-red-500 transition-colors">Home</a>
+        <span class="mx-2">/</span>
+        <a href="/user/cart" class="hover:text-red-500 transition-colors">Cart</a>
+        <span class="mx-2">/</span>
+        <span class="text-gray-700 font-medium">Checkout</span>
+      </nav>
+
+      <h2 class="text-2xl md:text-3xl font-bold mb-2">Checkout</h2>
+      <p class="text-sm text-gray-400 mb-7">Complete your order details below</p>
+
+      <div class="flex flex-col lg:flex-row gap-6">
+
+        <!-- LEFT COLUMN -->
+        <div class="flex-1 space-y-5">
+
+          <!-- DELIVERY ADDRESS -->
+          <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <div class="flex items-center justify-between mb-5">
+              <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+                <i class="bi bi-geo-alt-fill text-red-500"></i> Delivery Address
+              </h3>
+              <button onclick="openAddModal()"
+                class="flex items-center gap-1.5 text-sm font-semibold text-red-500 hover:text-red-600 border border-red-200 hover:border-red-400 px-3 py-1.5 rounded-xl transition-colors">
+                <i class="bi bi-plus-circle"></i> Add Address
+              </button>
+            </div>
+
+            <% if (addresses && addresses.length > 0) { %>
+              <% const defaultAddr = addresses.find(a => a.isDefault) || null; %>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                <div id="selected-address-slot">
+                  <% if (defaultAddr) { %>
+                    <div class="address-card-selected" id="selected-addr-card" data-address-id="<%= defaultAddr._id %>">
+                      <div class="flex justify-between items-start mb-2">
+                        <span class="text-xs font-bold text-red-400 uppercase tracking-wide flex items-center gap-1">
+                          <i class="bi bi-check-circle-fill"></i> Selected Address
+                        </span>
+                        <span class="text-xs bg-green-100 text-green-600 font-semibold px-2 py-0.5 rounded-full">Default</span>
+                      </div>
+                      <p class="font-semibold text-gray-800 text-sm"><%= defaultAddr.firstName %> <%= defaultAddr.lastName %></p>
+                      <p class="text-xs text-gray-500 mt-1 leading-relaxed">
+                        <%= defaultAddr.address %>, <%= defaultAddr.street %><br>
+                        <%= defaultAddr.state %>, <%= defaultAddr.country %> - <%= defaultAddr.pincode %>
+                      </p>
+                      <p class="text-xs text-gray-500 mt-1"><i class="bi bi-telephone-fill text-gray-400 me-1"></i><%= defaultAddr.phone %></p>
+                      <p class="text-xs text-gray-500"><i class="bi bi-envelope-fill text-gray-400 me-1"></i><%= defaultAddr.email %></p>
+                      <div class="flex gap-2 mt-3">
+                        <button onclick="event.stopPropagation(); openEditModal(this)"
+                          data-id="<%= defaultAddr._id %>"
+                          data-firstname="<%= defaultAddr.firstName %>"
+                          data-lastname="<%= defaultAddr.lastName %>"
+                          data-phone="<%= defaultAddr.phone %>"
+                          data-email="<%= defaultAddr.email %>"
+                          data-address="<%= defaultAddr.address %>"
+                          data-street="<%= defaultAddr.street %>"
+                          data-state="<%= defaultAddr.state %>"
+                          data-country="<%= defaultAddr.country %>"
+                          data-pincode="<%= defaultAddr.pincode %>"
+                          class="text-xs font-semibold px-3 py-1.5 rounded-lg border-2 border-amber-200 text-amber-600 hover:bg-amber-50 transition-colors">
+                          <i class="bi bi-pencil"></i> Edit
+                        </button>
+                      </div>
+                    </div>
+                  <% } else { %>
+                    <div id="selected-addr-card" class="border-2 border-dashed border-gray-200 rounded-2xl p-4 flex flex-col items-center justify-center text-center min-h-[160px] gap-2">
+                      <i class="bi bi-geo-alt text-3xl text-gray-300"></i>
+                      <p class="text-sm text-gray-400 font-medium">No address selected</p>
+                      <p class="text-xs text-gray-400">Pick one from the right →</p>
+                    </div>
+                  <% } %>
+                </div>
+
+                <div class="flex flex-col gap-3">
+                  <button onclick="openAllAddressesModal()"
+                    class="flex-1 flex flex-col items-center justify-center gap-2 border-2 border-dashed border-red-200 hover:border-red-400 hover:bg-red-50 rounded-2xl p-4 transition-colors min-h-[160px] text-red-500 hover:text-red-600">
+                    <i class="bi bi-grid-3x3-gap text-3xl"></i>
+                    <span class="text-sm font-semibold">View All Addresses</span>
+                    <span class="text-xs text-gray-400"><%= addresses.length %> saved address<%= addresses.length !== 1 ? 'es' : '' %></span>
+                  </button>
+                </div>
+
+              </div>
+
+            <% } else { %>
+              <div id="no-address-msg" class="text-center py-8 text-gray-400">
+                <i class="bi bi-geo-alt text-4xl mb-2 block"></i>
+                <p class="text-sm">No saved addresses yet.</p>
+                <button onclick="openAddModal()" class="mt-3 text-sm font-semibold text-red-500 hover:underline">+ Add your first address</button>
+              </div>
+              <div id="selected-addr-card" class="hidden"></div>
+            <% } %>
+          </div>
+
+          <!-- ORDER SUMMARY -->
+          <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <h3 class="text-lg font-bold text-gray-800 mb-5 flex items-center gap-2">
+              <i class="bi bi-bag-check-fill text-red-500"></i> Order Summary
+            </h3>
+            <div class="space-y-4">
+              <% cartItems.forEach(item => { const imgSrc = item.image; %>
+                <div class="flex items-center gap-3">
+                  <div class="product-img-wrap">
+                    <% if (imgSrc) { %>
+                      <img src="<%= imgSrc %>" alt="<%= item.product?.name %>"
+                        onload="this.style.display='block'"
+                        onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
+                      <span class="product-img-fallback" style="display:none;"><i class="bi bi-image"></i></span>
+                    <% } else { %>
+                      <span class="product-img-fallback"><i class="bi bi-image"></i></span>
+                    <% } %>
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <p class="text-sm font-semibold text-gray-800 truncate"><%= item.product?.name %></p>
+                    <p class="text-xs text-gray-400">Qty: <%= item.quantity %></p>
+                  </div>
+                  <p class="text-sm font-bold text-gray-800 flex-shrink-0">₹<%= item.lineTotal.toLocaleString('en-IN') %></p>
+                </div>
+              <% }) %>
+            </div>
+            <div class="border-t border-gray-100 mt-5 pt-4 space-y-3">
+              <div class="flex justify-between text-sm">
+                <span class="text-gray-500">Subtotal:</span>
+                <span class="font-semibold">₹<%= subtotal.toLocaleString('en-IN') %></span>
+              </div>
+              <div id="discount-row" class="<%= appliedCoupon ? 'flex' : 'hidden' %> justify-between text-sm">
+                <span class="text-gray-500">Discount (<span id="coupon-label"><%= appliedCoupon || '' %></span>):</span>
+                <span class="font-semibold text-green-500">−₹<span id="discount-amount"><%= discount.toLocaleString('en-IN') %></span></span>
+              </div>
+              <div class="flex justify-between text-sm">
+                <span class="text-gray-500">Shipping:</span>
+                <span class="font-semibold text-green-500">Free</span>
+              </div>
+              <div class="flex justify-between text-sm border-t border-gray-100 pt-3">
+                <span class="font-bold text-gray-700">Total:</span>
+                <span id="final-total" class="font-bold text-gray-800 text-base">₹<%= total.toLocaleString('en-IN') %></span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- RIGHT COLUMN -->
+        <div class="w-full lg:w-96 flex-shrink-0 space-y-4">
+
+          <!-- Payment Method -->
+          <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+              <i class="bi bi-credit-card-fill text-red-500"></i> Payment Method
+            </h3>
+            <div class="space-y-3">
+
+              <!-- Razorpay -->
+              <label class="payment-option flex items-center gap-3 border-2 border-gray-100 rounded-xl p-3.5 hover:border-red-200 transition-colors">
+                <input type="radio" name="paymentMethod" value="razorpay" class="accent-red-500 w-4 h-4" />
+                <div class="flex items-center gap-2 flex-1">
+                  <i class="bi bi-lightning-charge-fill text-blue-500 text-lg"></i>
+                  <div>
+                    <span class="text-sm font-semibold text-gray-700">Razorpay</span>
+                    <p class="text-xs text-gray-400">UPI, Cards, Net Banking</p>
+                  </div>
+                </div>
+                <img src="https://razorpay.com/favicon.png" class="h-6 w-6 rounded object-contain" alt="Razorpay" onerror="this.style.display='none'">
+              </label>
+
+              <!-- Wallet -->
+              <label class="payment-option flex items-center gap-3 border-2 border-gray-100 rounded-xl p-3.5 hover:border-red-200 transition-colors">
+                <input type="radio" name="paymentMethod" value="wallet" class="accent-red-500 w-4 h-4" />
+                <i class="bi bi-wallet2 text-purple-500 text-lg"></i>
+                <div class="flex-1">
+                  <span class="text-sm font-semibold text-gray-700">Wallet</span>
+                  <span class="text-xs text-gray-400 ml-2">Balance: ₹<%= (wallet?.balance || 0).toLocaleString('en-IN') %></span>
+                </div>
+              </label>
+
+              <!-- Cash on Delivery -->
+              <label class="payment-option flex items-center gap-3 border-2 border-gray-100 rounded-xl p-3.5 hover:border-red-200 transition-colors">
+                <input type="radio" name="paymentMethod" value="cod" class="accent-red-500 w-4 h-4" />
+                <i class="bi bi-cash-coin text-green-500 text-lg"></i>
+                <div class="flex-1">
+                  <span class="text-sm font-semibold text-gray-700">Cash on Delivery</span>
+                  <p class="text-xs text-gray-400">Pay when your order arrives</p>
+                </div>
+              </label>
+
+            </div>
+          </div>
+
+          <!-- Coupon -->
+          <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+              <i class="bi bi-tag-fill text-red-500"></i> Coupon Code
+            </h3>
+            <button onclick="openCouponModal()"
+              class="w-full mb-3 py-2.5 border-2 border-dashed border-red-200 text-red-500 hover:border-red-400 hover:bg-red-50 rounded-xl text-sm font-semibold transition-colors flex items-center justify-center gap-2">
+              <i class="bi bi-ticket-perforated"></i> Show Available Coupons
+            </button>
+            <div class="flex gap-2">
+              <input type="text" id="coupon-input" placeholder="Enter coupon code"
+                value="<%= appliedCoupon || '' %>"
+                class="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-100 transition uppercase" />
+              <button id="apply-coupon-btn"
+                class="bg-red-500 hover:bg-red-600 text-white font-semibold text-sm px-4 py-2.5 rounded-xl transition-colors whitespace-nowrap">
+                <%= appliedCoupon ? 'Remove' : 'Apply' %>
+              </button>
+            </div>
+            <% if (appliedCoupon) { %>
+              <p class="text-xs text-green-600 font-semibold mt-2 flex items-center gap-1">
+                <i class="bi bi-check-circle-fill"></i>
+                "<%= appliedCoupon %>" applied! Saved ₹<%= discount.toLocaleString('en-IN') %>
+              </p>
+            <% } %>
+          </div>
+
+          <!-- Place Order -->
+          <button id="place-order-btn"
+            class="w-full bg-red-500 hover:bg-red-600 text-white font-bold text-sm py-3.5 rounded-xl transition-colors shadow-sm hover:shadow-md flex items-center justify-center gap-2">
+            <i class="bi bi-bag-check-fill"></i>
+            Place Order — ₹<span id="btn-total"><%= total.toLocaleString('en-IN') %></span>
+          </button>
+
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- ADD ADDRESS MODAL -->
+  <div id="addModal" class="modal-overlay">
+    <div class="modal-box">
+      <button onclick="closeAddModal()" class="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 transition">
+        <i class="bi bi-x-lg text-sm"></i>
+      </button>
+      <div class="mb-6">
+        <h3 class="text-2xl font-bold text-gray-900">Add New Address</h3>
+        <p class="text-sm text-gray-400 mt-1">Fill in your delivery details below</p>
+      </div>
+      <form id="addForm" class="space-y-4" novalidate>
+        <div class="grid grid-cols-2 gap-3">
+          <div class="field-wrap">
+            <label>First Name *</label>
+            <input type="text" name="firstName" placeholder="John" class="input-style">
+            <i class="bi bi-person input-icon"></i><i class="bi bi-check-lg check-icon"></i>
+            <p class="error-text"><i class="bi bi-exclamation-circle"></i><span></span></p>
+          </div>
+          <div class="field-wrap">
+            <label>Last Name *</label>
+            <input type="text" name="lastName" placeholder="Doe" class="input-style">
+            <i class="bi bi-person input-icon"></i><i class="bi bi-check-lg check-icon"></i>
+            <p class="error-text"><i class="bi bi-exclamation-circle"></i><span></span></p>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div class="field-wrap">
+            <label>Email *</label>
+            <input type="email" name="email" placeholder="john@example.com" class="input-style">
+            <i class="bi bi-envelope input-icon"></i><i class="bi bi-check-lg check-icon"></i>
+            <p class="error-text"><i class="bi bi-exclamation-circle"></i><span></span></p>
+          </div>
+          <div class="field-wrap">
+            <label>Phone *</label>
+            <input type="tel" name="phone" placeholder="9876543210" maxlength="10" class="input-style">
+            <i class="bi bi-telephone input-icon"></i><i class="bi bi-check-lg check-icon"></i>
+            <p class="error-text"><i class="bi bi-exclamation-circle"></i><span></span></p>
+          </div>
+        </div>
+        <div class="field-wrap">
+          <label>Address *</label>
+          <input type="text" name="address" placeholder="House / Flat No., Building Name" class="input-style">
+          <i class="bi bi-house input-icon"></i><i class="bi bi-check-lg check-icon"></i>
+          <p class="error-text"><i class="bi bi-exclamation-circle"></i><span></span></p>
+        </div>
+        <div class="field-wrap">
+          <label>Street / Area *</label>
+          <input type="text" name="street" placeholder="Street, Locality, Area" class="input-style">
+          <i class="bi bi-signpost input-icon"></i><i class="bi bi-check-lg check-icon"></i>
+          <p class="error-text"><i class="bi bi-exclamation-circle"></i><span></span></p>
+        </div>
+        <div class="grid grid-cols-3 gap-3">
+          <div class="field-wrap">
+            <label>State *</label>
+            <input type="text" name="state" placeholder="Kerala" class="input-style">
+            <i class="bi bi-map input-icon"></i><i class="bi bi-check-lg check-icon"></i>
+            <p class="error-text"><i class="bi bi-exclamation-circle"></i><span></span></p>
+          </div>
+          <div class="field-wrap">
+            <label>Country *</label>
+            <input type="text" name="country" placeholder="India" class="input-style">
+            <i class="bi bi-globe input-icon"></i><i class="bi bi-check-lg check-icon"></i>
+            <p class="error-text"><i class="bi bi-exclamation-circle"></i><span></span></p>
+          </div>
+          <div class="field-wrap">
+            <label>Pincode *</label>
+            <input type="text" name="pincode" placeholder="673002" maxlength="6" class="input-style">
+            <i class="bi bi-pin-map input-icon"></i><i class="bi bi-check-lg check-icon"></i>
+            <p class="error-text"><i class="bi bi-exclamation-circle"></i><span></span></p>
+          </div>
+        </div>
+        <button type="submit" id="add-submit-btn"
+          class="w-full bg-red-500 hover:bg-red-600 text-white py-3 rounded-xl font-semibold transition-colors shadow-sm mt-2">
+          <i class="bi bi-floppy me-1"></i> Save Address
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- EDIT ADDRESS MODAL -->
+  <div id="editModal" class="modal-overlay">
+    <div class="modal-box">
+      <button onclick="closeEditModal()" class="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 transition">
+        <i class="bi bi-x-lg text-sm"></i>
+      </button>
+      <div class="mb-6">
+        <h3 class="text-2xl font-bold text-gray-900">Edit Address</h3>
+        <p class="text-sm text-gray-400 mt-1">Update your delivery details</p>
+      </div>
+      <form id="editForm" class="space-y-4" novalidate>
+        <div class="grid grid-cols-2 gap-3">
+          <div class="field-wrap">
+            <label>First Name *</label>
+            <input type="text" name="firstName" class="input-style">
+            <i class="bi bi-person input-icon"></i><i class="bi bi-check-lg check-icon"></i>
+            <p class="error-text"><i class="bi bi-exclamation-circle"></i><span></span></p>
+          </div>
+          <div class="field-wrap">
+            <label>Last Name *</label>
+            <input type="text" name="lastName" class="input-style">
+            <i class="bi bi-person input-icon"></i><i class="bi bi-check-lg check-icon"></i>
+            <p class="error-text"><i class="bi bi-exclamation-circle"></i><span></span></p>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div class="field-wrap">
+            <label>Email *</label>
+            <input type="email" name="email" class="input-style">
+            <i class="bi bi-envelope input-icon"></i><i class="bi bi-check-lg check-icon"></i>
+            <p class="error-text"><i class="bi bi-exclamation-circle"></i><span></span></p>
+          </div>
+          <div class="field-wrap">
+            <label>Phone *</label>
+            <input type="tel" name="phone" maxlength="10" class="input-style">
+            <i class="bi bi-telephone input-icon"></i><i class="bi bi-check-lg check-icon"></i>
+            <p class="error-text"><i class="bi bi-exclamation-circle"></i><span></span></p>
+          </div>
+        </div>
+        <div class="field-wrap">
+          <label>Address *</label>
+          <input type="text" name="address" class="input-style">
+          <i class="bi bi-house input-icon"></i><i class="bi bi-check-lg check-icon"></i>
+          <p class="error-text"><i class="bi bi-exclamation-circle"></i><span></span></p>
+        </div>
+        <div class="field-wrap">
+          <label>Street / Area *</label>
+          <input type="text" name="street" class="input-style">
+          <i class="bi bi-signpost input-icon"></i><i class="bi bi-check-lg check-icon"></i>
+          <p class="error-text"><i class="bi bi-exclamation-circle"></i><span></span></p>
+        </div>
+        <div class="grid grid-cols-3 gap-3">
+          <div class="field-wrap">
+            <label>State *</label>
+            <input type="text" name="state" class="input-style">
+            <i class="bi bi-map input-icon"></i><i class="bi bi-check-lg check-icon"></i>
+            <p class="error-text"><i class="bi bi-exclamation-circle"></i><span></span></p>
+          </div>
+          <div class="field-wrap">
+            <label>Country *</label>
+            <input type="text" name="country" class="input-style">
+            <i class="bi bi-globe input-icon"></i><i class="bi bi-check-lg check-icon"></i>
+            <p class="error-text"><i class="bi bi-exclamation-circle"></i><span></span></p>
+          </div>
+          <div class="field-wrap">
+            <label>Pincode *</label>
+            <input type="text" name="pincode" maxlength="6" class="input-style">
+            <i class="bi bi-pin-map input-icon"></i><i class="bi bi-check-lg check-icon"></i>
+            <p class="error-text"><i class="bi bi-exclamation-circle"></i><span></span></p>
+          </div>
+        </div>
+        <button type="submit" id="edit-submit-btn"
+          class="w-full bg-red-500 hover:bg-red-600 text-white py-3 rounded-xl font-semibold transition-colors shadow-sm mt-2">
+          <i class="bi bi-pencil-square me-1"></i> Update Address
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ALL ADDRESSES MODAL -->
+  <div id="allAddressModal" class="modal-overlay">
+    <div class="modal-box" style="max-width:680px;">
+      <button onclick="closeAllAddressesModal()" class="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 transition">
+        <i class="bi bi-x-lg text-sm"></i>
+      </button>
+      <div class="mb-6">
+        <h3 class="text-2xl font-bold text-gray-900">All Addresses</h3>
+        <p class="text-sm text-gray-400 mt-1">Click an address to select it for delivery</p>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3" id="modal-address-list">
+        <% if (addresses) { addresses.forEach((addr) => { %>
+          <div class="modal-addr-card" data-address-id="<%= addr._id %>"
+            data-name="<%= addr.firstName %> <%= addr.lastName %>"
+            data-line1="<%= addr.address %>, <%= addr.street %>"
+            data-line2="<%= addr.state %>, <%= addr.country %> - <%= addr.pincode %>"
+            data-phone="<%= addr.phone %>"
+            data-email="<%= addr.email %>"
+            data-isdefault="<%= addr.isDefault ? 'true' : 'false' %>"
+            data-firstname="<%= addr.firstName %>"
+            data-lastname="<%= addr.lastName %>"
+            data-address="<%= addr.address %>"
+            data-street="<%= addr.street %>"
+            data-state="<%= addr.state %>"
+            data-country="<%= addr.country %>"
+            data-pincode="<%= addr.pincode %>">
+            <div class="flex justify-between items-start mb-1.5">
+              <p class="text-xs font-bold text-gray-400 uppercase tracking-wide">Delivery Address</p>
+              <% if (addr.isDefault) { %>
+                <span class="text-xs bg-green-100 text-green-600 font-semibold px-2 py-0.5 rounded-full">Default</span>
+              <% } %>
+            </div>
+            <p class="font-semibold text-gray-800 text-sm"><%= addr.firstName %> <%= addr.lastName %></p>
+            <p class="text-xs text-gray-500 mt-1 leading-relaxed">
+              <%= addr.address %>, <%= addr.street %><br>
+              <%= addr.state %>, <%= addr.country %> - <%= addr.pincode %>
+            </p>
+            <p class="text-xs text-gray-500 mt-1"><i class="bi bi-telephone-fill text-gray-400 me-1"></i><%= addr.phone %></p>
+            <div class="flex gap-2 mt-3">
+              <button class="modal-select-btn text-xs font-semibold px-3 py-1.5 rounded-lg border-2 border-red-200 text-red-500 hover:bg-red-50 transition-colors">
+                <i class="bi bi-check2"></i> Select
+              </button>
+              <button onclick="event.stopPropagation(); openEditModal(this)"
+                data-id="<%= addr._id %>"
+                data-firstname="<%= addr.firstName %>"
+                data-lastname="<%= addr.lastName %>"
+                data-phone="<%= addr.phone %>"
+                data-email="<%= addr.email %>"
+                data-address="<%= addr.address %>"
+                data-street="<%= addr.street %>"
+                data-state="<%= addr.state %>"
+                data-country="<%= addr.country %>"
+                data-pincode="<%= addr.pincode %>"
+                class="text-xs font-semibold px-3 py-1.5 rounded-lg border-2 border-amber-200 text-amber-600 hover:bg-amber-50 transition-colors">
+                <i class="bi bi-pencil"></i> Edit
+              </button>
+            </div>
+          </div>
+        <% }) } %>
+      </div>
+    </div>
+  </div>
+
+  <!-- COUPON MODAL -->
+  <div id="couponModal" class="modal-overlay">
+    <div class="modal-box" style="max-width:480px;">
+      <button onclick="closeCouponModal()" class="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 transition">
+        <i class="bi bi-x-lg text-sm"></i>
+      </button>
+      <div class="mb-6">
+        <h3 class="text-2xl font-bold text-gray-900">Available Coupons</h3>
+        <p class="text-sm text-gray-400 mt-1">Click a coupon to apply it</p>
+      </div>
+      <div id="coupon-list" class="space-y-3">
+        <div class="flex items-center justify-center py-8">
+          <div class="w-5 h-5 border-2 border-red-400 border-t-transparent rounded-full animate-spin"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- WALLET CONFIRM MODAL -->
+  <div id="walletConfirmModal" class="modal-overlay">
+    <div class="modal-box text-center" style="max-width:400px;">
+      <div class="w-16 h-16 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
+        <i class="bi bi-wallet2 text-3xl"></i>
+      </div>
+      <h3 class="text-2xl font-bold text-gray-900 mb-2">Confirm Payment</h3>
+      <p class="text-gray-500 mb-1">Pay using your wallet balance?</p>
+      <p class="font-bold text-gray-800 text-2xl mb-6" id="wallet-confirm-amount"></p>
+      <div class="flex gap-3">
+        <button onclick="closeWalletConfirmModal()" class="flex-1 py-3 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition">Cancel</button>
+        <button id="wallet-confirm-btn" class="flex-1 py-3 px-4 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl transition shadow-sm">Confirm Pay</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- COD CONFIRM MODAL -->
+  <div id="codConfirmModal" class="modal-overlay">
+    <div class="modal-box text-center" style="max-width:400px;">
+      <div class="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
+        <i class="bi bi-cash-coin text-3xl"></i>
+      </div>
+      <h3 class="text-2xl font-bold text-gray-900 mb-2">Confirm COD Order</h3>
+      <p class="text-gray-500 mb-1">Amount to pay on delivery:</p>
+      <p class="font-bold text-gray-800 text-2xl mb-6" id="cod-confirm-amount"></p>
+      <div class="flex gap-3">
+        <button onclick="closeCodConfirmModal()" class="flex-1 py-3 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition">Cancel</button>
+        <button id="cod-confirm-btn" class="flex-1 py-3 px-4 bg-green-500 hover:bg-green-600 text-white font-bold rounded-xl transition shadow-sm">Confirm Order</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STOCK ERROR MODAL -->
+  <div id="stockErrorModal" class="modal-overlay">
+    <div class="modal-box text-center" style="max-width:400px; padding: 2.5rem 2rem;">
+      <div class="w-20 h-20 bg-amber-100 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-5">
+        <i class="bi bi-exclamation-triangle-fill text-4xl"></i>
+      </div>
+      <h3 class="text-2xl font-bold text-gray-900 mb-2">Stock Unavailable</h3>
+      <p class="text-gray-500 mb-6 font-medium">One or more products in your order are no longer available. Please return to your cart to review.</p>
+      <a href="/user/cart" class="block w-full py-3.5 px-4 bg-gray-900 hover:bg-black text-white font-bold rounded-xl transition shadow-sm">
+        Go to Cart
+      </a>
+    </div>
+  </div>
+
+  <%- include('../partials/layout-scripts') %>
+
+  <script>
+    // ── TOAST ──────────────────────────────────────────────────────────
+    function showToast(msg, type = 'success') {
+      const icons = { success:'bi-check-circle-fill', error:'bi-x-circle-fill', info:'bi-info-circle-fill', warn:'bi-exclamation-triangle-fill' };
+      const t = document.createElement('div');
+      t.className = `toast ${type}`;
+      t.innerHTML = `<i class="bi ${icons[type]}"></i><span>${msg}</span>`;
+      document.getElementById('toast-container').appendChild(t);
+      setTimeout(() => t.remove(), 3000);
+    }
+    function fmt(n) { return Number(n).toLocaleString('en-IN'); }
+
+    // ── VALIDATION ─────────────────────────────────────────────────────
+    function getErrEl(input) { return input.closest('.field-wrap').querySelector('.error-text'); }
+    function showErr(input, msg) {
+      input.classList.remove('valid'); input.classList.add('invalid');
+      const p = getErrEl(input); p.querySelector('span').textContent = msg; p.classList.add('show');
+    }
+    function clearErr(input) {
+      input.classList.remove('invalid','valid');
+      const p = getErrEl(input); if (p) { p.classList.remove('show'); p.querySelector('span').textContent = ''; }
+    }
+    function markOk(input) {
+      input.classList.remove('invalid'); input.classList.add('valid');
+      const p = getErrEl(input); if (p) p.classList.remove('show');
+    }
+    function validateField(input) {
+      const n = input.name, v = input.value.trim();
+      if (!v) { showErr(input, 'This field is required'); return false; }
+      if (n==='firstName' && v.length < 2) { showErr(input,'At least 2 characters'); return false; }
+      if (n==='lastName'  && v.length < 1) { showErr(input,'At least 1 character required'); return false; }
+      if ((n==='firstName'||n==='lastName') && /\d/.test(v)) { showErr(input,'No numbers allowed'); return false; }
+      if (n==='email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) { showErr(input,'Enter valid email'); return false; }
+      if (n==='phone'   && !/^\d{10}$/.test(v)) { showErr(input,'10 digit number required'); return false; }
+      if (n==='pincode' && !/^\d{6}$/.test(v))  { showErr(input,'6 digit pincode required'); return false; }
+      markOk(input); return true;
+    }
+    function validateForm(form) {
+      let ok = true;
+      form.querySelectorAll('.input-style').forEach(i => { if (!validateField(i)) ok = false; });
+      return ok;
+    }
+    document.querySelectorAll('.input-style').forEach(input => {
+      input.addEventListener('blur',  () => { if (input.value.trim()) validateField(input); });
+      input.addEventListener('input', () => { if (input.classList.contains('invalid')) validateField(input); });
+      if (input.name==='firstName'||input.name==='lastName')
+        input.addEventListener('keypress', e => { if (/\d/.test(e.key)) e.preventDefault(); });
+    });
+
+    // ── SELECTED ADDRESS STATE ─────────────────────────────────────────
+    <% const defaultAddr = addresses && addresses.find(a => a.isDefault); %>
+    let selectedAddressId = '<%= defaultAddr ? defaultAddr._id : "" %>' || null;
+
+    function renderSelectedSlot(data) {
+      const slot = document.getElementById('selected-addr-card');
+      if (!slot) return;
+      slot.className = 'address-card-selected';
+      slot.dataset.addressId = data.id;
+      slot.innerHTML = `
+        <div class="flex justify-between items-start mb-2">
+          <span class="text-xs font-bold text-red-400 uppercase tracking-wide flex items-center gap-1">
+            <i class="bi bi-check-circle-fill"></i> Selected Address
+          </span>
+          ${data.isDefault ? '<span class="text-xs bg-green-100 text-green-600 font-semibold px-2 py-0.5 rounded-full">Default</span>' : ''}
+        </div>
+        <p class="font-semibold text-gray-800 text-sm">${data.name}</p>
+        <p class="text-xs text-gray-500 mt-1 leading-relaxed">${data.line1}<br>${data.line2}</p>
+        <p class="text-xs text-gray-500 mt-1"><i class="bi bi-telephone-fill text-gray-400 me-1"></i>${data.phone}</p>
+        <p class="text-xs text-gray-500"><i class="bi bi-envelope-fill text-gray-400 me-1"></i>${data.email || ''}</p>
+        <div class="flex gap-2 mt-3">
+          <button onclick="event.stopPropagation(); openEditModal(this)"
+            data-id="${data.id}"
+            data-firstname="${data.firstName}"
+            data-lastname="${data.lastName}"
+            data-phone="${data.phone}"
+            data-email="${data.email || ''}"
+            data-address="${data.address}"
+            data-street="${data.street}"
+            data-state="${data.state}"
+            data-country="${data.country}"
+            data-pincode="${data.pincode}"
+            class="text-xs font-semibold px-3 py-1.5 rounded-lg border-2 border-amber-200 text-amber-600 hover:bg-amber-50 transition-colors">
+            <i class="bi bi-pencil"></i> Edit
+          </button>
+        </div>`;
+    }
+
+    function syncModalSelection() {
+      document.querySelectorAll('.modal-addr-card').forEach(c => {
+        const btn = c.querySelector('.modal-select-btn');
+        if (c.dataset.addressId === selectedAddressId) {
+          c.classList.add('selected');
+          if (btn) { btn.innerHTML = '<i class="bi bi-check-circle-fill"></i> Selected'; btn.classList.add('bg-red-500','text-white'); btn.classList.remove('text-red-500'); }
+        } else {
+          c.classList.remove('selected');
+          if (btn) { btn.innerHTML = '<i class="bi bi-check2"></i> Select'; btn.classList.remove('bg-red-500','text-white'); btn.classList.add('text-red-500'); }
+        }
+      });
+    }
+
+    // ── PAYMENT OPTION HIGHLIGHT ───────────────────────────────────────
+    document.querySelectorAll('input[name="paymentMethod"]').forEach(radio => {
+      radio.addEventListener('change', () => {
+        document.querySelectorAll('.payment-option').forEach(el => el.classList.remove('selected'));
+        radio.closest('.payment-option').classList.add('selected');
+      });
+    });
+
+    // ── ADD MODAL ──────────────────────────────────────────────────────
+    function openAddModal()  { document.getElementById('addModal').classList.add('show'); }
+    function closeAddModal() {
+      document.getElementById('addModal').classList.remove('show');
+      document.getElementById('addForm').querySelectorAll('.input-style').forEach(i => { i.value=''; clearErr(i); });
+    }
+
+    document.getElementById('addForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      if (!validateForm(e.target)) return;
+      const btn = document.getElementById('add-submit-btn');
+      btn.disabled = true; btn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i> Saving...';
+      const data = Object.fromEntries([...e.target.querySelectorAll('.input-style')].map(i => [i.name, i.value.trim()]));
+      try {
+        const res = await fetch('/user/checkout/save-address', {
+          method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(data)
+        });
+        const result = await res.json();
+        if (result.success) {
+          showToast('Address saved!', 'success');
+          closeAddModal();
+          const addr = result.address;
+          const noMsg = document.getElementById('no-address-msg');
+          if (noMsg) noMsg.remove();
+          const modalList = document.getElementById('modal-address-list');
+          const mCard = document.createElement('div');
+          mCard.className = 'modal-addr-card';
+          mCard.dataset.addressId = addr._id;
+          mCard.dataset.name      = `${addr.firstName} ${addr.lastName}`;
+          mCard.dataset.line1     = `${addr.address}, ${addr.street}`;
+          mCard.dataset.line2     = `${addr.state}, ${addr.country} - ${addr.pincode}`;
+          mCard.dataset.phone     = addr.phone;
+          mCard.dataset.email     = addr.email;
+          mCard.dataset.isdefault = 'false';
+          mCard.dataset.firstname = addr.firstName;
+          mCard.dataset.lastname  = addr.lastName;
+          mCard.dataset.address   = addr.address;
+          mCard.dataset.street    = addr.street;
+          mCard.dataset.state     = addr.state;
+          mCard.dataset.country   = addr.country;
+          mCard.dataset.pincode   = addr.pincode;
+          mCard.innerHTML = `
+            <div class="flex justify-between items-start mb-1.5">
+              <p class="text-xs font-bold text-gray-400 uppercase tracking-wide">Delivery Address</p>
+            </div>
+            <p class="font-semibold text-gray-800 text-sm">${addr.firstName} ${addr.lastName}</p>
+            <p class="text-xs text-gray-500 mt-1 leading-relaxed">${addr.address}, ${addr.street}<br>${addr.state}, ${addr.country} - ${addr.pincode}</p>
+            <p class="text-xs text-gray-500 mt-1"><i class="bi bi-telephone-fill text-gray-400 me-1"></i>${addr.phone}</p>
+            <div class="flex gap-2 mt-3">
+              <button class="modal-select-btn text-xs font-semibold px-3 py-1.5 rounded-lg border-2 border-red-200 text-red-500 hover:bg-red-50 transition-colors">
+                <i class="bi bi-check2"></i> Select
+              </button>
+              <button onclick="event.stopPropagation(); openEditModal(this)"
+                data-id="${addr._id}" data-firstname="${addr.firstName}" data-lastname="${addr.lastName}"
+                data-phone="${addr.phone}" data-email="${addr.email}" data-address="${addr.address}"
+                data-street="${addr.street}" data-state="${addr.state}" data-country="${addr.country}" data-pincode="${addr.pincode}"
+                class="text-xs font-semibold px-3 py-1.5 rounded-lg border-2 border-amber-200 text-amber-600 hover:bg-amber-50 transition-colors">
+                <i class="bi bi-pencil"></i> Edit
+              </button>
+            </div>`;
+          bindModalCard(mCard);
+          modalList.appendChild(mCard);
+        } else { showToast(result.message || 'Failed to save address', 'error'); }
+      } catch(err) { showToast('Something went wrong', 'error'); }
+      finally { btn.disabled=false; btn.innerHTML='<i class="bi bi-floppy me-1"></i> Save Address'; }
+    });
+
+    // ── EDIT MODAL ─────────────────────────────────────────────────────
+    let editAddressId = null;
+    function openEditModal(btn) {
+      editAddressId = btn.dataset.id;
+      const form = document.getElementById('editForm');
+      ['firstName','lastName','phone','email','address','street','state','country','pincode'].forEach(k => {
+        const input = form.querySelector(`[name="${k}"]`);
+        if (input) { input.value = btn.dataset[k.toLowerCase()] || ''; clearErr(input); }
+      });
+      document.getElementById('editModal').classList.add('show');
+    }
+    function closeEditModal() { document.getElementById('editModal').classList.remove('show'); editAddressId = null; }
+
+    document.getElementById('editForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      if (!validateForm(e.target)) return;
+      const btn = document.getElementById('edit-submit-btn');
+      btn.disabled=true; btn.innerHTML='<i class="bi bi-hourglass-split me-1"></i> Updating...';
+      const data = Object.fromEntries([...e.target.querySelectorAll('.input-style')].map(i => [i.name, i.value.trim()]));
+      try {
+        const res = await fetch(`/user/address/${editAddressId}`, {
+          method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify(data)
+        });
+        const result = await res.json();
+        if (result.success) {
+          showToast('Address updated!', 'success');
+          closeEditModal();
+          setTimeout(() => location.reload(), 800);
+        } else { showToast(result.message || 'Failed to update', 'error'); }
+      } catch(err) { showToast('Something went wrong', 'error'); }
+      finally { btn.disabled=false; btn.innerHTML='<i class="bi bi-pencil-square me-1"></i> Update Address'; }
+    });
+
+    // ── ALL ADDRESSES MODAL ────────────────────────────────────────────
+    function openAllAddressesModal() {
+      document.getElementById('allAddressModal').classList.add('show');
+      syncModalSelection();
+    }
+    function closeAllAddressesModal() { document.getElementById('allAddressModal').classList.remove('show'); }
+
+    function bindModalCard(card) {
+      card.addEventListener('click', (e) => {
+        if (e.target.closest('button') && !e.target.closest('.modal-select-btn')) return;
+        selectedAddressId = card.dataset.addressId;
+        renderSelectedSlot({
+          id:        card.dataset.addressId,
+          name:      card.dataset.name,
+          line1:     card.dataset.line1,
+          line2:     card.dataset.line2,
+          phone:     card.dataset.phone,
+          email:     card.dataset.email,
+          isDefault: card.dataset.isdefault === 'true',
+          firstName: card.dataset.firstname,
+          lastName:  card.dataset.lastname,
+          address:   card.dataset.address,
+          street:    card.dataset.street,
+          state:     card.dataset.state,
+          country:   card.dataset.country,
+          pincode:   card.dataset.pincode,
+        });
+        syncModalSelection();
+        closeAllAddressesModal();
+        showToast('Address selected', 'info');
+      });
+    }
+    document.querySelectorAll('#modal-address-list .modal-addr-card').forEach(bindModalCard);
+
+    // ── COUPON MODAL ───────────────────────────────────────────────────
+    async function openCouponModal() {
+      document.getElementById('couponModal').classList.add('show');
+      const list = document.getElementById('coupon-list');
+      list.innerHTML = '<div class="flex items-center justify-center py-8"><div class="w-5 h-5 border-2 border-red-400 border-t-transparent rounded-full animate-spin"></div></div>';
+      try {
+        const res = await fetch('/user/checkout/available-coupons');
+        const result = await res.json();
+        if (result.success && result.coupons.length > 0) {
+          list.innerHTML = result.coupons.map(c => `
+            <div onclick="applyCouponFromModal('${c.code}')"
+              class="border-2 border-dashed border-gray-200 rounded-xl p-4 cursor-pointer hover:border-red-300 hover:bg-red-50 transition-colors">
+              <div class="flex justify-between items-center">
+                <div>
+                  <span class="inline-block bg-red-50 text-red-600 font-bold text-sm px-3 py-1 rounded-lg border border-red-100 tracking-wider">${c.code}</span>
+                  <p class="text-sm font-semibold text-gray-700 mt-2">
+                    ${c.discountType==='percentage' ? c.discountValue+'% off' : '₹'+c.discountValue+' off'}
+                    ${c.maxDiscountAmount ? ' (max ₹'+c.maxDiscountAmount+')' : ''}
+                  </p>
+                  ${c.minPurchaseAmount ? `<p class="text-xs text-gray-400 mt-0.5">Min order: ₹${c.minPurchaseAmount}</p>` : ''}
+                  ${c.endDate ? `<p class="text-xs text-gray-400">Expires: ${new Date(c.endDate).toLocaleDateString('en-IN')}</p>` : ''}
+                </div>
+                <span class="text-xs bg-green-100 text-green-600 font-bold px-3 py-1.5 rounded-lg">Apply</span>
+              </div>
+            </div>`).join('');
+        } else {
+          list.innerHTML = '<div class="text-center py-8 text-gray-400"><i class="bi bi-ticket-perforated text-4xl mb-2 block"></i><p class="text-sm">No coupons available right now</p></div>';
+        }
+      } catch(err) {
+        list.innerHTML = '<div class="text-center py-8 text-gray-400"><p class="text-sm">Failed to load coupons</p></div>';
+      }
+    }
+    function closeCouponModal() { document.getElementById('couponModal').classList.remove('show'); }
+
+    // ── COUPON APPLY / REMOVE ──────────────────────────────────────────
+    let couponApplied = <%= appliedCoupon ? 'true' : 'false' %>;
+
+    async function doRemoveCoupon() {
+      const btn = document.getElementById('apply-coupon-btn');
+      btn.disabled = true;
+      try {
+        const res = await fetch('/user/checkout/remove-coupon', { method:'POST' });
+        const r = await res.json();
+        if (r.success) {
+          couponApplied = false; btn.textContent = 'Apply';
+          document.getElementById('coupon-input').value = '';
+          document.getElementById('discount-row').classList.add('hidden');
+          document.getElementById('discount-row').classList.remove('flex');
+          const sub = <%= subtotal %>;
+          document.getElementById('final-total').textContent = '₹' + fmt(sub);
+          document.getElementById('btn-total').textContent   = fmt(sub);
+          showToast('Coupon removed', 'info');
+        } else showToast(r.message || 'Failed', 'error');
+      } catch(e) { showToast('Something went wrong', 'error'); }
+      finally { btn.disabled = false; }
+    }
+
+    async function doApplyCoupon(code) {
+      if (!code) { showToast('Please enter a coupon code', 'warn'); return; }
+      const btn = document.getElementById('apply-coupon-btn');
+      btn.disabled = true; btn.textContent = 'Applying...';
+      try {
+        const res = await fetch('/user/checkout/apply-coupon', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ couponCode: code })
+        });
+        const r = await res.json();
+        if (r.success) {
+          couponApplied = true; btn.textContent = 'Remove';
+          document.getElementById('coupon-input').value = code;
+          document.getElementById('discount-row').classList.remove('hidden');
+          document.getElementById('discount-row').classList.add('flex');
+          document.getElementById('coupon-label').textContent    = code;
+          document.getElementById('discount-amount').textContent = fmt(r.discount);
+          document.getElementById('final-total').textContent     = '₹' + fmt(r.newTotal);
+          document.getElementById('btn-total').textContent       = fmt(r.newTotal);
+          showToast(r.message, 'success');
+        } else {
+          showToast(r.message || 'Invalid coupon', 'error');
+          btn.textContent = couponApplied ? 'Remove' : 'Apply';
+        }
+      } catch(e) {
+        showToast('Something went wrong', 'error');
+        btn.textContent = couponApplied ? 'Remove' : 'Apply';
+      }
+      finally { btn.disabled = false; }
+    }
+
+    function applyCouponFromModal(code) { closeCouponModal(); doApplyCoupon(code); }
+
+    document.getElementById('apply-coupon-btn').addEventListener('click', () => {
+      if (couponApplied) { doRemoveCoupon(); }
+      else { doApplyCoupon(document.getElementById('coupon-input').value.trim().toUpperCase()); }
+    });
+
+    //razeray
+    let currentDbOrderId = null;
+
+    function initiateRazorpay(data) {
+      const resetBtn = () => {
+        const btn = document.getElementById('place-order-btn');
+        btn.disabled = false;
+        btn.innerHTML = `<i class="bi bi-bag-check-fill"></i> Place Order — ₹<span id="btn-total">${document.getElementById('final-total').textContent.replace('₹','')}</span>`;
+      };
+      const options = {
+        key:         data.keyId,
+        amount:      data.amount,
+        currency:    data.currency,
+        name:        'ElectroHub',
+        description: 'Order Payment',
+        order_id:    data.orderId,
+        prefill: { name: data.user.name, email: data.user.email, contact: data.user.phone },
+        theme: { color: '#ef4444' },
+        handler: async (response) => {
+          try {
+            const verifyRes = await fetch('/user/checkout/verify-payment', {
+              method: 'POST', headers: {'Content-Type':'application/json'},
+              body: JSON.stringify({
+                dbOrderId:         data.dbOrderId,
+                razorpayPaymentId: response.razorpay_payment_id,
+                razorpayOrderId:   response.razorpay_order_id,
+                razorpaySignature: response.razorpay_signature,
+              }),
+            });
+            const verifyData = await verifyRes.json();
+            if (verifyData.success) { window.location.href = verifyData.redirectUrl; }
+            else { showToast(verifyData.message || 'Verification failed', 'error'); resetBtn(); }
+          } catch(e) { showToast('Something went wrong verifying payment', 'error'); resetBtn(); }
+        },
+        modal: {
+          ondismiss: async () => {
+            await fetch('/user/checkout/payment-failure', {
+              method:'POST', headers:{'Content-Type':'application/json'},
+              body: JSON.stringify({ dbOrderId: data.dbOrderId }),
+            });
+            window.location.href = `/user/checkout/failed?orderId=${data.dbOrderId}`;
+          },
+        },
+      };
+      const rzp = new Razorpay(options);
+      rzp.on('payment.failed', async () => {
+        await fetch('/user/checkout/payment-failure', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ dbOrderId: data.dbOrderId }),
+        });
+        window.location.href = `/user/checkout/failed?orderId=${data.dbOrderId}`;
+      });
+      rzp.open();
+    }
+
+    // ── PLACE ORDER ────────────────────────────────────────────────────
+    document.getElementById('place-order-btn').addEventListener('click', async () => {
+      const paymentMethod = document.querySelector('input[name="paymentMethod"]:checked')?.value;
+      if (!selectedAddressId) { showToast('Please select a delivery address', 'warn'); return; }
+      if (!paymentMethod)     { showToast('Please select a payment method', 'warn'); return; }
+
+      const btn = document.getElementById('place-order-btn');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Processing...';
+
+      const resetBtn = () => {
+        btn.disabled = false;
+        btn.innerHTML = `<i class="bi bi-bag-check-fill"></i> Place Order — ₹<span id="btn-total">${document.getElementById('final-total').textContent.replace('₹','')}</span>`;
+      };
+
+      const submitOrderApi = async (method) => {
+        try {
+          const res = await fetch('/user/checkout/place-order', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ addressId: selectedAddressId, paymentMethod: method }),
+          });
+          const r = await res.json();
+          if (r.success) {
+            window.location.href = r.redirectUrl;
+          } else {
+            if (r.message?.toLowerCase().includes('stock')) {
+              document.getElementById('stockErrorModal').classList.add('show');
+            } else {
+              showToast(r.message || 'Failed to place order', 'error');
+            }
+            resetBtn();
+          }
+        } catch(e) { showToast('Something went wrong. Please try again.', 'error'); resetBtn(); }
+      };
+
+      // RAZORPAY
+      if (paymentMethod === 'razorpay') {
+        try {
+          const url  = currentDbOrderId ? '/user/checkout/retry-payment' : '/user/checkout/place-order';
+          const body = currentDbOrderId
+            ? { orderId: currentDbOrderId }
+            : { addressId: selectedAddressId, paymentMethod: 'razorpay' };
+          const res  = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+          const data = await res.json();
+          if (!data.success) {
+            if (data.message?.toLowerCase().includes('stock')) {
+              document.getElementById('stockErrorModal').classList.add('show');
+            } else {
+              showToast(data.message || 'Failed to process order', 'error');
+            }
+            resetBtn(); return;
+          }
+          currentDbOrderId = data.dbOrderId;
+          initiateRazorpay(data);
+        } catch(e) { showToast('Something went wrong initiating payment', 'error'); resetBtn(); }
+        return;
+      }
+
+      // WALLET
+      if (paymentMethod === 'wallet') {
+        document.getElementById('wallet-confirm-amount').textContent = document.getElementById('final-total').textContent;
+        document.getElementById('walletConfirmModal').classList.add('show');
+        resetBtn();
+        document.getElementById('wallet-confirm-btn').onclick = async () => {
+          document.getElementById('walletConfirmModal').classList.remove('show');
+          btn.disabled = true;
+          btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Processing...';
+          await submitOrderApi('wallet');
+        };
+        return;
+      }
+
+      // COD
+      if (paymentMethod === 'cod') {
+        document.getElementById('cod-confirm-amount').textContent = document.getElementById('final-total').textContent;
+        document.getElementById('codConfirmModal').classList.add('show');
+        resetBtn();
+        document.getElementById('cod-confirm-btn').onclick = async () => {
+          document.getElementById('codConfirmModal').classList.remove('show');
+          btn.disabled = true;
+          btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Processing...';
+          await submitOrderApi('cod');
+        };
+        return;
+      }
+    });
+
+    // ── MODAL CLOSE HELPERS ────────────────────────────────────────────
+    function closeWalletConfirmModal() { document.getElementById('walletConfirmModal').classList.remove('show'); }
+    function closeCodConfirmModal()    { document.getElementById('codConfirmModal').classList.remove('show'); }
+
+    ['addModal','editModal','allAddressModal','couponModal','walletConfirmModal','codConfirmModal','stockErrorModal'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener('click', function(e) { if (e.target === this) this.classList.remove('show'); });
+    });
+  </script>
+</body>
+</html>

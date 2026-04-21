@@ -1,0 +1,604 @@
+<% const _sort = sort || 'desc'; %>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Admin Customers | ElectroHub</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+</head>
+
+<body class="bg-gray-100">
+
+  <!-- TOP NAVBAR -->
+  <header class="bg-white shadow-sm">
+    <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <span class="text-xl font-bold">ElectroHub</span>
+        <span class="text-xs text-gray-500 ml-2">Next-Gen Electronics</span>
+      </div>
+      <nav class="flex items-center gap-6 text-sm font-medium">
+        <a href="/admin/dashboard" class="hover:text-black text-gray-600">Home</a>
+        <a href="#" class="hover:text-black text-gray-600">Contact</a>
+        <a href="#" class="hover:text-black text-gray-600">About</a>
+        <a href="/admin/logout" class="text-red-600 hover:underline">Logout</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="flex">
+
+    <!-- SIDEBAR -->
+    <aside class="w-64 min-h-[calc(100vh-64px)] bg-white border-r">
+      <div class="p-6 font-semibold">ElectroHub Admin</div>
+      <nav class="px-4 space-y-1 text-sm">
+        <a href="/admin/dashboard" class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100">
+          <i class="bi bi-house"></i> Dashboard
+        </a>
+        <a href="/admin/orders" class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100">
+          <i class="bi bi-bag"></i> Orders
+        </a>
+        <a href="/admin/products" class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100">
+          <i class="bi bi-box"></i> Products
+        </a>
+        <a href="/admin/category" class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100">
+          <i class="bi bi-tags"></i> Category
+        </a>
+        <a href="/admin/offers" class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100">
+          <i class="bi bi-percent"></i> Offers
+        </a>
+        <a href="/admin/coupons" class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100">
+          <i class="bi bi-ticket"></i> Coupons
+        </a>
+        <a href="/admin/banners" class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100">
+          <i class="bi bi-image"></i> Banners
+        </a>
+        <a href="/admin/customers" class="flex items-center gap-2 px-3 py-2 rounded bg-gray-100 font-semibold">
+          <i class="bi bi-people"></i> Customers
+        </a>
+        <a href="/admin/sales-report" class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100">
+          <i class="bi bi-graph-up"></i> Sales Report
+        </a>
+      </nav>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="flex-1 p-8">
+
+      <!-- Page Header -->
+      <div class="flex items-center justify-between mb-6">
+        <h1 class="text-2xl font-semibold">Customers</h1>
+        <span id="totalBadge" class="text-sm text-gray-500 bg-white border px-4 py-1.5 rounded-full">
+          Total: <%= total %>
+        </span>
+      </div>
+
+      <!-- Search Bar + Sort -->
+      <div class="mb-6 flex flex-wrap gap-3 items-center">
+
+        <!-- Search input -->
+        <div class="relative flex-1 max-w-md">
+          <i class="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+          <i id="searchSpinner" class="bi bi-arrow-repeat animate-spin absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hidden"></i>
+          <input
+            id="searchInput"
+            type="text"
+            value="<%= query || '' %>"
+            placeholder="Search by name, email or phone..."
+            autocomplete="off"
+            class="w-full pl-9 pr-9 py-2.5 border border-gray-200 rounded bg-white focus:outline-none focus:ring-2 focus:ring-gray-300 transition"
+          />
+          <!-- Suggestions Dropdown -->
+          <div id="searchSuggestions" class="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 hidden max-h-60 overflow-y-auto"></div>
+        </div>
+
+        <!-- Sort Dropdown -->
+        <div class="relative">
+          <select
+            id="sortSelect"
+            class="appearance-none pl-9 pr-8 py-2.5 border border-gray-200 rounded bg-white text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-300 transition cursor-pointer">
+            <option value="desc" <%= (_sort === 'desc') ? 'selected' : '' %>>Latest First</option>
+            <option value="asc"  <%= (_sort === 'asc')  ? 'selected' : '' %>>Oldest First</option>
+          </select>
+          <i class="bi bi-sort-down absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"></i>
+          <i class="bi bi-chevron-down absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none"></i>
+        </div>
+
+        <!-- Clear button -->
+        <a id="clearBtn" href="/admin/customers"
+          class="px-5 py-2.5 border border-gray-200 bg-white hover:bg-gray-50 rounded text-gray-700 text-sm transition <%= query ? '' : 'hidden' %>">
+          Clear
+        </a>
+
+      </div>
+
+      <!-- Customers Table -->
+      <div class="bg-white rounded shadow overflow-hidden mb-6">
+        <table class="w-full text-sm table-fixed">
+          <thead>
+            <tr class="border-b border-gray-200 bg-gray-50">
+              <th class="text-left px-5 py-4 font-semibold text-gray-600 w-[28%]">
+                <div class="flex items-center gap-1">
+                  Customer
+                  <i id="sortIcon" class="<%= (_sort === 'asc') ? 'bi bi-arrow-up' : 'bi bi-arrow-down' %> text-xs text-gray-400"></i>
+                </div>
+              </th>
+              <th class="text-left px-5 py-4 font-semibold text-gray-600 w-[15%]">Phone</th>
+              <th class="text-left px-5 py-4 font-semibold text-gray-600 w-[27%]">Email</th>
+              <th class="text-left px-5 py-4 font-semibold text-gray-600 w-[15%]">Status</th>
+              <th class="text-left px-5 py-4 font-semibold text-gray-600 w-[15%]">Action</th>
+            </tr>
+          </thead>
+          <tbody id="customersTableBody" class="divide-y divide-gray-100">
+
+            <% if (users.length === 0) { %>
+              <tr>
+                <td colspan="5" class="px-5 py-12 text-center text-gray-500">
+                  <i class="bi bi-people text-3xl block mb-2"></i>
+                  No customers found.
+                </td>
+              </tr>
+            <% } %>
+
+            <% users.forEach(user => { %>
+              <tr class="hover:bg-gray-50 transition" data-user-id="<%= user._id %>">
+                <td class="px-5 py-3.5 w-[28%]">
+                  <div class="flex items-center gap-3 min-w-0">
+                    <div class="w-8 h-8 shrink-0 rounded-full bg-gray-200 text-gray-700 flex items-center justify-center text-sm font-semibold uppercase">
+                      <%= (user.firstName?.[0] || 'U') + (user.lastName?.[0] || '') %>
+                    </div>
+                    <span class="font-medium text-gray-800 truncate"><%= user.firstName %> <%= user.lastName %></span>
+                  </div>
+                </td>
+                <td class="px-5 py-3.5 text-gray-600 w-[15%] truncate"><%= user.phone || "—" %></td>
+                <td class="px-5 py-3.5 text-gray-700 w-[27%] truncate"><%= user.email %></td>
+                <td class="px-5 py-3.5 w-[15%]" data-status-cell>
+                  <% if (user.status === 'blocked') { %>
+                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">
+                      <span class="w-1.5 h-1.5 rounded-full bg-red-500 mr-1.5"></span> Blocked
+                    </span>
+                  <% } else { %>
+                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                      <span class="w-1.5 h-1.5 rounded-full bg-green-500 mr-1.5"></span> Active
+                    </span>
+                  <% } %>
+                </td>
+                <td class="px-5 py-3.5 w-[15%]" data-action-cell>
+                  <div class="flex items-center gap-2">
+                    <% if (user.status === 'blocked') { %>
+                      <button
+                        onclick="openConfirm('toggle', '<%= user._id %>', 'blocked', '<%= user.firstName %> <%= user.lastName %>')"
+                        class="inline-flex items-center justify-center gap-1.5 w-24 py-1.5 rounded text-sm font-medium bg-green-50 text-green-700 hover:bg-green-100 transition">
+                        <i class="bi bi-unlock"></i> Unblock
+                      </button>
+                    <% } else { %>
+                      <button
+                        onclick="openConfirm('toggle', '<%= user._id %>', 'active', '<%= user.firstName %> <%= user.lastName %>')"
+                        class="inline-flex items-center justify-center gap-1.5 w-24 py-1.5 rounded text-sm font-medium bg-yellow-50 text-yellow-700 hover:bg-yellow-100 transition">
+                        <i class="bi bi-slash-circle"></i> Block
+                      </button>
+                    <% } %>
+                    <button
+                      onclick="openConfirm('delete', '<%= user._id %>', '', '<%= user.firstName %> <%= user.lastName %>')"
+                      class="inline-flex items-center justify-center gap-1.5 w-20 py-1.5 rounded text-sm font-medium bg-red-50 text-red-700 hover:bg-red-100 transition">
+                      <i class="bi bi-trash"></i> Delete
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            <% }) %>
+
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination -->
+      <div class="flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-600">
+        <div id="showingInfo">
+          Showing <span class="font-semibold"><%= showingFrom %>–<%= showingTo %></span>
+          of <span class="font-semibold"><%= total %></span> customers
+        </div>
+        <div id="paginationWrap" class="flex items-center gap-1.5 flex-wrap">
+
+          <% if (currentPage > 1) { %>
+            <button data-page="<%= currentPage - 1 %>"
+              class="inline-flex items-center justify-center w-9 h-9 text-sm rounded border border-gray-200 bg-white hover:bg-gray-50 transition">
+              <i class="bi bi-chevron-left"></i>
+            </button>
+          <% } else { %>
+            <span class="inline-flex items-center justify-center w-9 h-9 text-sm rounded border border-gray-200 bg-white opacity-40 cursor-not-allowed">
+              <i class="bi bi-chevron-left"></i>
+            </span>
+          <% } %>
+
+          <% for (let i = 1; i <= totalPages; i++) { %>
+            <button data-page="<%= i %>"
+              class="inline-flex items-center justify-center w-9 h-9 text-sm rounded border transition
+                <%= i === currentPage ? 'bg-gray-900 text-white border-gray-900' : 'border-gray-200 bg-white hover:bg-gray-50 text-gray-700' %>">
+              <%= i %>
+            </button>
+          <% } %>
+
+          <% if (currentPage < totalPages) { %>
+            <button data-page="<%= currentPage + 1 %>"
+              class="inline-flex items-center justify-center w-9 h-9 text-sm rounded border border-gray-200 bg-white hover:bg-gray-50 transition">
+              <i class="bi bi-chevron-right"></i>
+            </button>
+          <% } else { %>
+            <span class="inline-flex items-center justify-center w-9 h-9 text-sm rounded border border-gray-200 bg-white opacity-40 cursor-not-allowed">
+              <i class="bi bi-chevron-right"></i>
+            </span>
+          <% } %>
+
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- ===== CONFIRM MODAL ===== -->
+  <div id="confirmModal" class="fixed inset-0 z-50 hidden items-center justify-center">
+    <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" onclick="closeConfirm()"></div>
+    <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden">
+      <div class="flex items-center justify-center pt-8 pb-4">
+        <div id="modalIconWrap" class="w-16 h-16 rounded-full flex items-center justify-center text-3xl">
+          <i id="modalIcon"></i>
+        </div>
+      </div>
+      <div class="px-7 pb-4 text-center">
+        <h3 id="modalTitle" class="text-lg font-bold text-gray-900 mb-1"></h3>
+        <p id="modalDesc" class="text-sm text-gray-500"></p>
+      </div>
+      <div class="flex gap-3 px-7 pb-7 pt-2">
+        <button onclick="closeConfirm()"
+          class="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition">
+          Cancel
+        </button>
+        <button id="modalConfirmBtn"
+          class="flex-1 py-2.5 rounded-xl text-sm font-medium text-white transition"
+          onclick="handleConfirm()">
+          Confirm
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== TOAST ===== -->
+  <div id="toast"
+    class="fixed bottom-6 right-6 z-[9999] hidden flex items-center gap-3 px-5 py-3.5 rounded-xl shadow-xl text-white text-sm font-medium min-w-[220px]">
+    <i id="toastIcon" class="text-lg"></i>
+    <span id="toastMsg"></span>
+  </div>
+
+  <script>
+    // ── Element refs ─────────────────────────────────────────────────────────
+    const searchInput    = document.getElementById('searchInput');
+    const sortSelect     = document.getElementById('sortSelect');
+    const tableBody      = document.getElementById('customersTableBody');
+    const paginationWrap = document.getElementById('paginationWrap');
+    const showingInfo    = document.getElementById('showingInfo');
+    const totalBadge     = document.getElementById('totalBadge');
+    const clearBtn       = document.getElementById('clearBtn');
+    const sortIcon       = document.getElementById('sortIcon');
+    const searchSpinner  = document.getElementById('searchSpinner');
+
+    let debounceTimer = null;
+
+    const searchSuggestions = document.getElementById('searchSuggestions');
+
+    // ── Core fetch ───────────────────────────────────────────────────────────
+    function fetchCustomers(page = 1) {
+      const q    = searchInput.value.trim();
+      const sort = sortSelect.value;
+
+      searchSpinner.classList.remove('hidden');
+
+      fetch(`/admin/customers?q=${encodeURIComponent(q)}&sort=${sort}&page=${page}&ajax=1`, {
+        credentials: 'include'
+      })
+        .then(r => r.json())
+        .then(data => {
+          renderTable(data.users);
+          renderPagination(data.currentPage, data.totalPages);
+          showingInfo.innerHTML = `Showing <span class="font-semibold">${data.showingFrom}–${data.showingTo}</span> of <span class="font-semibold">${data.total}</span> customers`;
+          totalBadge.textContent = `Total: ${data.total}`;
+          sortIcon.className = sort === 'asc'
+            ? 'bi bi-arrow-up text-xs text-gray-400'
+            : 'bi bi-arrow-down text-xs text-gray-400';
+          clearBtn.classList.toggle('hidden', !q);
+          history.pushState({}, '', `/admin/customers?q=${encodeURIComponent(q)}&sort=${sort}&page=${page}`);
+        })
+        .catch(() => showToast('Failed to load customers.', 'error'))
+        .finally(() => searchSpinner.classList.add('hidden'));
+    }
+
+    // ── Debounced Suggestions ──────────────────────────────────────────────
+    function fetchSuggestions() {
+      const q = searchInput.value.trim();
+      if (!q) {
+        searchSuggestions.classList.add('hidden');
+        fetchCustomers(1);
+        return;
+      }
+
+      searchSpinner.classList.remove('hidden');
+      searchSuggestions.classList.remove('hidden');
+
+      fetch(`/admin/customers?q=${encodeURIComponent(q)}&sort=${sortSelect.value}&page=1&ajax=1`, { credentials: 'include' })
+        .then(r => r.json())
+        .then(data => {
+          renderTable(data.users);
+          renderPagination(data.currentPage, data.totalPages);
+          showingInfo.innerHTML = `Showing <span class="font-semibold">${data.showingFrom}–${data.showingTo}</span> of <span class="font-semibold">${data.total}</span> customers`;
+          totalBadge.textContent = `Total: ${data.total}`;
+          sortIcon.className = sortSelect.value === 'asc'
+            ? 'bi bi-arrow-up text-xs text-gray-400'
+            : 'bi bi-arrow-down text-xs text-gray-400';
+          clearBtn.classList.remove('hidden');
+
+          if (!data.users || data.users.length === 0) {
+            searchSuggestions.innerHTML = `<div class="p-3 text-sm text-gray-500 text-center"><i class="bi bi-emoji-frown mr-1"></i> Not found</div>`;
+          } else {
+            searchSuggestions.innerHTML = data.users.map(u => {
+              const name = escHtml(u.firstName + ' ' + (u.lastName || ''));
+              return `<div class="px-3 py-2 border-b border-gray-100 last:border-0 hover:bg-gray-50 cursor-pointer flex flex-col" onclick="selectSuggestion('${name}')">
+                       <span class="font-medium text-xs text-gray-800">${name}</span>
+                       <span class="text-[10px] text-gray-500">${escHtml(u.email)}</span>
+                     </div>`;
+            }).join('');
+          }
+        })
+        .catch(() => searchSuggestions.innerHTML = `<div class="p-3 text-sm text-red-400 text-center">Failed</div>`)
+        .finally(() => searchSpinner.classList.add('hidden'));
+    }
+
+    function selectSuggestion(name) {
+      searchInput.value = name;
+      searchSuggestions.classList.add('hidden');
+      fetchCustomers(1);
+    }
+
+    document.addEventListener('click', (e) => {
+      if (!searchInput.contains(e.target) && !searchSuggestions.contains(e.target)) {
+        searchSuggestions.classList.add('hidden');
+      }
+    });
+
+    searchInput.addEventListener('input', () => { 
+      clearTimeout(debounceTimer); 
+      debounceTimer = setTimeout(() => fetchSuggestions(), 400); 
+    });
+
+    searchInput.addEventListener('focus', () => {
+      if (searchInput.value.trim().length > 0 && searchSuggestions.innerHTML.trim() !== '') {
+        searchSuggestions.classList.remove('hidden');
+      }
+    });
+
+    // ── Sort → immediate fetch ───────────────────────────────────────────────
+    sortSelect.addEventListener('change', () => fetchCustomers(1));
+
+    // ── Pagination clicks (delegated) ────────────────────────────────────────
+    paginationWrap.addEventListener('click', e => {
+      const btn = e.target.closest('[data-page]');
+      if (btn) fetchCustomers(Number(btn.dataset.page));
+    });
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
+    function escHtml(str) {
+      return String(str ?? '')
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+        .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    }
+
+    function renderTable(users) {
+      if (!users || users.length === 0) {
+        tableBody.innerHTML = `
+          <tr>
+            <td colspan="5" class="px-5 py-12 text-center text-gray-500">
+              <i class="bi bi-people text-3xl block mb-2"></i>
+              No customers found.
+            </td>
+          </tr>`;
+        return;
+      }
+
+      tableBody.innerHTML = users.map(u => {
+        const initials  = (u.firstName?.[0] || 'U').toUpperCase() + (u.lastName?.[0] || '').toUpperCase();
+        const isBlocked = u.status === 'blocked';
+        const fullName  = escHtml(`${u.firstName} ${u.lastName}`);
+
+        const statusBadge = isBlocked
+          ? `<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">
+               <span class="w-1.5 h-1.5 rounded-full bg-red-500 mr-1.5"></span> Blocked
+             </span>`
+          : `<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+               <span class="w-1.5 h-1.5 rounded-full bg-green-500 mr-1.5"></span> Active
+             </span>`;
+
+        const toggleBtn = isBlocked
+          ? `<button onclick="openConfirm('toggle','${u._id}','blocked','${fullName}')"
+               class="inline-flex items-center justify-center gap-1.5 w-24 py-1.5 rounded text-sm font-medium bg-green-50 text-green-700 hover:bg-green-100 transition">
+               <i class="bi bi-unlock"></i> Unblock
+             </button>`
+          : `<button onclick="openConfirm('toggle','${u._id}','active','${fullName}')"
+               class="inline-flex items-center justify-center gap-1.5 w-24 py-1.5 rounded text-sm font-medium bg-yellow-50 text-yellow-700 hover:bg-yellow-100 transition">
+               <i class="bi bi-slash-circle"></i> Block
+             </button>`;
+
+        return `
+          <tr class="hover:bg-gray-50 transition" data-user-id="${u._id}">
+            <td class="px-5 py-3.5 w-[28%]">
+              <div class="flex items-center gap-3 min-w-0">
+                <div class="w-8 h-8 shrink-0 rounded-full bg-gray-200 text-gray-700 flex items-center justify-center text-sm font-semibold uppercase">
+                  ${escHtml(initials)}
+                </div>
+                <span class="font-medium text-gray-800 truncate">${escHtml(u.firstName)} ${escHtml(u.lastName)}</span>
+              </div>
+            </td>
+            <td class="px-5 py-3.5 text-gray-600 w-[15%] truncate">${escHtml(u.phone || '—')}</td>
+            <td class="px-5 py-3.5 text-gray-700 w-[27%] truncate">${escHtml(u.email)}</td>
+            <td class="px-5 py-3.5 w-[15%]" data-status-cell>${statusBadge}</td>
+            <td class="px-5 py-3.5 w-[15%]" data-action-cell>
+              <div class="flex items-center gap-2">
+                ${toggleBtn}
+                <button onclick="openConfirm('delete','${u._id}','','${fullName}')"
+                  class="inline-flex items-center justify-center gap-1.5 w-20 py-1.5 rounded text-sm font-medium bg-red-50 text-red-700 hover:bg-red-100 transition">
+                  <i class="bi bi-trash"></i> Delete
+                </button>
+              </div>
+            </td>
+          </tr>`;
+      }).join('');
+    }
+
+    function renderPagination(current, total) {
+      let html = '';
+
+      html += current > 1
+        ? `<button data-page="${current - 1}" class="inline-flex items-center justify-center w-9 h-9 text-sm rounded border border-gray-200 bg-white hover:bg-gray-50 transition"><i class="bi bi-chevron-left"></i></button>`
+        : `<span class="inline-flex items-center justify-center w-9 h-9 text-sm rounded border border-gray-200 bg-white opacity-40 cursor-not-allowed"><i class="bi bi-chevron-left"></i></span>`;
+
+      for (let i = 1; i <= total; i++) {
+        const cls = i === current
+          ? 'bg-gray-900 text-white border-gray-900'
+          : 'border-gray-200 bg-white hover:bg-gray-50 text-gray-700';
+        html += `<button data-page="${i}" class="inline-flex items-center justify-center w-9 h-9 text-sm rounded border transition ${cls}">${i}</button>`;
+      }
+
+      html += current < total
+        ? `<button data-page="${current + 1}" class="inline-flex items-center justify-center w-9 h-9 text-sm rounded border border-gray-200 bg-white hover:bg-gray-50 transition"><i class="bi bi-chevron-right"></i></button>`
+        : `<span class="inline-flex items-center justify-center w-9 h-9 text-sm rounded border border-gray-200 bg-white opacity-40 cursor-not-allowed"><i class="bi bi-chevron-right"></i></span>`;
+
+      paginationWrap.innerHTML = html;
+    }
+
+    // ── Modal ─────────────────────────────────────────────────────────────────
+    let _action = null, _userId = null, _currentStatus = null;
+
+    function openConfirm(action, userId, currentStatus, name) {
+      _action = action; _userId = userId; _currentStatus = currentStatus;
+      const isDelete = action === 'delete';
+      const isBlock  = action === 'toggle' && currentStatus !== 'blocked';
+      const iconWrap = document.getElementById('modalIconWrap');
+      const icon     = document.getElementById('modalIcon');
+      const btn      = document.getElementById('modalConfirmBtn');
+
+      if (isDelete) {
+        iconWrap.className = 'w-16 h-16 rounded-full flex items-center justify-center text-3xl bg-red-100';
+        icon.className     = 'bi bi-trash3 text-red-600';
+        btn.className      = 'flex-1 py-2.5 rounded-xl text-sm font-medium text-white transition bg-red-600 hover:bg-red-700';
+        document.getElementById('modalTitle').textContent = 'Delete Customer';
+        document.getElementById('modalDesc').textContent  = `Permanently delete ${name}? This cannot be undone.`;
+      } else if (isBlock) {
+        iconWrap.className = 'w-16 h-16 rounded-full flex items-center justify-center text-3xl bg-yellow-100';
+        icon.className     = 'bi bi-slash-circle text-yellow-600';
+        btn.className      = 'flex-1 py-2.5 rounded-xl text-sm font-medium text-white transition bg-yellow-500 hover:bg-yellow-600';
+        document.getElementById('modalTitle').textContent = 'Block Customer';
+        document.getElementById('modalDesc').textContent  = `Block ${name}? They will lose access to their account.`;
+      } else {
+        iconWrap.className = 'w-16 h-16 rounded-full flex items-center justify-center text-3xl bg-green-100';
+        icon.className     = 'bi bi-unlock text-green-600';
+        btn.className      = 'flex-1 py-2.5 rounded-xl text-sm font-medium text-white transition bg-green-600 hover:bg-green-700';
+        document.getElementById('modalTitle').textContent = 'Unblock Customer';
+        document.getElementById('modalDesc').textContent  = `Unblock ${name}? They will regain access to their account.`;
+      }
+
+      const modal = document.getElementById('confirmModal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeConfirm() {
+      const modal = document.getElementById('confirmModal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+      _action = _userId = _currentStatus = null;
+    }
+
+    async function handleConfirm() {
+      const a = _action, u = _userId, s = _currentStatus;
+      closeConfirm();
+      if (a === 'delete') await doDelete(u);
+      else await doToggle(u, s);
+    }
+
+    // ── Block / Unblock — DOM swap, no reload ────────────────────────────────
+    async function doToggle(userId, currentStatus) {
+      const action    = currentStatus === 'blocked' ? 'unblock' : 'block';
+      const newStatus = action === 'block' ? 'blocked' : 'active';
+      try {
+        const res  = await fetch(`/admin/customers/${userId}/${action}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include'
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Request failed');
+
+        const row = document.querySelector(`tr[data-user-id="${userId}"]`);
+        if (!row) return showToast(`Customer ${action}ed successfully.`, 'success');
+
+        // Swap status badge
+        row.querySelector('[data-status-cell]').innerHTML = newStatus === 'blocked'
+          ? `<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700"><span class="w-1.5 h-1.5 rounded-full bg-red-500 mr-1.5"></span> Blocked</span>`
+          : `<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700"><span class="w-1.5 h-1.5 rounded-full bg-green-500 mr-1.5"></span> Active</span>`;
+
+        // Swap toggle button, keep delete button
+        const actionCell = row.querySelector('[data-action-cell]');
+        const deleteBtn  = actionCell.querySelector('button:last-child').outerHTML;
+        const name       = row.querySelector('td:first-child span.font-medium').textContent.trim();
+
+        const toggleBtn = newStatus === 'blocked'
+          ? `<button onclick="openConfirm('toggle','${userId}','blocked','${name}')" class="inline-flex items-center justify-center gap-1.5 w-24 py-1.5 rounded text-sm font-medium bg-green-50 text-green-700 hover:bg-green-100 transition"><i class="bi bi-unlock"></i> Unblock</button>`
+          : `<button onclick="openConfirm('toggle','${userId}','active','${name}')" class="inline-flex items-center justify-center gap-1.5 w-24 py-1.5 rounded text-sm font-medium bg-yellow-50 text-yellow-700 hover:bg-yellow-100 transition"><i class="bi bi-slash-circle"></i> Block</button>`;
+
+        actionCell.innerHTML = `<div class="flex items-center gap-2">${toggleBtn}${deleteBtn}</div>`;
+        showToast(`Customer ${action}ed successfully.`, 'success');
+      } catch (err) {
+        showToast(err.message || 'Network error', 'error');
+      }
+    }
+
+    // ── Delete — fade & remove row ───────────────────────────────────────────
+    async function doDelete(userId) {
+      try {
+        const res  = await fetch(`/admin/customers/${userId}/delete`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include'
+        });
+        const data = await res.json();
+        if (data.success) {
+          const row = document.querySelector(`tr[data-user-id="${userId}"]`);
+          if (row) {
+            row.style.transition = 'opacity 0.3s';
+            row.style.opacity    = '0';
+            setTimeout(() => row.remove(), 300);
+          }
+          showToast('Customer deleted successfully.', 'success');
+        } else {
+          showToast(data.message || 'Delete failed.', 'error');
+        }
+      } catch {
+        showToast('Network error. Please try again.', 'error');
+      }
+    }
+
+    // ── Toast ─────────────────────────────────────────────────────────────────
+    function showToast(msg, type = 'success') {
+      const toast = document.getElementById('toast');
+      const icon  = document.getElementById('toastIcon');
+      document.getElementById('toastMsg').textContent = msg;
+      toast.className = type === 'success'
+        ? 'fixed bottom-6 right-6 z-[9999] flex items-center gap-3 px-5 py-3.5 rounded-xl shadow-xl text-white text-sm font-medium min-w-[220px] bg-green-600'
+        : 'fixed bottom-6 right-6 z-[9999] flex items-center gap-3 px-5 py-3.5 rounded-xl shadow-xl text-white text-sm font-medium min-w-[220px] bg-red-600';
+      icon.className = type === 'success' ? 'bi bi-check-circle-fill text-lg' : 'bi bi-x-circle-fill text-lg';
+      toast.classList.remove('hidden');
+      setTimeout(() => toast.classList.add('hidden'), 3000);
+    }
+  </script>
+
+</body>
+</html>

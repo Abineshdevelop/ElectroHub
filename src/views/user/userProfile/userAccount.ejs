@@ -1,0 +1,1171 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ElectroHub - My Profile</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
+  <script>
+    tailwind.config = { theme: { extend: { fontFamily: { inter: ['Inter', 'sans-serif'] } } } }
+  </script>
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .glass-card {
+      background: rgba(255,255,255,0.72);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255,255,255,0.55);
+      border-radius: 24px;
+      box-shadow: 0 8px 32px rgba(99,102,241,0.08), 0 2px 8px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.9);
+      overflow: hidden;
+      transition: box-shadow 0.3s ease, transform 0.3s ease;
+    }
+    .glass-card:hover {
+      box-shadow: 0 16px 48px rgba(99,102,241,0.13), 0 4px 16px rgba(0,0,0,0.07), inset 0 1px 0 rgba(255,255,255,0.9);
+      transform: translateY(-2px);
+    }
+    .glass-header-blue { background: linear-gradient(135deg, #6366f1 0%, #818cf8 100%); }
+    .glass-header-red  { background: linear-gradient(135deg, #ef4444 0%, #f87171 100%); }
+    .glass-row {
+      display: flex; align-items: center; gap: 14px;
+      padding: 12px 0; border-bottom: 1px solid rgba(0,0,0,0.05);
+    }
+    .glass-row:last-of-type { border-bottom: none; }
+    .glass-icon {
+      width: 38px; height: 38px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; font-size: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    .btn-black {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 9px 22px; border-radius: 12px; font-size: 13px; font-weight: 600;
+      background: #111827; color: #fff; border: none; cursor: pointer;
+      transition: all 0.2s ease; box-shadow: 0 4px 14px rgba(0,0,0,0.18);
+      white-space: nowrap;
+    }
+    .btn-black:hover { background: #1f2937; transform: translateY(-1px); }
+    .btn-black:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .btn-red {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 9px 22px; border-radius: 12px; font-size: 13px; font-weight: 600;
+      background: linear-gradient(135deg, #ef4444, #f87171); color: #fff;
+      border: none; cursor: pointer; transition: all 0.2s ease;
+      box-shadow: 0 4px 14px rgba(239,68,68,0.35); white-space: nowrap;
+    }
+    .btn-red:hover { background: linear-gradient(135deg, #dc2626, #ef4444); transform: translateY(-1px); }
+    .btn-red:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .btn-gray {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 9px 18px; border-radius: 12px; font-size: 13px; font-weight: 600;
+      background: #f3f4f6; color: #374151; border: 1px solid #e5e7eb;
+      cursor: pointer; transition: all 0.2s ease; white-space: nowrap;
+    }
+    .btn-gray:hover { background: #e5e7eb; transform: translateY(-1px); }
+    .btn-gray:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .profile-btn-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+    .modal-backdrop { background: rgba(0,0,0,0.55); backdrop-filter: blur(4px); }
+    .modal-box {
+      background: #fff; border-radius: 20px;
+      box-shadow: 0 24px 64px rgba(0,0,0,0.18);
+      animation: modalPop 0.25s cubic-bezier(0.34,1.56,0.64,1);
+    }
+    @keyframes modalPop {
+      from { opacity:0; transform: scale(0.92) translateY(16px); }
+      to   { opacity:1; transform: scale(1) translateY(0); }
+    }
+    .form-input {
+      width: 100%; border: 1.5px solid #e5e7eb; border-radius: 10px;
+      padding: 10px 14px; font-size: 14px; outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s; background: #fafafa;
+    }
+    .form-input:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.12); background: #fff; }
+    .form-input:disabled { background: #f3f4f6; color: #9ca3af; cursor: not-allowed; }
+    .form-input.input-error { border-color: #ef4444 !important; box-shadow: 0 0 0 3px rgba(239,68,68,0.1) !important; }
+    .field-error { color: #ef4444; font-size: 11.5px; min-height: 18px; display: block; margin-top: 4px; }
+    .pw-wrap { position: relative; }
+    .pw-wrap .form-input { padding-right: 42px; }
+    .pw-eye {
+      position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+      color: #9ca3af; cursor: pointer; font-size: 16px; transition: color 0.2s; user-select: none;
+    }
+    .pw-eye:hover { color: #6366f1; }
+    .otp-boxes { display: flex; gap: 8px; }
+    .otp-box {
+      width: 44px; height: 52px; flex-shrink: 0;
+      border: 1.5px solid #e5e7eb; border-radius: 10px;
+      font-size: 22px; font-weight: 700; text-align: center;
+      outline: none; background: #fafafa;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      caret-color: transparent;
+    }
+    .otp-box:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.12); background: #fff; }
+    .otp-box.otp-error { border-color: #ef4444 !important; box-shadow: 0 0 0 3px rgba(239,68,68,0.1) !important; }
+    .otp-box:disabled { background: #f3f4f6; color: #9ca3af; cursor: not-allowed; }
+    .timer-badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 5px 12px; border-radius: 20px; font-size: 13px; font-weight: 700;
+      background: #f0fdf4; border: 1.5px solid #bbf7d0; color: #16a34a;
+      transition: all 0.3s; white-space: nowrap;
+    }
+    .timer-badge.warning { background: #fffbeb; border-color: #fde68a; color: #d97706; }
+    .timer-badge.danger  { background: #fef2f2; border-color: #fecaca; color: #dc2626; }
+    #toastContainer {
+      position: fixed; top: 80px; right: 20px; z-index: 9999;
+      display: flex; flex-direction: column; gap: 8px; pointer-events: none;
+    }
+    .toast-item {
+      padding: 12px 18px; border-radius: 12px; font-size: 13px; font-weight: 500;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.15); min-width: 220px;
+      display: flex; align-items: center; gap: 8px;
+      animation: toastIn 0.3s cubic-bezier(0.34,1.56,0.64,1); pointer-events: all;
+    }
+    @keyframes toastIn {
+      from { opacity:0; transform: translateX(40px) scale(0.9); }
+      to   { opacity:1; transform: translateX(0) scale(1); }
+    }
+    .toast-success { background: #10b981; color: #fff; }
+    .toast-error   { background: #ef4444; color: #fff; }
+    .toast-info    { background: #6366f1; color: #fff; }
+    #cropContainer {
+      height: 260px; width: 100%; overflow: hidden;
+      border-radius: 12px; background: #111; position: relative;
+    }
+    #cropImage { display: block; max-width: 100%; }
+  </style>
+</head>
+
+<body class="bg-gray-50 text-gray-800">
+
+  <%- include('../partials/navbar', { user }) %>
+  <div id="toastContainer"></div>
+
+  <div class="flex min-h-[calc(100vh-64px)]">
+    <%- include('../partials/sidebar', { user, activePage: 'profile' }) %>
+
+    <main class="flex-1 px-4 md:px-8 py-6 md:py-8 overflow-x-hidden">
+      <h2 class="text-2xl md:text-3xl font-bold mb-6">My Profile</h2>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+
+        <!-- Profile Card -->
+        <div class="glass-card">
+          <div class="glass-header-blue px-6 py-5 flex items-center gap-4">
+            <div class="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur flex items-center justify-center shadow-inner">
+              <i class="bi bi-person-circle text-white text-2xl"></i>
+            </div>
+            <div>
+              <p class="font-bold text-white text-base leading-tight">Profile Information</p>
+              <p class="text-white/70 text-xs mt-0.5">Manage your photo &amp; details</p>
+            </div>
+          </div>
+          <div class="px-6 py-5">
+            <div class="flex items-center gap-4 mb-5">
+              <img id="avatarPreviewMain"
+                src="<%= user?.profileImage || 'https://ui-avatars.com/api/?name=' + encodeURIComponent((user?.firstName||'U') + '+' + (user?.lastName||'')) + '&background=6366f1&color=fff&size=96' %>"
+                class="w-20 h-20 rounded-full object-cover border-2 border-indigo-100 shadow-md flex-shrink-0" />
+              <div class="min-w-0">
+                <p id="profileNameDisplay" class="text-base font-bold text-gray-800"><%= user?.firstName %> <%= user?.lastName %></p>
+                <p id="profileEmailDisplay" class="text-sm text-gray-500 mt-0.5 truncate"><%= user?.email %></p>
+                <p class="text-sm text-gray-500"><%= user?.phone || '-' %></p>
+                <% if (user?.authType === 'google') { %>
+                  <span class="inline-flex items-center gap-1 mt-1 text-xs font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
+                    <i class="bi bi-google"></i> Google Account
+                  </span>
+                <% } %>
+              </div>
+            </div>
+            <div class="profile-btn-row">
+              <button id="openEditModal" class="btn-black">
+                <i class="bi bi-pencil-square text-xs"></i> Edit Profile
+              </button>
+              <% if (user?.authType !== 'google') { %>
+                <button id="openChangePasswordModal" class="btn-red">
+                  <i class="bi bi-shield-lock text-xs"></i> Change Password
+                </button>
+              <% } %>
+            </div>
+          </div>
+        </div>
+
+        <!-- Default Address Card -->
+        <div class="glass-card">
+          <div class="glass-header-red px-6 py-5 flex items-center gap-4">
+            <div class="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur flex items-center justify-center shadow-inner">
+              <i class="bi bi-geo-alt text-white text-2xl"></i>
+            </div>
+            <div>
+              <p class="font-bold text-white text-base leading-tight">Default Shipping Address</p>
+              <p class="text-white/70 text-xs mt-0.5">Used for deliveries</p>
+            </div>
+          </div>
+          <% if (defaultAddress) { %>
+            <div class="px-6 py-3">
+              <div class="glass-row">
+                <div class="glass-icon bg-red-50 text-red-400"><i class="bi bi-person text-sm"></i></div>
+                <div>
+                  <p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Recipient</p>
+                  <p class="text-sm font-semibold text-gray-800 mt-0.5"><%= defaultAddress.firstName %> <%= defaultAddress.lastName %></p>
+                </div>
+              </div>
+              <div class="glass-row">
+                <div class="glass-icon bg-blue-50 text-blue-400"><i class="bi bi-telephone text-sm"></i></div>
+                <div>
+                  <p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Phone</p>
+                  <p class="text-sm font-semibold text-gray-800 mt-0.5"><%= defaultAddress.phone %></p>
+                </div>
+              </div>
+              <div class="glass-row">
+                <div class="glass-icon bg-orange-50 text-orange-400"><i class="bi bi-map text-sm"></i></div>
+                <div>
+                  <p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Address</p>
+                  <p class="text-sm font-semibold text-gray-800 leading-relaxed mt-0.5">
+                    <%= defaultAddress.address %>, <%= defaultAddress.street %>,
+                    <%= defaultAddress.state %>, <%= defaultAddress.country %> – <%= defaultAddress.pincode %>
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div class="px-6 pb-6 pt-2">
+              <a href="/user/address" class="btn-black"><i class="bi bi-arrow-repeat text-xs"></i> Change Address</a>
+            </div>
+          <% } else { %>
+            <div class="px-6 py-10 flex flex-col items-center text-center">
+              <div class="w-16 h-16 rounded-2xl bg-red-50 flex items-center justify-center mb-4 shadow-inner">
+                <i class="bi bi-geo-alt text-red-400 text-2xl"></i>
+              </div>
+              <p class="text-sm font-bold text-gray-700 mb-1">No default address</p>
+              <p class="text-xs text-gray-400 mb-5">Add a delivery address to get started</p>
+              <a href="/user/address" class="btn-black"><i class="bi bi-plus-lg text-xs"></i> Add Address</a>
+            </div>
+          <% } %>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+
+  <!-- EDIT PROFILE MODAL -->
+  <div id="editModal" class="fixed inset-0 modal-backdrop hidden items-center justify-center z-50 p-4">
+    <div class="modal-box w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between px-6 pt-6 pb-4 border-b border-gray-100">
+        <h3 class="font-bold text-lg text-gray-800">
+          <i class="bi bi-person-gear text-indigo-500 mr-2"></i>Edit Profile
+        </h3>
+        <button id="closeEditModal"
+          class="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 transition">
+          <i class="bi bi-x-lg text-sm"></i>
+        </button>
+      </div>
+      <div class="px-6 py-5">
+        <!-- Avatar section -->
+        <div class="mb-6 p-4 bg-gray-50 rounded-2xl flex flex-col sm:flex-row items-center gap-5">
+          <div class="w-24 h-24 rounded-full overflow-hidden flex-shrink-0 border-2 border-indigo-100 shadow-md">
+            <img id="avatarPreviewModal"
+              src="<%= user?.profileImage || 'https://ui-avatars.com/api/?name=' + encodeURIComponent((user?.firstName||'U') + '+' + (user?.lastName||'')) + '&background=6366f1&color=fff&size=120' %>"
+              class="w-full h-full object-cover" />
+          </div>
+          <div class="flex flex-col gap-2 w-full sm:w-auto">
+            <input id="avatarInput" type="file" accept="image/*" hidden />
+            <button type="button" id="changePhotoBtn" class="btn-black justify-center">
+              <i class="bi bi-camera text-xs"></i> Change Photo
+            </button>
+            <% if (user?.profileImage) { %>
+              <button type="button" id="removePhotoBtn" class="btn-red w-full justify-center">
+                <i class="bi bi-trash text-xs"></i> Remove Photo
+              </button>
+            <% } %>
+          </div>
+        </div>
+
+        <!-- Name + Email form -->
+        <form id="editProfileForm">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+            <div>
+              <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1 block">First Name</label>
+              <input id="firstName" type="text" name="firstName" value="<%= user?.firstName %>"
+                class="form-input" placeholder="First Name" />
+              <span id="firstNameErr" class="field-error"></span>
+            </div>
+            <div>
+              <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1 block">Last Name</label>
+              <input id="lastName" type="text" name="lastName" value="<%= user?.lastName %>"
+                class="form-input" placeholder="Last Name" />
+              <span id="lastNameErr" class="field-error"></span>
+            </div>
+          </div>
+
+          <!-- Email -->
+          <div class="mb-4">
+            <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1 block">Email</label>
+            <div class="flex gap-2">
+              <input id="emailDisplay" type="email" value="<%= user?.email %>"
+                class="form-input flex-1"
+                <%= user?.authType === 'google' ? 'disabled' : 'readonly' %> />
+              <% if (user?.authType !== 'google') { %>
+                <button type="button" id="changeEmailBtn" class="btn-black flex-shrink-0">
+                  <i class="bi bi-pencil text-xs"></i> Change
+                </button>
+              <% } else { %>
+                <span class="flex items-center gap-1 px-3 py-2 bg-gray-100 border border-gray-200 rounded-xl text-xs text-gray-400 font-medium flex-shrink-0">
+                  <i class="bi bi-lock"></i> Locked
+                </span>
+              <% } %>
+            </div>
+          </div>
+
+          <!-- Email Change Box -->
+          <div id="emailChangeBox" class="hidden mb-4 border border-indigo-100 rounded-2xl p-4 bg-indigo-50/40">
+            <p class="text-xs font-semibold text-indigo-600 mb-3 flex items-center gap-2">
+              <i class="bi bi-envelope-check"></i> Change Email Address
+            </p>
+            <div id="emailStep1">
+              <input id="newEmail" type="email" class="form-input mb-1" placeholder="Enter new email address" />
+              <span id="newEmailErr" class="field-error mb-3 block"></span>
+              <div class="flex gap-2 mt-2">
+                <button type="button" id="requestOtpBtn" class="btn-black">
+                  <i class="bi bi-send text-xs"></i> Send OTP
+                </button>
+                <button type="button" id="cancelEmailChange" class="btn-gray">Cancel</button>
+              </div>
+            </div>
+            <div id="emailStep2" class="hidden mt-3 pt-3 border-t border-indigo-100">
+              <div class="flex items-center gap-3 mb-4 p-3 bg-green-50 border border-green-200 rounded-xl">
+                <div class="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+                  <i class="bi bi-envelope-check text-green-600 text-sm"></i>
+                </div>
+                <div>
+                  <p class="text-xs font-bold text-green-700">Check your email!</p>
+                  <p class="text-xs text-green-600 mt-0.5">We sent a 6-digit OTP to your new email address.</p>
+                </div>
+              </div>
+              <div class="flex items-center justify-between mb-3">
+                <p class="text-xs text-gray-600 font-medium">Enter the 6-digit OTP</p>
+                <span id="emailTimerBadge" class="timer-badge">
+                  <i class="bi bi-clock"></i><span id="emailTimerText">2:00</span>
+                </span>
+              </div>
+              <div class="otp-boxes mb-1" id="emailOtpBoxes">
+                <input class="otp-box" type="text" maxlength="1" inputmode="numeric" />
+                <input class="otp-box" type="text" maxlength="1" inputmode="numeric" />
+                <input class="otp-box" type="text" maxlength="1" inputmode="numeric" />
+                <input class="otp-box" type="text" maxlength="1" inputmode="numeric" />
+                <input class="otp-box" type="text" maxlength="1" inputmode="numeric" />
+                <input class="otp-box" type="text" maxlength="1" inputmode="numeric" />
+              </div>
+              <span id="emailOtpErr" class="field-error mb-3 block"></span>
+              <div class="flex gap-2 flex-wrap">
+                <button type="button" id="verifyOtpBtn" class="btn-black">
+                  <i class="bi bi-check-circle text-xs"></i> Verify OTP
+                </button>
+                <button type="button" id="resendEmailOtpBtn" class="btn-gray hidden">
+                  <i class="bi bi-arrow-clockwise text-xs"></i> Resend OTP (<span id="emailResendCount">3</span> left)
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex justify-end gap-3 pt-4 border-t border-gray-100">
+            <button type="button" id="cancelEditModal2" class="btn-gray">Cancel</button>
+            <button type="submit" id="saveProfileBtn" class="btn-black">
+              <i class="bi bi-floppy text-xs"></i> Save Changes
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- CHANGE PASSWORD MODAL -->
+  <div id="changePasswordModal" class="fixed inset-0 modal-backdrop hidden items-center justify-center z-50 p-4">
+    <div class="modal-box w-full max-w-md">
+      <div class="flex items-center justify-between px-6 pt-6 pb-4 border-b border-gray-100">
+        <h3 class="font-bold text-lg text-gray-800">
+          <i class="bi bi-shield-lock text-red-500 mr-2"></i>Change Password
+        </h3>
+        <button id="closeChangePasswordModal"
+          class="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 transition">
+          <i class="bi bi-x-lg text-sm"></i>
+        </button>
+      </div>
+      <div class="px-6 py-5">
+        <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1 block">Current Password</label>
+        <div class="pw-wrap mb-1">
+          <input id="currentPassword" type="password" class="form-input" placeholder="Enter current password" />
+          <i class="bi bi-eye-slash pw-eye" data-target="currentPassword"></i>
+        </div>
+        <span id="currentPasswordErr" class="field-error mb-3 block"></span>
+
+        <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1 block">New Password</label>
+        <div class="pw-wrap mb-1">
+          <input id="newPasswordPw" type="password" class="form-input" placeholder="Minimum 6 characters" />
+          <i class="bi bi-eye-slash pw-eye" data-target="newPasswordPw"></i>
+        </div>
+        <span id="newPasswordPwErr" class="field-error mb-3 block"></span>
+
+        <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1 block">Confirm New Password</label>
+        <div class="pw-wrap mb-1">
+          <input id="confirmPasswordPw" type="password" class="form-input" placeholder="Repeat new password" />
+          <i class="bi bi-eye-slash pw-eye" data-target="confirmPasswordPw"></i>
+        </div>
+        <span id="confirmPasswordPwErr" class="field-error mb-4 block"></span>
+
+        <button id="requestPasswordOtpBtn" class="btn-red w-full justify-center">
+          <i class="bi bi-send text-xs"></i> Send OTP to Email
+        </button>
+
+        <div id="passwordOtpBox" class="hidden mt-4 pt-4 border-t border-gray-100">
+          <div class="flex items-center gap-3 mb-4 p-3 bg-green-50 border border-green-200 rounded-xl">
+            <div class="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+              <i class="bi bi-envelope-check text-green-600 text-sm"></i>
+            </div>
+            <div>
+              <p class="text-xs font-bold text-green-700">Check your email!</p>
+              <p class="text-xs text-green-600 mt-0.5">We sent a 6-digit OTP to your registered email.</p>
+            </div>
+          </div>
+          <div class="flex items-center justify-between mb-3">
+            <p class="text-xs text-gray-600 font-medium">Enter the 6-digit OTP</p>
+            <span id="pwTimerBadge" class="timer-badge">
+              <i class="bi bi-clock"></i><span id="pwTimerText">2:00</span>
+            </span>
+          </div>
+          <div class="otp-boxes mb-1" id="pwOtpBoxes">
+            <input class="otp-box" type="text" maxlength="1" inputmode="numeric" />
+            <input class="otp-box" type="text" maxlength="1" inputmode="numeric" />
+            <input class="otp-box" type="text" maxlength="1" inputmode="numeric" />
+            <input class="otp-box" type="text" maxlength="1" inputmode="numeric" />
+            <input class="otp-box" type="text" maxlength="1" inputmode="numeric" />
+            <input class="otp-box" type="text" maxlength="1" inputmode="numeric" />
+          </div>
+          <span id="passwordOtpErr" class="field-error mb-3 block"></span>
+          <div class="flex gap-2 flex-wrap">
+            <button id="verifyPasswordOtpBtn" class="btn-red flex-1 justify-center">
+              <i class="bi bi-check-circle text-xs"></i> Verify &amp; Change
+            </button>
+            <button id="resendPwOtpBtn" class="btn-gray hidden">
+              <i class="bi bi-arrow-clockwise text-xs"></i> Resend (<span id="pwResendCount">3</span>)
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- CROP MODAL -->
+  <div id="cropModal" class="fixed inset-0 modal-backdrop hidden items-center justify-center z-[60] p-4">
+    <div class="modal-box w-full max-w-md">
+      <div class="flex items-center justify-between px-5 pt-5 pb-3 border-b border-gray-100">
+        <h3 class="font-bold text-gray-800"><i class="bi bi-crop text-indigo-500 mr-2"></i>Crop Photo</h3>
+        <button id="cropCancelX"
+          class="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 transition">
+          <i class="bi bi-x-lg text-sm"></i>
+        </button>
+      </div>
+      <div class="px-5 py-4">
+        <div id="cropContainer">
+          <img id="cropImage" style="display:block;max-width:100%;" />
+        </div>
+      </div>
+      <div class="flex gap-2 px-5 pb-5 justify-end">
+        <button id="cropCancelBtn" class="btn-gray">Cancel</button>
+        <button id="cropSave" class="btn-black"><i class="bi bi-check text-xs"></i> Use Photo</button>
+      </div>
+    </div>
+  </div>
+
+  <form id="cropForm" action="/user/profile/avatar" method="POST" enctype="multipart/form-data" class="hidden">
+    <input type="file" id="croppedFile" name="avatar" />
+  </form>
+
+  <%- include('../partials/layout-scripts') %>
+<script>
+
+function showToast(msg, type = 'error') {
+  const c = document.getElementById('toastContainer');
+  c.innerHTML = '';
+  const t = document.createElement('div');
+  t.className = 'toast-item toast-' + type;
+  const icons = { success: 'bi-check-circle-fill', error: 'bi-exclamation-circle-fill', info: 'bi-info-circle-fill' };
+  t.innerHTML = `<i class="bi ${icons[type] || icons.error}"></i><span>${msg}</span>`;
+  c.appendChild(t);
+  setTimeout(() => {
+    t.style.cssText = 'opacity:0;transform:translateX(40px);transition:all 0.3s ease;';
+    setTimeout(() => t.remove(), 300);
+  }, 3500);
+}
+
+
+function setErr(id, msg) {
+  const el = document.getElementById(id); if (el) el.textContent = msg;
+  const inp = document.getElementById(id.replace(/Err$/, ''));
+  if (inp) inp.classList.add('input-error');
+}
+function clearErr(id) {
+  const el = document.getElementById(id); if (el) el.textContent = '';
+  const inp = document.getElementById(id.replace(/Err$/, ''));
+  if (inp) inp.classList.remove('input-error');
+}
+
+
+function openModal(id)  { const e = document.getElementById(id); e.classList.remove('hidden'); e.classList.add('flex'); }
+function closeModal(id) { const e = document.getElementById(id); e.classList.add('hidden'); e.classList.remove('flex'); }
+
+document.getElementById('openEditModal').onclick    = () => openModal('editModal');
+document.getElementById('closeEditModal').onclick   = () => closeModal('editModal');
+document.getElementById('cancelEditModal2').onclick = () => closeModal('editModal');
+
+document.getElementById('openChangePasswordModal')?.addEventListener('click', () => openModal('changePasswordModal'));
+document.getElementById('closeChangePasswordModal')?.addEventListener('click', () => {
+  closeModal('changePasswordModal');
+  resetPwModal();
+});
+
+
+document.querySelectorAll('.pw-eye').forEach(eye => {
+  eye.addEventListener('click', () => {
+    const inp = document.getElementById(eye.dataset.target);
+    if (!inp) return;
+    inp.type = inp.type === 'password' ? 'text' : 'password';
+    eye.classList.toggle('bi-eye-slash', inp.type === 'password');
+    eye.classList.toggle('bi-eye',       inp.type === 'text');
+  });
+});
+
+
+function makeTimer(textId, badgeId, onDone) {
+  let secs = 120, tid = null;
+  function render() {
+    const el  = document.getElementById(textId);
+    const bdg = document.getElementById(badgeId);
+    if (!el) return;
+    el.textContent = Math.floor(secs / 60) + ':' + String(secs % 60).padStart(2, '0');
+    if (bdg) {
+      bdg.className = 'timer-badge' + (secs <= 30 ? ' danger' : secs <= 60 ? ' warning' : '');
+    }
+  }
+  return {
+    start() {
+      secs = 120; clearInterval(tid); render();
+      tid = setInterval(() => {
+        secs--; render();
+        if (secs <= 0) { clearInterval(tid); tid = null; if (onDone) onDone(); }
+      }, 1000);
+    },
+    stop() { clearInterval(tid); tid = null; }
+  };
+}
+
+
+function initOtpBoxes(containerId) {
+  const container = document.getElementById(containerId);
+  const boxes = Array.from(container.querySelectorAll('.otp-box'));
+
+  boxes.forEach((box, i) => {
+    const fresh = box.cloneNode(true);
+    fresh.value = '';
+    fresh.disabled = false;
+    fresh.classList.remove('otp-error');
+    box.parentNode.replaceChild(fresh, box);
+    boxes[i] = fresh;
+  });
+
+  boxes.forEach((box, i) => {
+    box.addEventListener('keydown', e => {
+      if (e.key === 'Backspace') {
+        e.preventDefault();
+        if (box.value) { box.value = ''; }
+        else if (i > 0) { boxes[i-1].focus(); boxes[i-1].value = ''; }
+      } else if (e.key === 'ArrowLeft'  && i > 0)              { boxes[i-1].focus(); e.preventDefault(); }
+        else if (e.key === 'ArrowRight' && i < boxes.length-1) { boxes[i+1].focus(); e.preventDefault(); }
+    });
+    box.addEventListener('input', e => {
+      const v = e.target.value.replace(/\D/g, '');
+      if (v.length > 1) {
+        v.split('').forEach((c, j) => { if (boxes[i+j]) boxes[i+j].value = c; });
+        boxes[Math.min(i + v.length, boxes.length - 1)].focus();
+      } else {
+        box.value = v;
+        if (v && i < boxes.length - 1) boxes[i+1].focus();
+      }
+    });
+    box.addEventListener('paste', e => {
+      e.preventDefault();
+      const p = (e.clipboardData || window.clipboardData).getData('text').replace(/\D/g,'');
+      p.split('').forEach((c, j) => { if (boxes[j]) boxes[j].value = c; });
+      boxes[Math.min(p.length, boxes.length - 1)].focus();
+    });
+  });
+
+  return {
+    get()        { return boxes.map(b => b.value).join(''); },
+    setError()   { boxes.forEach(b => b.classList.add('otp-error')); },
+    clearError() { boxes.forEach(b => b.classList.remove('otp-error')); },
+    disable()    { boxes.forEach(b => b.disabled = true); },
+    enable()     { boxes.forEach(b => { b.disabled = false; b.classList.remove('otp-error'); }); },
+    clear()      { boxes.forEach(b => { b.value = ''; b.classList.remove('otp-error'); }); if (boxes[0] && !boxes[0].disabled) boxes[0].focus(); }
+  };
+}
+
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const nameRegex  = /^[A-Za-z ]{1,30}$/;
+
+let isSavingProfile = false;
+
+document.getElementById('editProfileForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  if (isSavingProfile) return;
+  clearErr('firstNameErr'); clearErr('lastNameErr');
+  const fn = document.getElementById('firstName').value.trim();
+  const ln = document.getElementById('lastName').value.trim();
+  let ok = true;
+  if (!fn)                      { setErr('firstNameErr', 'First name is required'); ok = false; }
+  else if (!nameRegex.test(fn)) { setErr('firstNameErr', 'Only letters allowed — no numbers or symbols'); ok = false; }
+  if (!ln)                      { setErr('lastNameErr', 'Last name is required'); ok = false; }
+  else if (!nameRegex.test(ln)) { setErr('lastNameErr', 'Only letters allowed — no numbers or symbols'); ok = false; }
+  if (!ok) return;
+
+  isSavingProfile = true;
+  const btn = document.getElementById('saveProfileBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="bi bi-hourglass-split text-xs"></i> Saving...';
+  const res  = await fetch('/user/profile/update', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ firstName: fn, lastName: ln })
+  });
+  const data = await res.json();
+  btn.disabled = false;
+  btn.innerHTML = '<i class="bi bi-floppy text-xs"></i> Save Changes';
+  isSavingProfile = false;
+  if (data.success) {
+    const nameEl = document.getElementById('profileNameDisplay');
+    if (nameEl) nameEl.textContent = fn + ' ' + ln;
+    closeModal('editModal');
+    showToast('Profile updated!', 'success');
+  } else {
+    showToast(data.message || 'Update failed');
+  }
+});
+
+['firstName', 'lastName'].forEach(id => {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.addEventListener('input', () => clearErr(id + 'Err'));
+  el.addEventListener('keypress', e => { if (!/[A-Za-z ]/.test(e.key)) e.preventDefault(); });
+});
+
+document.getElementById('removePhotoBtn')?.addEventListener('click', async () => {
+  const btn = document.getElementById('removePhotoBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="bi bi-hourglass-split text-xs"></i> Removing...';
+  const res  = await fetch('/user/profile/avatar/remove/ajax', { method: 'POST' });
+  const data = await res.json();
+  btn.disabled = false;
+  btn.innerHTML = '<i class="bi bi-trash text-xs"></i> Remove Photo';
+  if (data.success) {
+    const fallback = `https://ui-avatars.com/api/?name=${encodeURIComponent('<%= (user?.firstName||"U") %>' + '+' + '<%= (user?.lastName||"") %>')}&background=6366f1&color=fff&size=120`;
+    document.getElementById('avatarPreviewModal').src = data.profileImage || fallback;
+    document.getElementById('avatarPreviewMain').src  = data.profileImage || fallback;
+    showToast('Photo removed!', 'success');
+    btn.style.display = 'none';
+  } else {
+    showToast(data.message || 'Could not remove photo');
+  }
+});
+
+let eResend = 3, eAttempts = 0, eLocked = false, eSending = false;
+let eTimer = null, eOtp = null;
+let storedNewEmail = '';
+
+document.getElementById('changeEmailBtn')?.addEventListener('click', () => {
+  const box = document.getElementById('emailChangeBox');
+  box.classList.toggle('hidden');
+  if (!box.classList.contains('hidden')) document.getElementById('newEmail').focus();
+});
+
+document.getElementById('cancelEmailChange')?.addEventListener('click', () => {
+  document.getElementById('emailChangeBox').classList.add('hidden');
+  resetEmailFlow();
+});
+
+function resetEmailFlow() {
+  eResend = 3; eAttempts = 0; eLocked = false; eSending = false;
+  storedNewEmail = '';
+  if (eTimer) { eTimer.stop(); eTimer = null; }
+  document.getElementById('emailStep1').classList.remove('hidden');
+  document.getElementById('emailStep2').classList.add('hidden');
+  const newEmailInput = document.getElementById('newEmail');
+  newEmailInput.disabled = false;
+  newEmailInput.value = '';
+  const reqBtn = document.getElementById('requestOtpBtn');
+  reqBtn.disabled = false;
+  reqBtn.innerHTML = '<i class="bi bi-send text-xs"></i> Send OTP';
+  const resendBtn = document.getElementById('resendEmailOtpBtn');
+  resendBtn.classList.add('hidden');
+  resendBtn.disabled = false;
+  resendBtn.innerHTML = '<i class="bi bi-arrow-clockwise text-xs"></i> Resend OTP (<span id="emailResendCount">3</span> left)';
+  const verifyBtn = document.getElementById('verifyOtpBtn');
+  verifyBtn.disabled = false;
+  verifyBtn.innerHTML = '<i class="bi bi-check-circle text-xs"></i> Verify OTP';
+  clearErr('newEmailErr'); clearErr('emailOtpErr');
+  eOtp = null;
+}
+
+async function sendEmailOtpToServer(email, isResend) {
+  const res  = await fetch('/user/profile/email/request-otp', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ newEmail: email, isResend })
+  });
+  const data = await res.json();
+  return { ok: data.success, message: data.message || 'Could not send OTP' };
+}
+
+function startEmailTimer() {
+  if (eTimer) { eTimer.stop(); eTimer = null; }
+  const resendBtn = document.getElementById('resendEmailOtpBtn');
+  const verifyBtn = document.getElementById('verifyOtpBtn');
+  resendBtn.classList.add('hidden');
+  resendBtn.disabled = false;
+  verifyBtn.disabled = false;
+  verifyBtn.innerHTML = '<i class="bi bi-check-circle text-xs"></i> Verify OTP';
+
+  eTimer = makeTimer('emailTimerText', 'emailTimerBadge', () => {
+    if (eOtp) eOtp.disable();
+    verifyBtn.disabled = true;
+    if (eResend > 0) {
+      resendBtn.innerHTML = `<i class="bi bi-arrow-clockwise text-xs"></i> Resend OTP (<span id="emailResendCount">${eResend}</span> left)`;
+      resendBtn.disabled = false;
+      resendBtn.classList.remove('hidden');
+    } else {
+      showToast('All resend attempts used. Redirecting...', 'error');
+      setTimeout(() => location.href = '/user/profile', 2000);
+    }
+  });
+  eTimer.start();
+}
+
+function startEmailOtpUI() {
+  eAttempts = 0; eLocked = false;
+  document.getElementById('emailStep1').classList.add('hidden');
+  document.getElementById('emailStep2').classList.remove('hidden');
+  clearErr('emailOtpErr');
+  eOtp = initOtpBoxes('emailOtpBoxes');
+  eOtp.clear();
+  startEmailTimer();
+}
+
+// Send OTP — first time
+document.getElementById('requestOtpBtn')?.addEventListener('click', async () => {
+  if (eSending) return;
+  const email = document.getElementById('newEmail').value.trim();
+  clearErr('newEmailErr');
+
+  // Frontend validation
+  if (!email) {
+    setErr('newEmailErr', 'Email is required');
+    return;
+  }
+  if (!emailRegex.test(email)) {
+    setErr('newEmailErr', 'Enter a valid email address');
+    return;
+  }
+
+  // ✅ ADDED: Check if new email is same as current email
+  const currentEmail = document.getElementById('emailDisplay').value.trim().toLowerCase();
+  if (email.toLowerCase() === currentEmail) {
+    setErr('newEmailErr', 'New email must be different from your current email');
+    return;
+  }
+
+  eSending = true;
+  const btn = document.getElementById('requestOtpBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="bi bi-hourglass-split text-xs"></i> Sending OTP...';
+
+  const { ok, message } = await sendEmailOtpToServer(email, false);
+
+  btn.disabled = false;
+  btn.innerHTML = '<i class="bi bi-send text-xs"></i> Send OTP';
+  eSending = false;
+
+  if (!ok) {
+    setErr('newEmailErr', message);
+    showToast(message, 'error');
+    return;
+  }
+
+  storedNewEmail = email;
+  showToast('Check your email — OTP sent!', 'info');
+  startEmailOtpUI();
+});
+
+// Resend OTP
+document.getElementById('resendEmailOtpBtn')?.addEventListener('click', async () => {
+  if (eResend <= 0 || eSending) return;
+  eSending = true;
+  const btn = document.getElementById('resendEmailOtpBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="bi bi-hourglass-split text-xs"></i> Sending...';
+
+  const { ok, message } = await sendEmailOtpToServer(storedNewEmail, true);
+  eSending = false;
+
+  if (!ok) {
+    btn.disabled = false;
+    btn.innerHTML = `<i class="bi bi-arrow-clockwise text-xs"></i> Resend OTP (<span id="emailResendCount">${eResend}</span> left)`;
+    showToast(message, 'error');
+    return;
+  }
+
+  eResend--;
+  showToast('Check your email — OTP resent!', 'info');
+  eAttempts = 0; eLocked = false;
+  clearErr('emailOtpErr');
+  eOtp = initOtpBoxes('emailOtpBoxes');
+  eOtp.clear();
+  startEmailTimer();
+});
+
+// Verify OTP
+document.getElementById('verifyOtpBtn')?.addEventListener('click', async () => {
+  if (eLocked) return;
+  if (!eOtp) return;
+  eOtp.clearError(); clearErr('emailOtpErr');
+  const otp = eOtp.get();
+  if (otp.length < 6) { eOtp.setError(); setErr('emailOtpErr', 'Enter all 6 digits'); return; }
+
+  const btn = document.getElementById('verifyOtpBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="bi bi-hourglass-split text-xs"></i> Verifying...';
+
+  const res  = await fetch('/user/profile/email/verify-otp', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ otp })
+  });
+  const data = await res.json();
+  btn.disabled = false;
+  btn.innerHTML = '<i class="bi bi-check-circle text-xs"></i> Verify OTP';
+
+  if (data.success) {
+    if (eTimer) { eTimer.stop(); eTimer = null; }
+    document.getElementById('emailDisplay').value = storedNewEmail;
+    const emailEl = document.getElementById('profileEmailDisplay');
+    if (emailEl) emailEl.textContent = storedNewEmail;
+    resetEmailFlow();
+    document.getElementById('emailChangeBox').classList.add('hidden');
+    showToast('Email updated successfully!', 'success');
+    return;
+  }
+
+  eAttempts++;
+  eOtp.setError();
+  setErr('emailOtpErr', data.message || 'Invalid OTP');
+  showToast(data.message || 'Invalid OTP', 'error');
+  setTimeout(() => { if (eOtp) eOtp.clear(); }, 600);
+
+  const eMaxHit = eAttempts >= 5 || data.message?.toLowerCase().includes('too many');
+  if (eMaxHit) {
+    eLocked = true;
+    eOtp.disable();
+    btn.disabled = true;
+    if (eResend <= 0) {
+      setErr('emailOtpErr', 'Too many attempts. Redirecting...');
+      if (eTimer) { eTimer.stop(); eTimer = null; }
+      showToast('All attempts used. Redirecting...', 'error');
+      setTimeout(() => location.href = '/user/profile', 2000);
+    } else {
+      setErr('emailOtpErr', 'Too many attempts. Wait for timer to expire, then resend.');
+    }
+  }
+});
+
+// Clear field error on input
+document.getElementById('newEmail')?.addEventListener('input', () => clearErr('newEmailErr'));
+
+let pResend = 3, pAttempts = 0, pLocked = false, pSending = false;
+let pTimer = null, pOtp = null;
+let storedCurPw = '', storedNewPw = '';
+
+function resetPwModal() {
+  pResend = 3; pAttempts = 0; pLocked = false; pSending = false;
+  storedCurPw = ''; storedNewPw = '';
+  if (pTimer) { pTimer.stop(); pTimer = null; }
+
+  ['currentPassword','newPasswordPw','confirmPasswordPw'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.value = ''; el.disabled = false; el.type = 'password'; }
+  });
+  document.querySelectorAll('.pw-eye').forEach(e => {
+    e.classList.add('bi-eye-slash'); e.classList.remove('bi-eye');
+  });
+  document.getElementById('passwordOtpBox').classList.add('hidden');
+
+  const resendBtn = document.getElementById('resendPwOtpBtn');
+  resendBtn.classList.add('hidden');
+  resendBtn.disabled = false;
+  resendBtn.innerHTML = '<i class="bi bi-arrow-clockwise text-xs"></i> Resend (<span id="pwResendCount">3</span>)';
+
+  const sendBtn = document.getElementById('requestPasswordOtpBtn');
+  sendBtn.disabled = false;
+  sendBtn.innerHTML = '<i class="bi bi-send text-xs"></i> Send OTP to Email';
+
+  const verifyBtn = document.getElementById('verifyPasswordOtpBtn');
+  if (verifyBtn) {
+    verifyBtn.disabled = false;
+    verifyBtn.innerHTML = '<i class="bi bi-check-circle text-xs"></i> Verify &amp; Change';
+  }
+  ['currentPasswordErr','newPasswordPwErr','confirmPasswordPwErr','passwordOtpErr'].forEach(clearErr);
+  pOtp = null;
+}
+
+async function sendPwOtpToServer(currentPassword, newPassword, isResend) {
+  const res  = await fetch('/user/profile/password/request-otp', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ currentPassword, newPassword, isResend })
+  });
+  const data = await res.json();
+  return { ok: data.success, message: data.message || 'Could not send OTP' };
+}
+
+function startPwTimer() {
+  if (pTimer) { pTimer.stop(); pTimer = null; }
+  const resendBtn = document.getElementById('resendPwOtpBtn');
+  const verifyBtn = document.getElementById('verifyPasswordOtpBtn');
+  resendBtn.classList.add('hidden');
+  resendBtn.disabled = false;
+  verifyBtn.disabled = false;
+  verifyBtn.innerHTML = '<i class="bi bi-check-circle text-xs"></i> Verify &amp; Change';
+
+  pTimer = makeTimer('pwTimerText', 'pwTimerBadge', () => {
+    if (pOtp) pOtp.disable();
+    verifyBtn.disabled = true;
+    if (pResend > 0) {
+      resendBtn.innerHTML = `<i class="bi bi-arrow-clockwise text-xs"></i> Resend (<span id="pwResendCount">${pResend}</span>)`;
+      resendBtn.disabled = false;
+      resendBtn.classList.remove('hidden');
+    } else {
+      showToast('All resend attempts used. Redirecting...', 'error');
+      setTimeout(() => location.href = '/user/profile', 2000);
+    }
+  });
+  pTimer.start();
+}
+
+function startPwOtpUI() {
+  pAttempts = 0; pLocked = false;
+
+  ['currentPassword','newPasswordPw','confirmPasswordPw'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.type = 'password';
+    el.value = '••••••••••••';
+    el.disabled = true;
+  });
+  document.querySelectorAll('.pw-eye').forEach(e => {
+    e.classList.add('bi-eye-slash');
+    e.classList.remove('bi-eye');
+  });
+
+  document.getElementById('requestPasswordOtpBtn').disabled = true;
+  document.getElementById('passwordOtpBox').classList.remove('hidden');
+  clearErr('passwordOtpErr');
+  pOtp = initOtpBoxes('pwOtpBoxes');
+  pOtp.clear();
+  startPwTimer();
+}
+
+// Send OTP — first time
+document.getElementById('requestPasswordOtpBtn')?.addEventListener('click', async () => {
+  if (pSending) return;
+  clearErr('currentPasswordErr'); clearErr('newPasswordPwErr'); clearErr('confirmPasswordPwErr');
+  const cur  = document.getElementById('currentPassword').value.trim();
+  const nw   = document.getElementById('newPasswordPw').value.trim();
+  const conf = document.getElementById('confirmPasswordPw').value.trim();
+  let ok = true;
+  if (!cur)                  { setErr('currentPasswordErr',  'Current password is required'); ok = false; }
+  if (!nw || nw.length < 6)  { setErr('newPasswordPwErr',    'Minimum 6 characters required'); ok = false; }
+  if (nw && nw !== conf)     { setErr('confirmPasswordPwErr','Passwords do not match');        ok = false; }
+  if (!ok) return;
+
+  pSending = true;
+  const btn = document.getElementById('requestPasswordOtpBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="bi bi-hourglass-split text-xs"></i> Sending OTP...';
+
+  const { ok: sent, message } = await sendPwOtpToServer(cur, nw, false);
+
+  btn.disabled = false;
+  btn.innerHTML = '<i class="bi bi-send text-xs"></i> Send OTP to Email';
+  pSending = false;
+
+  if (!sent) {
+    if (message?.toLowerCase().includes('current password')) {
+      setErr('currentPasswordErr', message);
+    } else {
+      showToast(message, 'error');
+    }
+    return;
+  }
+
+  storedCurPw = cur; storedNewPw = nw;
+  showToast('Check your email — OTP sent!', 'info');
+  startPwOtpUI();
+});
+
+// Resend OTP
+document.getElementById('resendPwOtpBtn')?.addEventListener('click', async () => {
+  if (pResend <= 0 || pSending) return;
+  pSending = true;
+  const btn = document.getElementById('resendPwOtpBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="bi bi-hourglass-split text-xs"></i> Sending...';
+
+  const { ok, message } = await sendPwOtpToServer(storedCurPw, storedNewPw, true);
+  pSending = false;
+
+  if (!ok) {
+    btn.disabled = false;
+    btn.innerHTML = `<i class="bi bi-arrow-clockwise text-xs"></i> Resend (<span id="pwResendCount">${pResend}</span>)`;
+    showToast(message, 'error');
+    return;
+  }
+
+  pResend--;
+  showToast('Check your email — OTP resent!', 'info');
+  pAttempts = 0; pLocked = false;
+  clearErr('passwordOtpErr');
+  pOtp = initOtpBoxes('pwOtpBoxes');
+  pOtp.clear();
+  startPwTimer();
+});
+
+// Verify OTP
+document.getElementById('verifyPasswordOtpBtn')?.addEventListener('click', async () => {
+  if (pLocked) return;
+  if (!pOtp) return;
+  pOtp.clearError(); clearErr('passwordOtpErr');
+  const otp = pOtp.get();
+  if (otp.length < 6) { pOtp.setError(); setErr('passwordOtpErr', 'Enter all 6 digits'); return; }
+
+  const btn = document.getElementById('verifyPasswordOtpBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="bi bi-hourglass-split text-xs"></i> Verifying...';
+
+  const res = await fetch('/user/profile/password/verify-otp', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ otp })
+  });
+  const data = await res.json();
+  btn.disabled = false;
+  btn.innerHTML = '<i class="bi bi-check-circle text-xs"></i> Verify &amp; Change';
+
+  if (data.success) {
+    if (pTimer) { pTimer.stop(); pTimer = null; }
+    showToast('Password updated successfully!', 'success');
+    setTimeout(() => { closeModal('changePasswordModal'); resetPwModal(); }, 900);
+    return;
+  }
+
+  pAttempts++;
+  pOtp.setError();
+  setErr('passwordOtpErr', data.message || 'Invalid OTP');
+  showToast(data.message || 'Invalid OTP', 'error');
+  setTimeout(() => { if (pOtp) pOtp.clear(); }, 600);
+
+  const pMaxHit = pAttempts >= 5 || data.message?.toLowerCase().includes('too many');
+  if (pMaxHit) {
+    pLocked = true;
+    pOtp.disable();
+    btn.disabled = true;
+    if (pResend <= 0) {
+      setErr('passwordOtpErr', 'Too many attempts. Redirecting...');
+      if (pTimer) { pTimer.stop(); pTimer = null; }
+      showToast('All attempts used. Redirecting...', 'error');
+      setTimeout(() => location.href = '/user/profile', 2000);
+    } else {
+      setErr('passwordOtpErr', 'Too many attempts. Wait for timer to expire, then resend.');
+    }
+  }
+});
+
+['currentPassword','newPasswordPw','confirmPasswordPw'].forEach(id =>
+  document.getElementById(id)?.addEventListener('input', () => clearErr(id + 'Err'))
+);
+
+let cropInst;
+
+document.getElementById('changePhotoBtn').onclick = () =>
+  document.getElementById('avatarInput').click();
+
+document.getElementById('avatarInput').addEventListener('change', e => {
+  const file = e.target.files[0]; if (!file) return;
+  e.target.value = '';
+  const reader = new FileReader();
+  reader.onload = () => {
+    if (cropInst) { cropInst.destroy(); cropInst = null; }
+    openModal('cropModal');
+    setTimeout(() => {
+      const img = document.getElementById('cropImage');
+      img.src = reader.result;
+      img.onload = () => {
+        cropInst = new Cropper(img, {
+          aspectRatio: 1, viewMode: 1, autoCropArea: 0.9,
+          background: false, responsive: true
+        });
+      };
+    }, 80);
+  };
+  reader.readAsDataURL(file);
+});
+
+function cancelCrop() {
+  if (cropInst) { cropInst.destroy(); cropInst = null; }
+  closeModal('cropModal');
+}
+document.getElementById('cropCancelX').onclick   = cancelCrop;
+document.getElementById('cropCancelBtn').onclick = cancelCrop;
+
+document.getElementById('cropSave').onclick = async () => {
+  if (!cropInst) return;
+  const btn = document.getElementById('cropSave');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="bi bi-hourglass-split text-xs"></i> Uploading...';
+  cropInst.getCroppedCanvas({ width: 400, height: 400 }).toBlob(async blob => {
+    const formData = new FormData();
+    formData.append('avatar', new File([blob], 'profile.png', { type: 'image/png' }));
+    try {
+      const res  = await fetch('/user/profile/avatar/ajax', { method: 'POST', body: formData });
+      const data = await res.json();
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-check text-xs"></i> Use Photo';
+      if (data.success) {
+        const url = data.profileImage || URL.createObjectURL(blob);
+        document.getElementById('avatarPreviewModal').src = url;
+        document.getElementById('avatarPreviewMain').src  = url;
+        cancelCrop();
+        showToast('Profile photo updated!', 'success');
+        const removeBtn = document.getElementById('removePhotoBtn');
+        if (removeBtn) { removeBtn.style.display = ''; removeBtn.disabled = false; }
+      } else {
+        showToast(data.message || 'Upload failed');
+        cancelCrop();
+      }
+    } catch (err) {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-check text-xs"></i> Use Photo';
+      showToast('Upload failed. Try again.');
+      cancelCrop();
+    }
+  }, 'image/png');
+};
+</script>
+
+</body>
+</html>

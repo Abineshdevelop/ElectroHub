@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>ElectroHub | Premium Electronics</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { inter: ['Inter', 'sans-serif'] }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        .hero-section {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-bottom-left-radius: 50px;
+            border-bottom-right-radius: 50px;
+        }
+    </style>
+</head>
+
+<body class="bg-white text-gray-800">
+
+    <%- include('./partials/navbar') %>
+
+
+        <!-- ===== HERO SECTION ===== -->
+        <section class="hero-section py-16 md:py-24">
+            <div class="max-w-screen-xl mx-auto px-6">
+                <div class="flex flex-col-reverse md:flex-row items-center gap-12">
+
+                    <!-- Text -->
+                    <div class="flex-1 text-center md:text-left">
+                        <span
+                            class="inline-block px-4 py-1.5 bg-red-100 text-red-600 text-xs font-bold rounded-full tracking-widest uppercase mb-4">
+                            2026 Next-Gen Collection
+                        </span>
+                        <h1 class="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight mb-5">
+                            Future of Sound <br class="hidden md:block"> in your Hands.
+                        </h1>
+                        <p class="text-gray-500 text-lg mb-8 max-w-lg mx-auto md:mx-0">
+                            Experience high-fidelity audio with our new noise-canceling headphone series. Exclusive
+                            deals for members only.
+                        </p>
+                        <div class="flex items-center gap-4 justify-center md:justify-start">
+                            <a href="/user/list"
+                                class="bg-red-600 text-white font-bold px-7 py-3 rounded-full hover:bg-red-700 hover:shadow-lg hover:shadow-red-200 hover:scale-105 transition-all duration-200">
+                                Shop Now
+                            </a>
+                            <a href="/user/list"
+                                class="border border-gray-800 text-gray-800 font-bold px-7 py-3 rounded-full hover:bg-gray-900 hover:text-white transition-all duration-200">
+                                View Trends
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Icon / Image -->
+                    <div class="flex-1 flex justify-center">
+                        <div
+                            class="w-56 h-56 md:w-72 md:h-72 bg-white rounded-full shadow-xl flex items-center justify-center">
+                            <i class="bi bi-headphones text-red-600" style="font-size: 8rem;"></i>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+        <!-- ===== CATEGORY CARDS ===== -->
+        <section class="max-w-screen-xl mx-auto px-6 py-16">
+            <h2 class="text-2xl font-bold mb-8 text-center">Shop by Category</h2>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+
+                <a href="/user/list"
+                    class="flex flex-col items-center gap-3 p-6 bg-gray-50 rounded-2xl hover:bg-red-50 hover:shadow-md hover:-translate-y-1 transition-all duration-200 group">
+                    <i
+                        class="bi bi-phone text-4xl text-gray-500 group-hover:text-red-600 transition-colors duration-200"></i>
+                    <span
+                        class="font-semibold text-sm text-gray-700 group-hover:text-red-600 transition-colors duration-200">Smartphones</span>
+                </a>
+
+                <a href="/user/list"
+                    class="flex flex-col items-center gap-3 p-6 bg-gray-50 rounded-2xl hover:bg-red-50 hover:shadow-md hover:-translate-y-1 transition-all duration-200 group">
+                    <i
+                        class="bi bi-laptop text-4xl text-gray-500 group-hover:text-red-600 transition-colors duration-200"></i>
+                    <span
+                        class="font-semibold text-sm text-gray-700 group-hover:text-red-600 transition-colors duration-200">Laptops</span>
+                </a>
+
+                <a href="/user/list"
+                    class="flex flex-col items-center gap-3 p-6 bg-gray-50 rounded-2xl hover:bg-red-50 hover:shadow-md hover:-translate-y-1 transition-all duration-200 group">
+                    <i
+                        class="bi bi-watch text-4xl text-gray-500 group-hover:text-red-600 transition-colors duration-200"></i>
+                    <span
+                        class="font-semibold text-sm text-gray-700 group-hover:text-red-600 transition-colors duration-200">Wearables</span>
+                </a>
+
+                <a href="/user/list"
+                    class="flex flex-col items-center gap-3 p-6 bg-gray-50 rounded-2xl hover:bg-red-50 hover:shadow-md hover:-translate-y-1 transition-all duration-200 group">
+                    <i
+                        class="bi bi-controller text-4xl text-gray-500 group-hover:text-red-600 transition-colors duration-200"></i>
+                    <span
+                        class="font-semibold text-sm text-gray-700 group-hover:text-red-600 transition-colors duration-200">Gaming</span>
+                </a>
+
+            </div>
+        </section>
+
+        <%- include('./partials/layout-scripts') %>
+</body>
+
+</html>
