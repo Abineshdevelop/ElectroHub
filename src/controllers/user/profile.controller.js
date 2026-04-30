@@ -1,9 +1,11 @@
 import User from "../../model/usermodel.js"
 import Address from "../../model/addressModel.js"
+import Order from "../../model/orderModel.js"
 import path from "path"
 import fs from "fs"
 import sendMail from "../../services/mailService.js"
 import bcrypt from "bcryptjs"
+import { generateReferralToken } from "./auth.controller.js";
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -18,19 +20,50 @@ export async function logoutUser (req, res){
 export async function loadDashboard (req, res){
   try {
     const userId = req.session.user._id;
-    const user = await User.findById(userId)
-      .select("firstName lastName email phone profileImage")
-      .lean();
+    let user = await User.findById(userId)
+      .select("firstName lastName email phone profileImage referralToken isReferralUsed");
+    
     if (!user) return res.redirect("/user/login");
 
+    // Generate token for existing users who don't have one
+    if (!user.referralToken) {
+      user.referralToken = await generateReferralToken();
+      await user.save();
+    }
+
+    const userObj = user.toObject();
     const defaultAddress = await Address.findOne({ userId, isDefault: true }).lean();
 
-    const stats = { totalOrders: 0, pendingOrders: 0, completedOrders: 0 };
-    const wishlist = [];
-    const recentOrder = { id: "N/A", status: "No recent orders" };
+    // Fetch Real Stats
+    const totalOrders = await Order.countDocuments({ userId });
+    const pendingOrders = await Order.countDocuments({ 
+        userId, 
+        orderStatus: { $in: ["pending", "confirmed", "processing", "shipped", "out_for_delivery"] } 
+    });
+    const completedOrders = await Order.countDocuments({ 
+        userId, 
+        orderStatus: "delivered" 
+    });
+
+    const stats = { totalOrders, pendingOrders, completedOrders };
+
+    // Fetch Last Order for Tracking Banner
+    const lastOrder = await Order.findOne({ userId }).sort({ createdAt: -1 }).lean();
+    const recentOrder = lastOrder ? {
+        id: lastOrder.orderId,
+        status: lastOrder.orderStatus.replace(/_/g, " ").toUpperCase()
+    } : { id: "N/A", status: "No recent orders" };
+
+    const wishlist = []; // Wishlist logic skipped as not requested
 
     return res.render("user/userProfile/dashboard", {
-      user, stats, wishlist, recentOrder, defaultAddress, activePage: "dashboard",
+      user: userObj,
+      referralToken: user.referralToken,
+      stats, 
+      wishlist, 
+      recentOrder, 
+      defaultAddress, 
+      activePage: "dashboard",
     });
   } catch (err) {
     console.error("Dashboard error:", err);
@@ -191,10 +224,19 @@ export async function removeDefaultAddress(req, res) {
 export async function loadProfile (req, res) {
   try {
     const userId = req.session.user._id;
-    const user = await User.findById(userId).lean();
+    const user = await User.findById(userId);
+    if (!user) return res.redirect("/user/login");
+
+    if (!user.referralToken) {
+      user.referralToken = await generateReferralToken();
+      await user.save();
+    }
+
     const defaultAddress = await Address.findOne({ userId, isDefault: true }).lean();
     res.render("user/userProfile/userAccount", { 
-      user, 
+      user: user.toObject(), 
+      referralToken: user.referralToken,
+      isReferralUsed: user.isReferralUsed,
       defaultAddress,
       activePage: "profile"
     });

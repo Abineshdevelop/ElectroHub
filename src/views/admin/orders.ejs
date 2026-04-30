@@ -1,3 +1,609 @@
+<% if (typeof order !== 'undefined') { %>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin Order Details | ElectroHub</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet"/>
+  <style>
+    .order-row { transition: background 0.15s ease; }
+    .order-row:hover { background: #f9fafb; }
+    #toast { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; }
+    .toast-box { min-width: 260px; padding: 12px 16px; border-radius: 8px; color: #fff; box-shadow: 0 4px 12px rgba(0,0,0,0.1); display: flex; align-items: center; gap: 10px; animation: slideIn 0.3s ease; }
+    @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+  </style>
+</head>
+<body class="bg-gray-100 text-gray-800 font-sans">
+
+<div id="toast"></div>
+
+<%
+  // Forward-only transition map — admin can only advance status, never go backward
+  const ADMIN_FORWARD = {
+    pending:             ['confirmed', 'processing', 'shipped', 'out_for_delivery', 'delivered'],
+    confirmed:           ['processing', 'shipped', 'out_for_delivery', 'delivered'],
+    processing:          ['shipped', 'out_for_delivery', 'delivered', 'cancelled'],
+    shipped:             ['out_for_delivery', 'delivered', 'cancelled'],
+    out_for_delivery:    ['delivered', 'cancelled'],
+    delivered:           ['returned'],
+    return_requested:    ['returned'],
+    partially_cancelled: ['cancelled'],
+    cancelled:           [],
+    returned:            [],
+    expired:             [],
+  };
+
+  const statusConfig = {
+    pending:             { label: 'Pending',            icon: 'bi-hourglass-split',   color: 'gray'   },
+    confirmed:           { label: 'Confirmed',          icon: 'bi-check-circle',      color: 'blue'   },
+    processing:          { label: 'Processing',         icon: 'bi-gear',              color: 'yellow' },
+    shipped:             { label: 'Shipped',            icon: 'bi-truck',             color: 'indigo' },
+    out_for_delivery:    { label: 'Out for Delivery',   icon: 'bi-geo',               color: 'sky'    },
+    delivered:           { label: 'Delivered',          icon: 'bi-house-check',       color: 'green'  },
+    cancelled:           { label: 'Cancelled',          icon: 'bi-x-circle',          color: 'red'    },
+    partially_cancelled: { label: 'Partially Cancelled',icon: 'bi-exclamation-circle',color: 'orange' },
+    return_requested:    { label: 'Return Requested',   icon: 'bi-arrow-return-left', color: 'purple' },
+    returned:            { label: 'Returned',           icon: 'bi-arrow-return-left', color: 'slate'  },
+    return_rejected:     { label: 'Return Rejected',    icon: 'bi-x-circle',          color: 'red'    },
+  };
+
+  const curSt        = statusConfig[order.orderStatus] || statusConfig.pending;
+  const validNext    = ADMIN_FORWARD[order.orderStatus]  || [];
+  const hasCoupon    = order.discount > 0;
+  const returnRequestedItems = order.items.filter(i => i.status === 'return_requested');
+%>
+
+<!-- TOP NAVBAR -->
+<header class="bg-white shadow-sm border-b no-print">
+  <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+    <div class="flex items-center gap-2">
+      <span class="text-xl font-bold">ElectroHub</span>
+      <span class="text-xs text-gray-500 ml-2">Next-Gen Electronics</span>
+    </div>
+    <nav class="flex items-center gap-6 text-sm font-medium">
+      <a href="/admin/logout" class="text-red-600 hover:underline flex items-center gap-1">
+        <i class="bi bi-box-arrow-right"></i> Logout
+      </a>
+    </nav>
+  </div>
+</header>
+
+<div class="flex">
+  <!-- SIDEBAR -->
+  <aside class="w-64 min-h-[calc(100vh-64px)] bg-white border-r flex flex-col justify-between no-print sticky top-16">
+    <div>
+      <div class="p-6 font-semibold">ElectroHub Admin</div>
+      <nav class="px-4 space-y-1 text-sm">
+        <a href="/admin/dashboard"    class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 text-gray-700 transition">
+          <i class="bi bi-house"></i> Dashboard
+        </a>
+        <a href="/admin/orders"       class="flex items-center gap-2 px-3 py-2 rounded bg-gray-100 font-semibold text-gray-900 shadow-sm transition">
+          <i class="bi bi-bag"></i> Orders
+        </a>
+        <a href="/admin/products"     class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 text-gray-700 transition">
+          <i class="bi bi-box"></i> Products
+        </a>
+        <a href="/admin/category"     class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 text-gray-700 transition">
+          <i class="bi bi-tags"></i> Category
+        </a>
+        <a href="/admin/offers"       class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 text-gray-700 transition">
+          <i class="bi bi-percent"></i> Offers
+        </a>
+        <a href="/admin/coupons"      class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 text-gray-700 transition">
+          <i class="bi bi-ticket"></i> Coupons
+        </a>
+        <a href="/admin/banners"      class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 text-gray-700 transition">
+          <i class="bi bi-image"></i> Banners
+        </a>
+        <a href="/admin/customers"    class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 text-gray-700 transition">
+          <i class="bi bi-people"></i> Customers
+        </a>
+        <a href="/admin/sales-report" class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 text-gray-700 transition">
+          <i class="bi bi-graph-up"></i> Sales Report
+        </a>
+      </nav>
+    </div>
+    <div class="px-4 pb-6">
+      <a href="/admin/logout" class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 text-gray-700 text-sm transition">
+        <i class="bi bi-box-arrow-left"></i> Logout
+      </a>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="flex-1 p-8">
+    <div class="mb-6 flex items-center justify-between">
+      <div>
+        <a href="/admin/orders" class="text-xs font-bold text-blue-600 hover:underline mb-2 inline-block"><i class="bi bi-arrow-left"></i> Back to Orders</a>
+        <h1 class="text-2xl font-bold flex items-center gap-3">
+          Order Details 
+          <span class="text-sm font-normal text-gray-400">#<%= order.orderId %></span>
+        </h1>
+      </div>
+      <div class="flex gap-2">
+         <% if (order.paymentStatus === 'failed') { %>
+           <span class="bg-red-100 text-red-600 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1">
+             <i class="bi bi-shield-x"></i> Payment Cancelled
+           </span>
+         <% } %>
+         <% if (hasCoupon) { %>
+           <span class="bg-amber-50 border border-amber-200 text-amber-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1">
+             <i class="bi bi-ticket-perforated-fill"></i> Coupon Applied — Item cancel blocked
+           </span>
+         <% } %>
+         <span class="bg-white border px-4 py-1 rounded-full text-xs font-bold shadow-sm">
+           Created: <%= new Date(order.createdAt).toLocaleDateString() %>
+         </span>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      
+      <!-- Left: Items & Global Status -->
+      <div class="lg:col-span-2 space-y-6">
+        
+        <!-- Global Status Management -->
+        <div class="bg-white p-6 rounded-lg shadow-sm border">
+          <h3 class="font-bold text-gray-900 mb-4 border-b pb-2">Global Order Status</h3>
+          <div class="flex flex-wrap items-center gap-4">
+             <span class="px-4 py-2 rounded-full border bg-<%= curSt.color %>-50 text-<%= curSt.color %>-600 text-sm font-bold flex items-center gap-2">
+               <i class="bi <%= curSt.icon %>"></i> <%= curSt.label %>
+             </span>
+             <% if (validNext.length > 0) { %>
+               <i class="bi bi-arrow-right text-gray-300"></i>
+               <div class="flex-1 max-w-xs">
+                 <select id="globalStatusSelect" class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                   <option value="">— Select next status —</option>
+                   <% validNext.forEach(st => { %>
+                     <option value="<%= st %>"><%= statusConfig[st] ? statusConfig[st].label : st.toUpperCase() %></option>
+                   <% }) %>
+                 </select>
+               </div>
+               <button
+                 onclick="applyGlobalStatus('<%= order._id %>')"
+                 class="px-4 py-2 bg-gray-900 hover:bg-black text-white text-sm font-bold rounded-lg transition">
+                 Update Status
+               </button>
+             <% } else { %>
+               <span class="text-xs text-gray-400 italic">
+                 <% if (['cancelled','returned','delivered'].includes(order.orderStatus)) { %>
+                   This order is in a terminal state — no further status changes allowed.
+                 <% } else { %>
+                   No forward transitions available.
+                 <% } %>
+               </span>
+             <% } %>
+          </div>
+        </div>
+
+        <!-- ⬇️  RETURN REQUESTS PANEL (only when items are pending) -->
+        <% if (returnRequestedItems.length > 0) { %>
+        <div class="bg-purple-50 border border-purple-200 p-6 rounded-lg shadow-sm">
+          <div class="flex items-center justify-between mb-4 border-b border-purple-200 pb-3">
+            <h3 class="font-bold text-purple-900 flex items-center gap-2">
+              <i class="bi bi-arrow-return-left text-purple-600"></i>
+              Return Requests &mdash; Awaiting Approval
+              <span class="bg-purple-600 text-white text-xs font-black px-2 py-0.5 rounded-full"><%= returnRequestedItems.length %></span>
+            </h3>
+          </div>
+          <div class="space-y-4">
+            <% returnRequestedItems.forEach(item => { %>
+            <div class="bg-white border border-purple-100 rounded-lg p-4 flex items-start gap-4">
+              <img src="<%= item.productImage %>" class="w-12 h-12 rounded object-cover border border-purple-100 shrink-0">
+              <div class="flex-1 min-w-0">
+                <p class="font-bold text-gray-900 truncate"><%= item.productName %></p>
+                <p class="text-xs text-gray-400 mt-0.5">Qty: <b><%= item.quantity %></b> &nbsp;|&nbsp; Amount: <b>₹<%= (item.finalAmount ?? item.lineTotal ?? 0).toLocaleString() %></b></p>
+                <% if (item.returnReason) { %>
+                <div class="mt-2 bg-purple-50 border border-purple-100 rounded p-2 text-xs font-medium text-purple-800">
+                  <i class="bi bi-chat-left-quote mr-1"></i>Customer reason: "<%= item.returnReason %>"
+                </div>
+                <% } %>
+              </div>
+              <div class="text-xs font-black uppercase text-purple-600 bg-purple-100 px-2 py-1 rounded shrink-0">Pending</div>
+            </div>
+            <% }) %>
+          </div>
+
+          <!-- Rejection Reason Section -->
+          <div class="mt-5 pt-4 border-t border-purple-200">
+            <label class="block text-[10px] font-black uppercase text-purple-400 tracking-widest mb-2">Rejection Reason (Required for Reject)</label>
+            <textarea id="panelRejectReason" rows="2" 
+              class="w-full bg-white border border-purple-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-purple-100 outline-none resize-none mb-3"
+              placeholder="Explain why the return is being rejected..."></textarea>
+            <div class="flex gap-2">
+              <button onclick="adminApproveReturn('<%= order._id %>')"
+                class="flex-1 py-2.5 bg-green-600 hover:bg-green-700 text-white text-xs font-black rounded-xl transition flex items-center justify-center gap-2 shadow-sm">
+                <i class="bi bi-check-circle-fill"></i> Approve All Returns
+              </button>
+              <button onclick="submitPanelReject('<%= order._id %>')"
+                class="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white text-xs font-black rounded-xl transition flex items-center justify-center gap-2 shadow-sm">
+                <i class="bi bi-x-circle-fill"></i> Reject All Returns
+              </button>
+            </div>
+          </div>
+        </div>
+        <% } %>
+
+        <!-- Inventory / Item List -->
+        <div class="bg-white rounded-lg shadow-sm border overflow-hidden">
+          <div class="px-6 py-4 border-b bg-gray-50 flex justify-between items-center">
+             <h3 class="font-bold text-gray-800">Inventory Management</h3>
+             <div class="flex items-center gap-3">
+               <% if (hasCoupon) { %>
+                 <span class="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-1 rounded-full">
+                   Coupon order — individual item cancel blocked
+                 </span>
+               <% } %>
+               <span class="text-xs font-bold text-gray-400"><%= order.items.length %> Items</span>
+             </div>
+          </div>
+          <table class="w-full text-left text-sm">
+            <thead class="bg-gray-50 text-[10px] uppercase text-gray-400 font-black">
+              <tr>
+                <th class="px-6 py-3">Product</th>
+                <th class="px-6 py-3">Qty</th>
+                <th class="px-6 py-3">Amount</th>
+                <th class="px-6 py-3">Status Control</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y">
+              <% order.items.forEach(item => { 
+                const iStatus     = item.status || order.orderStatus;
+                const iCfg        = statusConfig[iStatus] || statusConfig.pending;
+                // Forward-only valid next statuses for this item
+                let validItemNext = ADMIN_FORWARD[iStatus] || [];
+                // If coupon/offer applied, block individual item cancellation
+                if (hasCoupon) {
+                  validItemNext = validItemNext.filter(s => s !== 'cancelled');
+                }
+              %>
+                <tr class="hover:bg-gray-50 transition-colors">
+                  <td class="px-6 py-4">
+                    <div class="flex items-center gap-3">
+                       <img src="<%= item.productImage %>" class="w-10 h-10 rounded border object-cover">
+                       <div>
+                         <p class="font-bold text-gray-800"><%= item.productName %></p>
+                         <% if(item.variantAttributes){ %>
+                           <p class="text-[10px] text-gray-400"><%= Object.values(item.variantAttributes).join(' · ') %></p>
+                         <% } %>
+                       </div>
+                    </div>
+                  </td>
+                  <td class="px-6 py-4 font-bold text-gray-600">x<%= item.quantity %></td>
+                  <td class="px-6 py-4 font-bold text-gray-900">₹<%= (item.finalAmount ?? item.lineTotal ?? 0).toLocaleString() %></td>
+                  <td class="px-6 py-4">
+                    <div class="flex flex-col gap-2">
+                      <span class="text-[9px] font-black uppercase text-<%= iCfg.color %>-600 bg-<%= iCfg.color %>-50 border border-<%= iCfg.color %>-100 px-2 py-0.5 rounded-full inline-block w-fit"><%= iCfg.label %></span>
+                      <% if (hasCoupon) { %>
+                        <span class="text-[10px] text-amber-600 italic">Use global update</span>
+                      <% } else if (validItemNext.length > 0) { %>
+                        <div class="flex items-center gap-1.5">
+                          <div class="relative flex-1">
+                            <select id="isel-<%= item._id %>" class="border rounded px-2 py-1 text-[10px] font-bold outline-none hover:border-gray-300 appearance-none pr-6 cursor-pointer">
+                               <option value="">— next —</option>
+                               <% validItemNext.forEach(st => { %>
+                                 <option value="<%= st %>"><%= statusConfig[st] ? statusConfig[st].label.toUpperCase() : st.toUpperCase() %></option>
+                               <% }) %>
+                            </select>
+                            <i class="bi bi-chevron-down absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-400 text-[8px] pointer-events-none"></i>
+                          </div>
+                          <button onclick="applyItemStatus('<%= order._id %>', '<%= item._id %>')"
+                            class="text-[10px] font-bold px-2 py-1 bg-gray-800 hover:bg-gray-900 text-white rounded transition shrink-0">
+                            Apply
+                          </button>
+                        </div>
+                      <% } else { %>
+                        <span class="text-[10px] text-gray-400 italic">Terminal</span>
+                      <% } %>
+                    </div>
+                  </td>
+                </tr>
+                <% if(item.cancelReason || item.returnReason){ %>
+                  <tr>
+                    <td colspan="4" class="px-6 pb-4 pt-0">
+                       <div class="bg-amber-50 border border-amber-100 rounded p-3 text-[11px] font-bold text-amber-700">
+                          <i class="bi bi-chat-left-dots mr-1"></i> Customer Reason: <%= item.cancelReason || item.returnReason %>
+                       </div>
+                    </td>
+                  </tr>
+                <% } %>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+
+      <!-- Right: Customer Info & Billing -->
+      <div class="space-y-6">
+        
+        <!-- Customer Info -->
+        <div class="bg-white p-6 rounded-lg shadow-sm border">
+          <h3 class="font-bold text-gray-900 mb-4 border-b pb-2">Customer Info</h3>
+          <div class="space-y-4">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center font-bold text-gray-400">
+                <%= order.shippingAddress.firstName[0] %>
+              </div>
+              <div>
+                <p class="font-bold text-gray-900"><%= order.shippingAddress.firstName %> <%= order.shippingAddress.lastName %></p>
+                <p class="text-xs text-gray-400"><%= order.shippingAddress.email %></p>
+              </div>
+            </div>
+            <div class="text-xs font-medium text-gray-600 leading-relaxed border-t pt-4">
+              <p class="font-bold text-[10px] text-gray-300 uppercase mb-2">Shipping Address</p>
+              <p><%= order.shippingAddress.addressLine %></p>
+               <p><%= order.shippingAddress.street %></p>
+               <p><%= order.shippingAddress.state %>, <%= order.shippingAddress.pincode %></p>
+               <p class="font-bold text-gray-900 pt-1">Phone: <%= order.shippingAddress.phone %></p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Billing Card -->
+        <div class="bg-white p-6 rounded-lg shadow-sm border border-l-4 border-l-blue-600">
+          <h3 class="font-bold text-gray-900 mb-6 border-b pb-2">Billing Summary</h3>
+          <div class="space-y-3 text-sm">
+             <div class="flex justify-between text-gray-500 font-medium">
+               <span>Subtotal</span>
+               <span class="text-gray-900 font-bold">₹<%= order.subtotal.toLocaleString() %></span>
+             </div>
+             <% if(order.discount > 0){ %>
+               <div class="flex justify-between text-gray-500 font-medium">
+                 <span>Coupon / Offer Discount</span>
+                 <span class="text-red-600 font-bold">- ₹<%= order.discount.toLocaleString() %></span>
+               </div>
+             <% } %>
+             <div class="flex justify-between text-gray-500 font-medium border-b border-dashed pb-3">
+               <span>Logistic/Shipping</span>
+               <span class="text-green-600 font-bold">₹0.00</span>
+             </div>
+             <div class="flex justify-between items-end pt-2">
+                <span class="text-xs font-bold text-gray-400 uppercase">Gross Revenue</span>
+                <span class="text-2xl font-black text-gray-900 leading-none">₹<%= order.totalAmount.toLocaleString() %></span>
+             </div>
+
+             <div class="mt-6 pt-5 bg-gray-50 rounded p-4 text-[10px] font-bold text-gray-500 flex justify-between items-center">
+                <div>
+                   <p class="uppercase tracking-widest text-[8px] mb-1">Payment Method</p>
+                   <p class="text-gray-800 uppercase"><%= order.paymentMethod %></p>
+                </div>
+                <div class="text-right">
+                   <p class="uppercase tracking-widest text-[8px] mb-1">Final Status</p>
+                   <p class="text-<%= order.paymentStatus==='paid'?'green':'red' %>-600 uppercase"><%= order.paymentStatus %></p>
+                </div>
+             </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<script>
+  function showToast(msg, type = 'success') {
+    const container = document.getElementById('toast');
+    const box = document.createElement('div');
+    box.className = `toast-box ${type === 'success' ? 'bg-green-600' : 'bg-red-600'}`;
+    box.innerHTML = `<i class="bi bi-${type==='success'?'check-circle':'x-circle'}"></i><span class="font-bold text-sm leading-none">${msg}</span>`;
+    container.appendChild(box);
+    setTimeout(() => box.remove(), 3500);
+  }
+
+  async function applyGlobalStatus(orderId) {
+    const select = document.getElementById('globalStatusSelect');
+    const status = select.value;
+    if (!status) { showToast('Please select a status to apply.', 'error'); return; }
+
+    try {
+      const res  = await fetch(`/admin/orders/${orderId}/status`, {
+        method:  'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ status })
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast('Order status updated.');
+        setTimeout(() => location.reload(), 1000);
+      } else {
+        showToast(data.message || 'Update failed.', 'error');
+        select.value = '';
+      }
+    } catch(err) {
+      showToast('Network error.', 'error');
+    }
+  }
+
+  async function applyItemStatus(orderId, itemId) {
+    const select = document.getElementById(`isel-${itemId}`);
+    const status = select ? select.value : '';
+    if (!status) { showToast('Please select a status to apply.', 'error'); return; }
+
+    try {
+      const res  = await fetch(`/admin/orders/${orderId}/items/${itemId}/status`, {
+        method:  'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ status })
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast('Item status updated.');
+        setTimeout(() => location.reload(), 1000);
+      } else {
+        showToast(data.message || 'Update failed.', 'error');
+        if (select) select.value = '';
+      }
+    } catch(err) {
+      showToast('Network error.', 'error');
+    }
+  }
+
+  // ── Return Approval / Rejection ────────────────────────────────
+  async function adminApproveReturn(orderId) {
+    showConfirm({
+      title: 'Approve Return?',
+      message: 'Approve all pending items? This will issue an immediate refund to the customer\'s wallet.',
+      confirmText: 'Approve & Refund',
+      confirmColor: 'bg-green-600',
+      onConfirm: async () => {
+        try {
+          const res  = await fetch(`/admin/orders/${orderId}/return/approve`, {
+            method:  'PATCH',
+            headers: { 'Content-Type': 'application/json' }
+          });
+          const data = await res.json();
+          if (data.success) {
+            showToast(data.message || 'Return approved.');
+            setTimeout(() => location.reload(), 1200);
+          } else {
+            showToast(data.message || 'Approval failed.', 'error');
+          }
+        } catch(err) {
+          showToast('Network error.', 'error');
+        }
+      }
+    });
+  }
+
+  let _rejectOrderId = null;
+  function openRejectModal(orderId) {
+    _rejectOrderId = orderId;
+    document.getElementById('rejectReason').value = '';
+    document.getElementById('rejectModal').classList.remove('hidden');
+    document.getElementById('rejectModal').classList.add('flex');
+  }
+  function closeRejectModal() {
+    document.getElementById('rejectModal').classList.add('hidden');
+    document.getElementById('rejectModal').classList.remove('flex');
+  }
+  async function submitReject() {
+    const reason = document.getElementById('rejectReason').value.trim();
+    if (!reason) { showToast('Please enter a rejection reason.', 'error'); return; }
+    try {
+      const res  = await fetch(`/admin/orders/${_rejectOrderId}/return/reject`, {
+        method:  'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ reason })
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast('Return request rejected.');
+        closeRejectModal();
+        setTimeout(() => location.reload(), 1200);
+      } else {
+        showToast(data.message || 'Rejection failed.', 'error');
+      }
+    } catch(err) {
+      showToast('Network error.', 'error');
+    }
+  }
+
+  async function submitPanelReject(orderId) {
+    const reason = document.getElementById('panelRejectReason').value.trim();
+    if (!reason) { showToast('Please enter a rejection reason.', 'error'); return; }
+    
+    showConfirm({
+      title: 'Reject Return?',
+      message: 'Are you sure you want to reject the pending return requests? The customer will see your rejection reason.',
+      confirmText: 'Reject Return',
+      confirmColor: 'bg-red-600',
+      onConfirm: async () => {
+        try {
+          const res  = await fetch(`/admin/orders/${orderId}/return/reject`, {
+            method:  'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ reason })
+          });
+          const data = await res.json();
+          if (data.success) {
+            showToast('Return request rejected.');
+            setTimeout(() => location.reload(), 1200);
+          } else {
+            showToast(data.message || 'Rejection failed.', 'error');
+          }
+        } catch(err) {
+          showToast('Network error.', 'error');
+        }
+      }
+    });
+  }
+
+  // ── Custom Action Confirmation Modal Logic ──────────────────────────────
+  let _actionConfirmCallback = null;
+  function showConfirm({ title, message, confirmText, confirmColor, onConfirm }) {
+    document.getElementById('actionConfirmModalTitle').innerText = title || 'Are you sure?';
+    document.getElementById('actionConfirmModalMessage').innerText = message || '';
+    const btn = document.getElementById('actionConfirmModalBtn');
+    btn.innerText = confirmText || 'Confirm';
+    btn.className = `flex-1 py-3 ${confirmColor || 'bg-gray-900'} text-white rounded-xl font-bold text-sm transition hover:opacity-90 active:scale-95`;
+    _actionConfirmCallback = onConfirm;
+    document.getElementById('actionConfirmModal').classList.remove('hidden');
+    document.getElementById('actionConfirmModal').classList.add('flex');
+  }
+
+  function closeActionConfirmModal() {
+    document.getElementById('actionConfirmModal').classList.add('hidden');
+    document.getElementById('actionConfirmModal').classList.remove('flex');
+    _actionConfirmCallback = null;
+  }
+
+  function executeActionConfirm() {
+    if (_actionConfirmCallback) _actionConfirmCallback();
+    closeActionConfirmModal();
+  }
+</script>
+
+<!-- Reject Reason Modal -->
+<div id="rejectModal" class="hidden fixed inset-0 bg-black/50 z-50 items-center justify-center">
+  <div class="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl">
+    <h3 class="text-lg font-bold text-gray-900 mb-1">Reject Return Request</h3>
+    <p class="text-sm text-gray-400 mb-5">This reason will be shown to the customer.</p>
+    <label class="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Rejection Reason</label>
+    <textarea id="rejectReason" rows="3"
+      class="w-full border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-red-100 outline-none resize-none mb-5"
+      placeholder="e.g. Item shows signs of use beyond normal testing..."></textarea>
+    <div class="flex gap-3">
+      <button onclick="closeRejectModal()"
+        class="flex-1 py-2.5 border border-gray-200 rounded-xl font-bold text-gray-500 hover:bg-gray-50 text-sm transition">Cancel</button>
+      <button onclick="submitReject()"
+        class="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold text-sm transition">Confirm Reject</button>
+    </div>
+  </div>
+</div>
+
+<!-- Custom Action Confirmation Modal -->
+<div id="actionConfirmModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] items-center justify-center p-4">
+  <div class="bg-white rounded-3xl p-8 w-full max-w-sm shadow-2xl scale-up-center">
+    <div class="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mb-6 mx-auto">
+      <i class="bi bi-question-circle text-gray-400 text-3xl"></i>
+    </div>
+    <h3 id="actionConfirmModalTitle" class="text-xl font-black text-gray-900 text-center mb-2">Confirm Action</h3>
+    <p id="actionConfirmModalMessage" class="text-sm text-gray-500 text-center mb-8 px-2 font-medium leading-relaxed"></p>
+    <div class="flex gap-3">
+      <button onclick="closeActionConfirmModal()"
+        class="flex-1 py-3 border border-gray-100 rounded-xl font-bold text-gray-400 hover:bg-gray-50 text-sm transition active:scale-95">Cancel</button>
+      <button id="actionConfirmModalBtn" onclick="executeActionConfirm()"
+        class="flex-1 py-3 bg-gray-900 text-white rounded-xl font-bold text-sm transition shadow-lg shadow-gray-200">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<style>
+  .scale-up-center { animation: scale-up-center 0.2s cubic-bezier(0.390, 0.575, 0.565, 1.000) both; }
+  @keyframes scale-up-center {
+    0% { transform: scale(0.95); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+</style>
+
+</body>
+</html>
+
+<% } else { %>
 <% const _sort=sort || 'desc' ; const _status=statusFilter || 'all' ; %>
   <!DOCTYPE html>
   <html lang="en">
@@ -21,61 +627,10 @@
 
   <body class="bg-gray-100">
 
-    <header class="bg-white shadow-sm">
-      <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-        <div class="flex items-center gap-2">
-          <span class="text-xl font-bold">ElectroHub</span>
-          <span class="text-xs text-gray-500 ml-2">Next-Gen Electronics</span>
-        </div>
-        <nav class="flex items-center gap-6 text-sm font-medium">
-          <a href="#" class="hover:text-black text-gray-600">Home</a>
-          <a href="#" class="hover:text-black text-gray-600">Contact</a>
-          <a href="#" class="hover:text-black text-gray-600">About</a>
-          <a href="/admin/logout" class="text-red-600 hover:underline">Logout</a>
-        </nav>
-      </div>
-    </header>
+<%- include('./layout/header') %>
 
-    <div class="flex">
-      <aside class="w-64 min-h-[calc(100vh-64px)] bg-white border-r flex flex-col justify-between">
-        <div>
-          <div class="p-6 font-semibold">ElectroHub Admin</div>
-          <nav class="px-4 space-y-1 text-sm">
-            <a href="/admin/dashboard"
-              class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 text-gray-700"><i
-                class="bi bi-house"></i> Dashboard</a>
-            <a href="/admin/orders"
-              class="flex items-center gap-2 px-3 py-2 rounded bg-gray-100 font-semibold text-gray-900"><i
-                class="bi bi-bag"></i> Orders</a>
-            <a href="/admin/products"
-              class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 text-gray-700"><i
-                class="bi bi-box"></i> Products</a>
-            <a href="/admin/category"
-              class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 text-gray-700"><i
-                class="bi bi-tags"></i> Category</a>
-            <a href="/admin/offers" class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 text-gray-700"><i
-                class="bi bi-percent"></i> Offers</a>
-            <a href="/admin/coupons"
-              class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 text-gray-700"><i
-                class="bi bi-ticket"></i> Coupons</a>
-            <a href="/admin/banners"
-              class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 text-gray-700"><i
-                class="bi bi-image"></i> Banners</a>
-            <a href="/admin/customers"
-              class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 text-gray-700"><i
-                class="bi bi-people"></i> Customers</a>
-            <a href="/admin/sales-report"
-              class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 text-gray-700"><i
-                class="bi bi-graph-up"></i> Sales Report</a>
-          </nav>
-        </div>
-        <div class="px-4 pb-6">
-          <a href="/admin/logout"
-            class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 text-gray-700 text-sm">
-            <i class="bi bi-box-arrow-left"></i> Logout
-          </a>
-        </div>
-      </aside>
+<div class="flex">
+  <%- include('./layout/sidebar', { activePage: 'orders' }) %>
 
       <main class="flex-1 p-8 min-w-0">
 
@@ -203,8 +758,10 @@
                             delivered: { label: 'Delivered', bg: 'bg-green-50', text: 'text-green-700', dot: 'bg-green-400' },
                             cancelled: { label: 'Cancelled', bg: 'bg-red-50', text: 'text-red-600', dot: 'bg-red-400' },
                             partially_cancelled: { label: 'Partially Cancelled', bg: 'bg-orange-50', text: 'text-orange-700', dot: 'bg-orange-400' },
+                            return_requested: { label: 'Return Requested', bg: 'bg-indigo-50', text: 'text-indigo-700', dot: 'bg-indigo-400' },
                             returned: { label: 'Returned', bg: 'bg-purple-50', text: 'text-purple-700', dot: 'bg-purple-400' },
-                            expired: { label: 'Expired', bg: 'bg-gray-50', text: 'text-gray-600', dot: 'bg-gray-400' }
+                            expired: { label: 'Expired', bg: 'bg-gray-50', text: 'text-gray-600', dot: 'bg-gray-400' },
+                            return_rejected: { label: 'Return Rejected', bg: 'bg-red-50', text: 'text-red-700', dot: 'bg-red-500' }
                           };
                           const sc = STATUS_CONFIG_EJS[o.orderStatus] || { label: o.orderStatus, bg: 'bg-gray-100', text: 'text-gray-700', dot: 'bg-gray-400' };
                         %>
@@ -219,7 +776,7 @@
                       <!-- Actions -->
                       <td class="px-5 py-3.5">
                         <div class="flex items-center gap-2 text-sm font-medium">
-                          <button onclick="openOrderModal('<%= o._id %>')"
+                          <button onclick="window.location.href='/admin/orders/<%= o._id %>'"
                             class="text-blue-600 hover:text-blue-800 transition">View Detail</button>
                           <span class="text-gray-300">|</span>
                           <button onclick="openDeleteConfirm('<%= o._id %>','<%= o.orderId %>')"
@@ -274,71 +831,7 @@
       </main>
     </div>
 
-    <!-- ══════════ ORDER DETAIL MODAL ══════════ -->
-    <div id="orderModal" class="fixed inset-0 z-50 hidden items-center justify-center">
-      <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" onclick="closeOrderModal()"></div>
-      <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 flex flex-col max-h-[90vh]">
-
-        <div class="flex items-center justify-between px-6 pt-5 pb-4 border-b shrink-0">
-          <div>
-            <p id="modalOrderId" class="text-xs text-gray-400 font-mono mb-0.5"></p>
-            <h2 class="text-lg font-bold text-gray-900">Order Details</h2>
-          </div>
-          <button onclick="closeOrderModal()" class="text-gray-400 hover:text-gray-700 transition"><i
-              class="bi bi-x-lg text-sm"></i></button>
-        </div>
-
-        <div id="orderModalBody" class="overflow-y-auto flex-1 px-6 py-5 space-y-5 text-sm text-gray-700">
-          <div class="flex items-center justify-center py-10 text-gray-400">
-            <i class="bi bi-arrow-repeat animate-spin text-2xl mr-2"></i> Loading…
-          </div>
-        </div>
-
-        <div class="shrink-0 border-t px-6 py-4 bg-gray-50 rounded-b-2xl flex items-center justify-end gap-3">
-          <button onclick="closeOrderModal()"
-            class="px-5 py-2.5 border border-gray-200 bg-white hover:bg-gray-50 rounded-xl text-sm font-medium text-gray-700 transition">
-            Close
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- ══════════ ITEM STATUS MODAL ══════════ -->
-    <div id="itemStatusModal" class="fixed inset-0 z-[70] hidden items-center justify-center">
-      <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" onclick="closeItemStatusModal()"></div>
-      <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4">
-        <div class="px-6 pt-6 pb-4 border-b">
-          <h2 class="text-base font-bold text-gray-900">Update Item Status</h2>
-          <p id="itemModalSubtitle" class="text-xs text-gray-400 mt-1 truncate"></p>
-        </div>
-        <div class="px-6 py-5">
-          <label class="text-xs font-semibold text-gray-600 uppercase tracking-wide block mb-2">New Status</label>
-          <div class="relative">
-            <select id="itemStatusSelect"
-              class="w-full appearance-none pl-3 pr-8 py-2.5 border border-gray-200 rounded-lg bg-white text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-300 transition cursor-pointer">
-              <option value="pending">Pending</option>
-              <option value="confirmed">Confirmed</option>
-              <option value="processing">Processing</option>
-              <option value="shipped">Shipped</option>
-              <option value="out_for_delivery">Out for Delivery</option>
-              <option value="delivered">Delivered</option>
-              <option value="cancelled">Cancelled</option>
-              <option value="returned">Returned</option>
-            </select>
-            <i
-              class="bi bi-chevron-down absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none"></i>
-          </div>
-        </div>
-        <div class="flex gap-3 px-6 pb-6">
-          <button onclick="closeItemStatusModal()"
-            class="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition">Cancel</button>
-          <button onclick="saveItemStatus()"
-            class="flex-1 py-2.5 rounded-xl bg-gray-800 hover:bg-gray-900 text-white text-sm font-semibold transition flex items-center justify-center gap-2">
-            <i class="bi bi-check-lg"></i> Save
-          </button>
-        </div>
-      </div>
-    </div>
+    <!-- ══════════ MODALS MOVED ══════════ -->
 
     <!-- ══════════ DELETE CONFIRM MODAL ══════════ -->
     <div id="confirmModal" class="fixed inset-0 z-[80] hidden items-center justify-center">
@@ -359,7 +852,7 @@
         </div>
       </div>
     </div>
-
+a
     <!-- TOAST -->
     <div id="toast"
       class="fixed top-[72px] right-5 z-[9999] hidden items-center gap-3 px-5 py-3.5 rounded-xl shadow-xl text-white text-sm font-medium min-w-[220px] max-w-xs">
@@ -388,12 +881,14 @@
         pending: { label: 'Pending', bg: 'bg-gray-100', text: 'text-gray-700', dot: 'bg-gray-500' },
         confirmed: { label: 'Confirmed', bg: 'bg-blue-100', text: 'text-blue-700', dot: 'bg-blue-500' },
         processing: { label: 'Processing', bg: 'bg-yellow-100', text: 'text-yellow-700', dot: 'bg-yellow-500' },
-        shipped: { label: 'Shipped', bg: 'bg-cyan-100', text: 'text-cyan-700', dot: 'bg-cyan-500' },
+        shipped: { label: 'Shipped', bg: 'bg-cyan-100', text: 'bg-cyan-700', dot: 'bg-cyan-500' },
         out_for_delivery: { label: 'Out for Delivery', bg: 'bg-indigo-100', text: 'text-indigo-700', dot: 'bg-indigo-500' },
         delivered: { label: 'Delivered', bg: 'bg-green-100', text: 'text-green-700', dot: 'bg-green-500' },
         cancelled: { label: 'Cancelled', bg: 'bg-red-100', text: 'text-red-700', dot: 'bg-red-500' },
         partially_cancelled: { label: 'Partially Cancelled', bg: 'bg-orange-100', text: 'text-orange-700', dot: 'bg-orange-500' },
+        return_requested: { label: 'Return Requested', bg: 'bg-indigo-100', text: 'text-indigo-700', dot: 'bg-indigo-500' },
         returned: { label: 'Returned', bg: 'bg-purple-100', text: 'text-purple-700', dot: 'bg-purple-500' },
+        return_rejected: { label: 'Return Rejected', bg: 'bg-red-100', text: 'text-red-700', dot: 'bg-red-500' }
       };
 
       const PILL_CONFIG = {
@@ -404,7 +899,9 @@
         out_for_delivery: 'bg-indigo-50 text-indigo-700',
         delivered: 'bg-green-50 text-green-700',
         cancelled: 'bg-red-50 text-red-600',
+        return_requested: 'bg-indigo-50 text-indigo-700',
         returned: 'bg-purple-50 text-purple-700',
+        return_rejected: 'bg-red-50 text-red-700'
       };
 
       function statusBadgeHtml(status) {
@@ -423,43 +920,7 @@
         return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
       }
 
-      // ── Change Order Status ────────────────────────────────────────────────
-      const ADMIN_FORWARD = {
-        pending: ['confirmed', 'processing', 'shipped', 'out_for_delivery', 'delivered', 'cancelled'],
-        confirmed: ['processing', 'shipped', 'out_for_delivery', 'delivered', 'cancelled'],
-        processing: ['shipped', 'out_for_delivery', 'delivered', 'cancelled'],
-        shipped: ['out_for_delivery', 'delivered', 'cancelled'],
-        out_for_delivery: ['delivered', 'cancelled'],
-        delivered: ['returned'],
-        partially_cancelled: ['cancelled'],
-        cancelled: [],
-        returned: [],
-        expired: [],
-      };
-
-      async function changeOrderStatus(orderId, newStatus) {
-        if (!newStatus) { showToast('Please select a next status first.', 'error'); return; }
-        try {
-          const res = await fetch(`/admin/orders/${orderId}/status`, {
-            method: 'PATCH',
-            credentials: 'include',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ status: newStatus })
-          });
-          const data = await res.json();
-          if (data.success) {
-            showToast('Order status updated.', 'success');
-          } else {
-            showToast(data.message || 'Update failed.', 'error');
-          }
-          // Refresh current page regardless of success/fail to reflect latest state
-          let pg = 1;
-          document.querySelectorAll('#paginationWrap button[data-page]').forEach(b => { if (b.classList.contains('bg-gray-900')) pg = Number(b.dataset.page); });
-          fetchOrders(pg);
-        } catch {
-          showToast('Network error.', 'error');
-        }
-      }
+      // changeOrderStatus and ADMIN_FORWARD removed.
 
       // ── Export CSV ──────────────────────────────────────────────────────────
       function exportCSV() {
@@ -609,7 +1070,7 @@
           </td>
           <td class="px-5 py-3.5">
             <div class="flex items-center gap-2 text-sm font-medium">
-              <button onclick="openOrderModal('${o._id}')" class="text-blue-600 hover:text-blue-800 transition">View Detail</button>
+              <button onclick="window.location.href='/admin/orders/${o._id}'" class="text-blue-600 hover:text-blue-800 transition">View Detail</button>
               <span class="text-gray-300">|</span>
               <button onclick="openDeleteConfirm('${o._id}','${escHtml(o.orderId)}')" class="text-red-500 hover:text-red-700 transition">Delete</button>
             </div>
@@ -633,274 +1094,7 @@
         paginationWrap.innerHTML = html;
       }
 
-      // ── Order Detail Modal ─────────────────────────────────────────────────
-      function openOrderModal(orderId) {
-        _openOrderId = orderId;
-        const modal = document.getElementById('orderModal');
-        modal.classList.remove('hidden');
-        modal.classList.add('flex');
-        document.getElementById('orderModalBody').innerHTML =
-          `<div class="flex items-center justify-center py-10 text-gray-400"><i class="bi bi-arrow-repeat animate-spin text-2xl mr-2"></i> Loading…</div>`;
-        fetch(`/admin/orders/${orderId}?ajax=1`, { credentials: 'include' })
-          .then(r => r.json())
-          .then(data => { if (!data.success) { showToast('Failed to load order.', 'error'); closeOrderModal(); return; } renderOrderModal(data.order); })
-          .catch(() => { showToast('Network error.', 'error'); closeOrderModal(); });
-      }
-
-      function renderOrderModal(o) {
-        document.getElementById('modalOrderId').textContent = '#' + o.orderId;
-        const addr = o.shippingAddress || {};
-        const hasCoupon = (o.discount > 0);
-
-        // Payment badge
-        const payBadge = { paid: '<span class="px-2.5 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">Paid</span>', refunded: '<span class="px-2.5 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">Refunded</span>', pending: '<span class="px-2.5 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-medium">Unpaid</span>' }[o.paymentStatus]
-          || `<span class="px-2.5 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">${escHtml(o.paymentStatus || '—')}</span>`;
-
-        // Per-item offer discount = lineTotal - finalAmount
-        const itemsHtml = (o.items || []).map(item => {
-          const iStatus = (item.status && item.status !== 'pending') ? item.status : o.orderStatus;
-          const sc = STATUS_CONFIG[iStatus] || { label: iStatus, bg: 'bg-gray-100', text: 'text-gray-700', dot: 'bg-gray-400' };
-          const offerSave = (item.lineTotal || 0) - (item.finalAmount || 0) - (item.couponDiscount || 0);
-          return `
-        <div class="border border-gray-100 rounded-xl p-3">
-          <div class="flex gap-3 items-start">
-            <div class="w-14 h-14 shrink-0 rounded-lg overflow-hidden border border-gray-100 bg-gray-50 flex items-center justify-center">
-              <img src="${escHtml(item.productImage || '')}" class="w-full h-full object-cover"
-                onerror="this.style.display='none';this.parentNode.innerHTML='<i class=\\'bi bi-image text-gray-300 text-xl\\'></i>'"/>
-            </div>
-            <div class="flex-1 min-w-0">
-              <p class="font-medium text-gray-800 text-sm truncate">${escHtml(item.productName)}</p>
-              <p class="text-xs text-gray-400 mt-0.5">
-                Qty: ${item.quantity} &nbsp;·&nbsp;
-                MRP: ₹${Number(item.unitPrice).toLocaleString('en-IN')}
-                ${offerSave > 0 ? `&nbsp;·&nbsp; <span class="text-green-600">Offer −₹${Number(offerSave).toLocaleString('en-IN')}</span>` : ''}
-                ${(item.couponDiscount || 0) > 0 ? `&nbsp;·&nbsp; <span class="text-blue-600">Coupon −₹${Number(item.couponDiscount).toLocaleString('en-IN')}</span>` : ''}
-              </p>
-              ${item.cancelReason ? `<p class="text-xs text-red-500 mt-1"><i class="bi bi-x-circle mr-1"></i>${escHtml(item.cancelReason)}</p>` : ''}
-              ${item.returnReason ? `<p class="text-xs text-purple-500 mt-1"><i class="bi bi-arrow-return-left mr-1"></i>${escHtml(item.returnReason)}</p>` : ''}
-            </div>
-            <div class="text-right shrink-0 flex flex-col items-end gap-1.5">
-              <p class="font-bold text-gray-800">₹${Number(item.finalAmount ?? item.lineTotal ?? 0).toLocaleString('en-IN')}</p>
-              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium w-fit ${sc.bg} ${sc.text} item-modal-badge-${item._id}">
-                <span class="w-1.5 h-1.5 rounded-full ${sc.dot} mr-1"></span>${sc.label}
-              </span>
-              ${hasCoupon ?
-              `<span class="text-[10px] text-amber-600 italic bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100">Coupon: glob. updt only</span>` :
-              (!ADMIN_FORWARD[iStatus] || ADMIN_FORWARD[iStatus].length === 0) ? `<span class="text-[10px] text-gray-400 italic">Terminal state</span>` :
-                `<button onclick="openItemStatusModal('${o._id}','${item._id}','${escHtml(item.productName).replace(/'/g, "\\'")}','${iStatus}')"
-                class="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-medium bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-800 transition border border-blue-100"><i class="bi bi-pencil-fill" style="font-size:8px"></i> Edit Status</button>`
-            }
-            </div>
-          </div>
-        </div>`;
-        }).join('');
-
-        // Price breakdown
-        const subtotal = o.subtotal || 0;
-        const couponDiscount = o.discount || 0;  // order-level coupon
-        const shipping = o.shipping || 0;
-        const totalAmount = o.totalAmount || 0;
-        const refundAmount = o.refundAmount || 0;
-        // Offer discount = subtotal - (sum of lineTotals) if any
-        const sumLineTotals = (o.items || []).reduce((s, i) => s + (i.lineTotal || 0), 0);
-        const offerDiscount = sumLineTotals > 0 ? Math.max(0, sumLineTotals - subtotal) : 0;
-
-        document.getElementById('orderModalBody').innerHTML = `
-
-      <!-- Status row -->
-      <div class="flex items-center gap-2 flex-wrap pb-4 mb-4 border-b border-gray-100">
-        ${statusBadgeHtml(o.orderStatus)}
-        ${payBadge}
-        <span class="text-xs text-gray-400">via <span class="font-medium text-gray-600 uppercase">${escHtml(o.paymentMethod || '—')}</span></span>
-        <span class="ml-auto text-xs text-gray-400">${new Date(o.createdAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
-      </div>
-
-      <!-- Global Update -->
-      ${(() => {
-            const nextList = ADMIN_FORWARD[o.orderStatus] || [];
-            if (nextList.length === 0) return '';
-            const opts = nextList.map(s => `<option value="${s}">${(STATUS_CONFIG[s] || { label: s }).label}</option>`).join('');
-            return `
-        <div class="bg-gray-50 border border-gray-200 rounded-lg p-3 flex items-center justify-between mb-4">
-          <div>
-            <p class="text-xs font-bold text-gray-800">Update Order Status</p>
-            ${hasCoupon ? '<p class="text-[9px] text-amber-600 italic">Coupon applied, individual items cannot be updated.</p>' : ''}
-          </div>
-          <div class="flex items-center gap-2">
-            <select id="modalGlobalStatusSelect" class="border rounded px-2 py-1.5 text-xs outline-none">
-              <option value="">— select next —</option>
-              ${opts}
-            </select>
-            <button onclick="changeOrderStatus('${o._id}', document.getElementById('modalGlobalStatusSelect').value); closeOrderModal();" class="px-3 py-1.5 bg-gray-900 text-white text-xs font-bold rounded hover:bg-black transition">
-              Apply
-            </button>
-          </div>
-        </div>
-        `;
-          })()}
-
-      <!-- Customer & Address -->
-      <div class="border border-gray-100 rounded-xl p-4">
-        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Customer & Delivery</p>
-        <div class="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
-          <div>
-            <p class="text-xs text-gray-400">Name</p>
-            <p class="font-medium text-gray-800">${escHtml((addr.firstName || '') + ' ' + (addr.lastName || ''))}</p>
-          </div>
-          <div>
-            <p class="text-xs text-gray-400">Phone</p>
-            <p class="font-medium text-gray-800">${escHtml(addr.phone || '—')}</p>
-          </div>
-          <div>
-            <p class="text-xs text-gray-400">Email</p>
-            <p class="font-medium text-gray-800 break-all">${escHtml(addr.email || '—')}</p>
-          </div>
-          <div>
-            <p class="text-xs text-gray-400">Pincode</p>
-            <p class="font-medium text-gray-800">${escHtml(addr.pincode || '—')}</p>
-          </div>
-          <div class="col-span-2">
-            <p class="text-xs text-gray-400">Address</p>
-            <p class="font-medium text-gray-800 leading-relaxed">
-              ${[addr.addressLine, addr.street, addr.state, addr.country].filter(Boolean).map(escHtml).join(', ')}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <!-- Items -->
-      <div>
-        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Order Items</p>
-        <div class="space-y-2">${itemsHtml || '<p class="text-xs text-gray-400">No items.</p>'}</div>
-      </div>
-
-      <!-- Price Breakdown -->
-      <div class="border border-gray-100 rounded-xl p-4">
-        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Price Breakdown</p>
-        <div class="space-y-2 text-sm">
-          <div class="flex justify-between text-gray-600">
-            <span>MRP Total</span>
-            <span>₹${Number(sumLineTotals || subtotal).toLocaleString('en-IN')}</span>
-          </div>
-          ${offerDiscount > 0 ? `
-          <div class="flex justify-between text-green-600">
-            <span class="flex items-center gap-1"><i class="bi bi-tag-fill text-xs"></i> Offer Discount</span>
-            <span>−₹${Number(offerDiscount).toLocaleString('en-IN')}</span>
-          </div>` : ''}
-          <div class="flex justify-between text-gray-600">
-            <span>Subtotal</span>
-            <span>₹${Number(subtotal).toLocaleString('en-IN')}</span>
-          </div>
-          ${couponDiscount > 0 ? `
-          <div class="flex justify-between text-blue-600">
-            <span class="flex items-center gap-1.5">
-              <i class="bi bi-ticket-perforated-fill text-xs"></i> Coupon
-              ${o.couponCode ? `<span class="font-mono text-[10px] bg-blue-50 px-1.5 py-0.5 rounded">${escHtml(o.couponCode)}</span>` : ''}
-            </span>
-            <span>−₹${Number(couponDiscount).toLocaleString('en-IN')}</span>
-          </div>` : ''}
-          <div class="flex justify-between text-gray-600">
-            <span>Shipping</span>
-            <span class="${shipping === 0 ? 'text-green-600' : ''}">${shipping === 0 ? 'Free' : '₹' + Number(shipping).toLocaleString('en-IN')}</span>
-          </div>
-          <div class="flex justify-between pt-2 border-t border-gray-100 font-bold text-base text-gray-800">
-            <span>Total Paid</span>
-            <span>₹${Number(totalAmount).toLocaleString('en-IN')}</span>
-          </div>
-          ${refundAmount > 0 ? `
-          <div class="flex justify-between text-purple-600 pt-1">
-            <span class="flex items-center gap-1"><i class="bi bi-wallet2 text-xs"></i> Refunded to Wallet</span>
-            <span class="font-semibold">₹${Number(refundAmount).toLocaleString('en-IN')}</span>
-          </div>
-          <div class="flex justify-between text-gray-500 text-xs">
-            <span>Net Amount</span>
-            <span>₹${Number(totalAmount - refundAmount).toLocaleString('en-IN')}</span>
-          </div>` : ''}
-        </div>
-      </div>
-
-      ${o.razorpayOrderId ? `
-      <div class="border border-gray-100 rounded-xl p-4">
-        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Payment Reference</p>
-        <div class="space-y-1 text-xs font-mono text-gray-600 break-all">
-          <p><span class="text-gray-400">Order ID: </span>${escHtml(o.razorpayOrderId)}</p>
-          ${o.razorpayPaymentId ? `<p><span class="text-gray-400">Payment ID: </span>${escHtml(o.razorpayPaymentId)}</p>` : ''}
-        </div>
-      </div>` : ''}
-
-      ${o.cancelReason ? `
-      <div class="p-3 bg-red-50 border border-red-100 rounded-xl text-xs text-red-700 flex items-start gap-2">
-        <i class="bi bi-x-circle-fill mt-0.5 shrink-0"></i>
-        <span><b>Cancel Reason:</b> ${escHtml(o.cancelReason)}</span>
-      </div>` : ''}
-    `;
-      }
-
-      function closeOrderModal() {
-        document.getElementById('orderModal').classList.add('hidden');
-        document.getElementById('orderModal').classList.remove('flex');
-        _openOrderId = null;
-      }
-
-      // ── Item Status Modal ──────────────────────────────────────────────────
-      function openItemStatusModal(orderId, itemId, productName, currentItemStatus) {
-        _activeOrderId = orderId;
-        _activeItemId = itemId;
-        document.getElementById('itemModalSubtitle').textContent = productName;
-
-        const validNext = ADMIN_FORWARD[currentItemStatus] || [];
-        const select = document.getElementById('itemStatusSelect');
-        let opts = '<option value="">— select next —</option>';
-        validNext.forEach(st => {
-          opts += `<option value="${st}">${(STATUS_CONFIG[st] || { label: st }).label}</option>`;
-        });
-        select.innerHTML = opts;
-
-        // Hide the order modal backdrop to prevent double-dark overlay
-        const orderModal = document.getElementById('orderModal');
-        if (!orderModal.classList.contains('hidden')) {
-          orderModal.style.visibility = 'hidden';
-        }
-
-        const modal = document.getElementById('itemStatusModal');
-        modal.classList.remove('hidden');
-        modal.classList.add('flex');
-      }
-
-      function closeItemStatusModal() {
-        document.getElementById('itemStatusModal').classList.add('hidden');
-        document.getElementById('itemStatusModal').classList.remove('flex');
-
-        // Restore order modal if it was behind
-        const orderModal = document.getElementById('orderModal');
-        orderModal.style.visibility = '';
-
-        _activeOrderId = null;
-        _activeItemId = null;
-      }
-
-      async function saveItemStatus() {
-        if (!_activeOrderId || !_activeItemId) return;
-        const newStatus = document.getElementById('itemStatusSelect').value;
-        try {
-          const res = await fetch(`/admin/orders/${_activeOrderId}/items/${_activeItemId}/status`, {
-            method: 'PATCH', credentials: 'include',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ status: newStatus }),
-          });
-          const data = await res.json();
-          if (!data.success) { showToast(data.message || 'Update failed.', 'error'); return; }
-
-          showToast('Item status updated.', 'success');
-          closeItemStatusModal();
-
-          let pg = 1;
-          document.querySelectorAll('#paginationWrap button[data-page]').forEach(b => { if (b.classList.contains('bg-gray-900')) pg = Number(b.dataset.page); });
-          fetchOrders(pg);
-          if (_activeOrderId) openOrderModal(_activeOrderId);
-
-        } catch { showToast('Network error.', 'error'); }
-      }
+      // Modals moved to orderDetails.ejs
 
       // ── Delete ─────────────────────────────────────────────────────────────
       function openDeleteConfirm(id, label) {
@@ -945,7 +1139,131 @@
         if (_toastTimer) clearTimeout(_toastTimer);
         _toastTimer = setTimeout(() => toast.classList.add('hidden'), 3500);
       }
+
+      // ── Return Approval / Rejection ────────────────────────────────
+      async function adminApproveReturn(orderId) {
+        showConfirm({
+          title: 'Approve Return?',
+          message: 'Approve all pending return requests? This will issue an immediate refund to the customer\'s wallet.',
+          confirmText: 'Approve & Refund',
+          confirmColor: 'bg-green-600',
+          onConfirm: async () => {
+            try {
+              const res = await fetch(`/admin/orders/${orderId}/return/approve`, { method: 'PATCH', credentials: 'include' });
+              const data = await res.json();
+              if (data.success) {
+                showToast('Return approved. Refund issued.', 'success');
+                closeOrderModal();
+                fetchOrders();
+              } else { showToast(data.message || 'Approval failed.', 'error'); }
+            } catch { showToast('Network error.', 'error'); }
+          }
+        });
+      }
+
+      let _activeRejectId = null;
+      function openRejectModalModal(orderId) {
+        _activeRejectId = orderId;
+        document.getElementById('modalRejectReason').value = '';
+        document.getElementById('modalRejectContainer').classList.remove('hidden');
+        document.getElementById('modalRejectContainer').classList.add('flex');
+      }
+
+      function closeRejectModal() {
+        document.getElementById('modalRejectContainer').classList.add('hidden');
+        document.getElementById('modalRejectContainer').classList.remove('flex');
+        _activeRejectId = null;
+      }
+
+      async function submitRejectRequest() {
+        const orderId = _activeRejectId;
+        const reason = document.getElementById('modalRejectReason').value.trim();
+        if (!reason) { showToast('Please enter a rejection reason.', 'error'); return; }
+
+        try {
+          const res = await fetch(`/admin/orders/${orderId}/return/reject`, {
+            method: 'PATCH', credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reason })
+          });
+          const data = await res.json();
+          if (data.success) {
+            showToast('Return request rejected.', 'success');
+            closeRejectModal();
+            closeOrderModal();
+            fetchOrders();
+          } else { showToast(data.message || 'Rejection failed.', 'error'); }
+        } catch { showToast('Network error.', 'error'); }
+      }
+
+      // ── Custom Action Confirmation Modal Logic ──────────────────────────────
+      let _actionConfirmCallback = null;
+      function showConfirm({ title, message, confirmText, confirmColor, onConfirm }) {
+        document.getElementById('actionConfirmModalTitle').innerText = title || 'Are you sure?';
+        document.getElementById('actionConfirmModalMessage').innerText = message || '';
+        const btn = document.getElementById('actionConfirmModalBtn');
+        btn.innerText = confirmText || 'Confirm';
+        btn.className = `flex-1 py-3 ${confirmColor || 'bg-gray-900'} text-white rounded-xl font-bold text-sm transition hover:opacity-90 active:scale-95`;
+        _actionConfirmCallback = onConfirm;
+        document.getElementById('actionConfirmModal').classList.remove('hidden');
+        document.getElementById('actionConfirmModal').classList.add('flex');
+      }
+
+      function closeActionConfirmModal() {
+        document.getElementById('actionConfirmModal').classList.add('hidden');
+        document.getElementById('actionConfirmModal').classList.remove('flex');
+        _actionConfirmCallback = null;
+      }
+
+      function executeActionConfirm() {
+        if (_actionConfirmCallback) _actionConfirmCallback();
+        closeActionConfirmModal();
+      }
     </script>
+    <!-- Custom Action Confirm Modal -->
+    <div id="actionConfirmModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] items-center justify-center p-4">
+      <div class="bg-white rounded-3xl p-8 w-full max-w-sm shadow-2xl scale-up-center">
+        <div class="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mb-6 mx-auto">
+          <i class="bi bi-question-circle text-gray-400 text-3xl"></i>
+        </div>
+        <h3 id="actionConfirmModalTitle" class="text-xl font-black text-gray-900 text-center mb-2">Confirm Action</h3>
+        <p id="actionConfirmModalMessage" class="text-sm text-gray-500 text-center mb-8 px-2 font-medium leading-relaxed"></p>
+        <div class="flex gap-3">
+          <button onclick="closeActionConfirmModal()"
+            class="flex-1 py-3 border border-gray-100 rounded-xl font-bold text-gray-400 hover:bg-gray-50 text-sm transition active:scale-95">Cancel</button>
+          <button id="actionConfirmModalBtn" onclick="executeActionConfirm()"
+            class="flex-1 py-3 bg-gray-900 text-white rounded-xl font-bold text-sm transition shadow-lg shadow-gray-200">Confirm</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Custom Reject Modal -->
+    <div id="modalRejectContainer" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] items-center justify-center p-4">
+      <div class="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl scale-up-center">
+        <h3 class="text-xl font-black text-gray-900 mb-2">Reject Return</h3>
+        <p class="text-xs font-medium text-gray-400 mb-6">Explain the reason for rejecting this return request.</p>
+        
+        <textarea id="modalRejectReason" rows="4" 
+          class="w-full bg-gray-50 border border-gray-100 rounded-2xl p-4 text-sm focus:ring-2 focus:ring-red-100 outline-none resize-none mb-6"
+          placeholder="e.g. Returned item was damaged or missing parts..."></textarea>
+          
+        <div class="flex gap-3">
+          <button onclick="closeRejectModal()"
+            class="flex-1 py-3 border border-gray-100 rounded-xl font-bold text-gray-400 hover:bg-gray-50 text-sm transition">Cancel</button>
+          <button onclick="submitRejectRequest()"
+            class="flex-1 py-3 bg-red-600 text-white rounded-xl font-bold text-sm transition shadow-lg shadow-red-100">Confirm Reject</button>
+        </div>
+      </div>
+    </div>
+
+    <style>
+      .scale-up-center { animation: scale-up-center 0.2s cubic-bezier(0.390, 0.575, 0.565, 1.000) both; }
+      @keyframes scale-up-center {
+        0% { transform: scale(0.95); opacity: 0; }
+        100% { transform: scale(1); opacity: 1; }
+      }
+    </style>
   </body>
 
   </html>
+<% } %>

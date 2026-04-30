@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Sales Report | ElectroHub</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+      @media print {
+          header, aside, form, .gap-2, .no-print { display: none !important; }
+          main { width: 100% !important; padding: 0 !important; }
+          .shadow-sm, .border { border: 1px solid #eee !important; box-shadow: none !important; }
+          .bg-gray-50 { background-color: #fff !important; }
+          canvas { max-height: 300px !important; }
+      }
+  </style>
+</head>
+
+<body class="bg-gray-100 font-sans text-gray-800">
+
+  <%- include('../layout/header') %>
+
+  <div class="flex">
+
+    <%- include('../layout/sidebar', { activePage: 'sales-report' }) %>
+
+    <!-- MAIN CONTENT -->
+    <main class="flex-1 p-8 overflow-x-hidden">
+
+      <div class="flex items-center justify-between mb-8">
+        <div>
+          <h1 class="text-2xl font-bold text-gray-900 tracking-tight">Sales & Revenue Report</h1>
+          <p class="text-gray-500 text-sm mt-1 italic">Detailed business growth analysis.</p>
+        </div>
+        <div class="flex gap-2 no-print">
+            <button onclick="window.print()" class="bg-white border hover:bg-gray-50 text-xs font-bold px-4 py-2 rounded shadow-sm flex items-center gap-2 transition">
+                <i class="bi bi-file-earmark-pdf text-red-500"></i> PDF Report
+            </button>
+            <button onclick="downloadCSV()" class="bg-white border hover:bg-gray-50 text-xs font-bold px-4 py-2 rounded shadow-sm flex items-center gap-2 transition">
+              <i class="bi bi-file-earmark-spreadsheet text-green-600"></i> Excel (CSV)
+            </button>
+        </div>
+      </div>
+
+      <!-- Filters -->
+      <div class="bg-white p-6 rounded shadow-sm mb-8 border no-print">
+          <form action="/admin/sales-report" method="GET" class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+              <div class="space-y-1">
+                  <label class="text-[10px] font-bold text-gray-400 uppercase">Period Filter</label>
+                  <select name="filterType" class="w-full bg-gray-50 border rounded px-3 py-2 text-sm focus:outline-none">
+                      <option value="daily"   <%= query.filterType==='daily'?'selected':'' %>>Today</option>
+                      <option value="weekly"  <%= query.filterType==='weekly'?'selected':'' %>>Last 7 Days</option>
+                      <option value="monthly" <%= (query.filterType==='monthly'||!query.filterType)?'selected':'' %>>Last 30 Days</option>
+                      <option value="yearly"  <%= query.filterType==='yearly'?'selected':'' %>>This Year</option>
+                  </select>
+              </div>
+              <div class="space-y-1">
+                  <label class="text-[10px] font-bold text-gray-400 uppercase">Start Date</label>
+                  <input type="date" name="startDate" value="<%= query.startDate %>" class="w-full bg-gray-50 border rounded px-3 py-2 text-sm">
+              </div>
+              <div class="space-y-1">
+                  <label class="text-[10px] font-bold text-gray-400 uppercase">End Date</label>
+                  <input type="date" name="endDate" value="<%= query.endDate %>" class="w-full bg-gray-50 border rounded px-3 py-2 text-sm">
+              </div>
+              <button type="submit" class="bg-gray-800 text-white px-4 py-2.5 rounded font-bold text-xs hover:bg-black transition">
+                  <i class="bi bi-funnel mr-1"></i> Apply Filter
+              </button>
+          </form>
+      </div>
+
+      <!-- KPIs -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div class="bg-white p-6 rounded shadow-sm border border-gray-100 flex items-center gap-4">
+              <div class="w-12 h-12 bg-blue-50 text-blue-600 flex items-center justify-center text-xl rounded shadow-inner"><i class="bi bi-wallet2"></i></div>
+              <div><p class="text-[10px] font-bold text-gray-400 uppercase">Total Revenue</p><h2 class="text-2xl font-black text-gray-900">₹<%= kpi.totalRevenue.toLocaleString('en-IN') %></h2></div>
+          </div>
+          <div class="bg-white p-6 rounded shadow-sm border border-gray-100 flex items-center gap-4">
+              <div class="w-12 h-12 bg-purple-50 text-purple-600 flex items-center justify-center text-xl rounded shadow-inner"><i class="bi bi-cart-check"></i></div>
+              <div><p class="text-[10px] font-bold text-gray-400 uppercase">Total Orders</p><h2 class="text-2xl font-black text-gray-900"><%= kpi.totalOrders %></h2></div>
+          </div>
+          <div class="bg-white p-6 rounded shadow-sm border border-gray-100 flex items-center gap-4">
+              <div class="w-12 h-12 bg-red-50 text-red-500 flex items-center justify-center text-xl rounded shadow-inner"><i class="bi bi-tags"></i></div>
+              <div><p class="text-[10px] font-bold text-gray-400 uppercase">Total Discount</p><h2 class="text-2xl font-black text-red-500">₹<%= (kpi.totalDiscount || 0).toLocaleString('en-IN') %></h2></div>
+          </div>
+      </div>
+
+      <!-- Chart and Categories -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+          <div class="lg:col-span-2 bg-white p-6 rounded border shadow-sm">
+             <h3 class="font-bold text-gray-900 uppercase text-[10px] mb-6">Revenue Trend (Daily)</h3>
+             <div class="h-64"><canvas id="salesTrendChart"></canvas></div>
+          </div>
+          <div class="bg-white p-6 rounded border shadow-sm">
+             <h3 class="font-bold text-gray-900 uppercase text-[10px] mb-6">Top Categories Share</h3>
+             <div class="space-y-4">
+                  <% topCategories.forEach((cat, idx) => { 
+                      const max = topCategories[0]?.count || 1;
+                      const pct = Math.round((cat.count / max) * 100);
+                  %>
+                  <div class="text-xs">
+                      <div class="flex justify-between mb-1"><span class="font-bold text-gray-600"><%= cat._id || 'Unknown' %></span><span class="font-bold"><%= cat.count %> SOLD</span></div>
+                      <div class="h-1.5 bg-gray-50 rounded-full border"><div class="h-full bg-blue-500" style="width: <%= pct %>%"></div></div>
+                  </div>
+                  <% }) %>
+                  <% if (topCategories.length === 0) { %><p class="text-center text-gray-400 text-xs py-10 italic">No data.</p><% } %>
+             </div>
+          </div>
+      </div>
+
+      <!-- Table -->
+      <div class="bg-white rounded border shadow-sm overflow-hidden">
+          <div class="px-6 py-4 border-b bg-gray-50"><h3 class="text-xs font-bold uppercase text-gray-600 tracking-wider">Detailed Order Transaction Log</h3></div>
+          <table class="w-full text-left text-xs">
+              <thead class="bg-white text-gray-400 font-bold border-b">
+                  <tr>
+                      <th class="px-6 py-3 uppercase">Order ID</th>
+                      <th class="px-6 py-3 uppercase">Customer</th>
+                      <th class="px-6 py-3 uppercase">Date</th>
+                      <th class="px-6 py-3 uppercase">Status</th>
+                      <th class="px-6 py-3 uppercase text-right">Revenue</th>
+                  </tr>
+              </thead>
+              <tbody class="divide-y">
+                  <% orders.forEach(o => { %>
+                  <tr class="hover:bg-gray-50 transition">
+                      <td class="px-6 py-4 font-bold text-gray-900"><%= o.orderId %></td>
+                      <td class="px-6 py-4 text-gray-600 italic font-medium"><%= o.userId?.firstName %> <%= o.userId?.lastName %></td>
+                      <td class="px-6 py-4 text-gray-500 font-mono"><%= new Date(o.createdAt).toISOString().split('T')[0] %></td>
+                      <td class="px-6 py-4"><span class="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-tighter <%= o.orderStatus==='delivered'?'bg-green-100 text-green-700':'bg-blue-100 text-blue-700' %>"><%= o.orderStatus %></span></td>
+                      <td class="px-6 py-4 text-right font-bold">₹<%= o.totalAmount.toLocaleString('en-IN') %></td>
+                  </tr>
+                  <% }) %>
+                  <% if (orders.length === 0) { %><tr><td colspan="5" class="px-6 py-10 text-center text-gray-400 italic">No orders found for this period.</td></tr><% } %>
+              </tbody>
+          </table>
+      </div>
+
+    </main>
+  </div>
+
+  <script>
+    const trendCtx = document.getElementById('salesTrendChart').getContext('2d');
+    const trendData = <%- JSON.stringify(chartData) %>;
+    new Chart(trendCtx, {
+      type: 'bar',
+      data: {
+        labels: trendData.map(d => d._id),
+        datasets: [{ label: 'Revenue', data: trendData.map(d => d.revenue), backgroundColor: '#2563eb', borderRadius: 4 }]
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { grid: { color: '#f3f4f6' }, ticks: { font: { size: 9 } } }, x: { grid: { display: false }, ticks: { font: { size: 9 } } } } }
+    });
+    function downloadCSV() {
+      const rows = [["Order ID", "Customer", "Date", "Status", "Total Revenue"]];
+      const orders = <%- JSON.stringify(orders) %>;
+      orders.forEach(o => { rows.push([o.orderId, `${o.userId?.firstName || ''} ${o.userId?.lastName || ''}`, new Date(o.createdAt).toISOString().split('T')[0], o.orderStatus, o.totalAmount]); });
+      let csv = "data:text/csv;charset=utf-8," + rows.map(e => e.join(",")).join("\n");
+      const a = document.createElement("a"); a.setAttribute("href", encodeURI(csv)); a.setAttribute("download", "ElectroHub_Sales_Report.csv"); document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    }
+  </script>
+</body>
+</html>

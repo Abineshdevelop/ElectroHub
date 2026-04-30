@@ -16,6 +16,7 @@ export async function getOrCreateWallet(userId) {
   return wallet;
 }
 
+
 export async function creditWallet(userId, amount, description, reason = "order_refund", orderId = null) {
   const wallet = await getOrCreateWallet(userId);
   wallet.balance += amount;
@@ -57,7 +58,7 @@ export async function debitWallet(userId, amount, description, reason = "order_p
   return wallet;
 }
 
-export const getWalletPage = async (req, res) => {
+export const getWalletPage = async (req, res, next) => {
   try {
     const userId = req.session.user._id;
     const wallet = await getOrCreateWallet(userId);
@@ -74,6 +75,7 @@ export const getWalletPage = async (req, res) => {
         .lean(),
       WalletTransaction.countDocuments({ walletId: wallet._id }),
     ]);
+
 
     const totalPages = Math.max(1, Math.ceil(totalCount / limit));
 
@@ -97,8 +99,7 @@ export const getWalletPage = async (req, res) => {
       totalCount,
     });
   } catch (error) {
-    console.error("getWalletPage error:", error);
-    res.status(500).render("error", { message: "Failed to load wallet" });
+    next(error)
   }
 };
 
@@ -107,6 +108,8 @@ export const createTopupOrder = async (req, res) => {
   try {
     const { amount } = req.body;
     const numAmount = Number(amount);
+
+    console.log(numAmount)
 
     if (!numAmount || numAmount < 1) {
       return res.json({ success: false, message: "Minimum top-up is ₹1" });
@@ -144,6 +147,8 @@ export const verifyTopup = async (req, res) => {
   try {
     const userId = req.session.user._id;
     const { razorpayPaymentId, razorpayOrderId, razorpaySignature } = req.body;
+
+    console.log(razorpayOrderId,razorpayPaymentId, razorpaySignature)
 
     if (!razorpayPaymentId || !razorpayOrderId || !razorpaySignature) {
       return res.json({ success: false, message: "Payment verification data missing" });

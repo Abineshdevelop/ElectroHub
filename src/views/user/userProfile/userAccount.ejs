@@ -192,6 +192,76 @@
           </div>
         </div>
 
+        <!-- Referral Link Section -->
+        <% if (user?.referralToken) { %>
+        <div class="glass-card bg-gradient-to-br from-indigo-50 to-purple-50 border-indigo-100 flex flex-col h-full">
+          <div class="px-6 py-5 border-b border-indigo-100 bg-white/50">
+             <div class="flex items-center gap-3">
+               <div class="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-lg">
+                 <i class="bi bi-gift text-lg"></i>
+               </div>
+               <div>
+                 <p class="font-bold text-indigo-900 text-base">Refer & Earn</p>
+                 <p class="text-indigo-600 text-xs font-semibold">Share & get ₹1,000 per friend</p>
+               </div>
+             </div>
+          </div>
+          <div class="px-6 py-6 space-y-5">
+            <!-- Plain Code -->
+            <div>
+              <p class="text-[10px] text-indigo-400 font-bold uppercase tracking-widest mb-2">Referral Code</p>
+              <div class="flex items-center justify-between bg-white border border-indigo-100 px-4 py-3 rounded-xl">
+                 <span class="text-lg font-mono font-bold text-indigo-900 tracking-widest"><%= user.referralToken %></span>
+                 <button onclick="copyPlainCode('<%= user.referralToken %>')" class="text-indigo-600 hover:text-indigo-800 transition-colors">
+                   <i class="bi bi-copy"></i>
+                 </button>
+              </div>
+            </div>
+
+            <!-- Invite Link -->
+            <div>
+              <p class="text-[10px] text-indigo-400 font-bold uppercase tracking-widest mb-2">Invite Link</p>
+              <div class="flex gap-2">
+                <div class="bg-white border border-indigo-100 px-4 py-2.5 rounded-xl flex-1 text-indigo-900 font-mono text-[11px] truncate select-all" id="ref-url-box-profile">
+                  Loading...
+                </div>
+                <button onclick="copyRefLinkProfile()" class="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center hover:bg-indigo-700 transition-all active:scale-95 shadow-md shadow-indigo-200">
+                  <i class="bi bi-link-45deg text-xl"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+          <div class="px-6 py-4 bg-indigo-100/30">
+            <p class="text-[10px] text-center text-indigo-500 font-semibold tracking-wide uppercase">Bonus awarded after friend verifies OTP</p>
+          </div>
+        </div>
+        <script>
+          function copyPlainCode(code) {
+             navigator.clipboard.writeText(code).then(() => {
+               if (typeof showToast === 'function') showToast('Code copied!', 'success');
+             });
+          }
+
+          document.addEventListener('DOMContentLoaded', () => {
+            const refBox = document.getElementById('ref-url-box-profile');
+            if (refBox) {
+               refBox.textContent = `${window.location.origin}/user/signup?ref=<%= user.referralToken %>`;
+            }
+          });
+
+          function copyRefLinkProfile() {
+            const url = document.getElementById('ref-url-box-profile').textContent.trim();
+            navigator.clipboard.writeText(url).then(() => {
+              if (typeof showToast === 'function') {
+                  showToast('Invite link copied!', 'success');
+              } else {
+                  alert('Copied to clipboard!');
+              }
+            });
+          }
+        </script>
+        <% } %>
+
         <!-- Default Address Card -->
         <div class="glass-card">
           <div class="glass-header-red px-6 py-5 flex items-center gap-4">

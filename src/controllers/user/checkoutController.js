@@ -190,6 +190,14 @@ export const applyCoupon = async (req, res) => {
       return res.json({ success: false, message: "Cart not found" });
     }
 
+    //coupon fetch from above
+    const alreadyUsed = coupon.usedBy.some((id)=>id.toString()==userId.toString())
+
+    console.log("Already used",alreadyUsed)
+    if(alreadyUsed){
+      return res.json({success:false ,message: "Coupon Already used"})
+    }
+
     const cartItems = await getCartItems(cart);
     const subtotal = cartItems.reduce((sum, i) => sum + i.lineTotal, 0);
 
@@ -684,25 +692,51 @@ export const renderPaymentSuccess = async (req, res) => {
   try {
     const { orderId } = req.query;
     let amount = 0;
+    let order = null;
+
     if (orderId) {
-      const order = await Order.findById(orderId).select("totalAmount").lean();
+      order = await Order.findById(orderId)
+        .populate("items.productId", "name images")
+        .lean();
       if (order) amount = order.totalAmount;
     }
+
     res.render("user/pages/payment-success", {
       user: req.session.user,
       amount,
+      order,
     });
   } catch (err) {
     res.render("user/pages/payment-success", {
       user: req.session.user,
       amount: 0,
+      order: null,
     });
   }
-};
+};  
 
-export const renderPaymentFailed = (req, res) => {
-  const { orderId } = req.query;
-  res.render("user/pages/payment-failed", { user: req.session.user, orderId });
+export const renderPaymentFailed = async (req, res) => {
+  try {
+    const { orderId } = req.query;
+    let order = null;
+
+    if (orderId) {
+      order = await Order.findById(orderId)
+        .populate("items.productId", "name images")
+        .lean();
+    }
+
+    res.render("user/pages/payment-failed", { 
+      user: req.session.user, 
+      order 
+    });
+  } catch (err) {
+    console.error("renderPaymentFailed error:", err);
+    res.render("user/pages/payment-failed", { 
+      user: req.session.user, 
+      order: null 
+    });
+  }
 };
 
 async function getActiveOffers() {

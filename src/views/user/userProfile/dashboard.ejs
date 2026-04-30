@@ -364,6 +364,82 @@
 
       </div>
 
+      <!-- Referral Section -->
+      <% if (referralToken) { %>
+      <div class="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-3xl p-6 mb-8 text-white relative overflow-hidden shadow-xl">
+        <div class="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
+          <div class="flex-1">
+            <div class="flex items-center gap-2 mb-2">
+              <span class="bg-white/20 backdrop-blur-md px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest text-white/90">Refer & Earn</span>
+              <span class="text-indigo-100 text-xs font-semibold">GET ₹1,000 BONUS PER FRIEND</span>
+            </div>
+            <h3 class="text-2xl font-bold mb-2">Invite your friends to ElectroHub</h3>
+            <p class="text-indigo-100 text-sm max-w-md">
+              Share your unique link or code. Both you and your friend get ₹1,000 when they verify their account! You can invite as many friends as you want.
+            </p>
+          </div>
+          
+          <div class="w-full md:w-auto flex flex-col gap-3">
+             <!-- Plain Code Box -->
+             <div class="bg-white/10 backdrop-blur-lg p-4 rounded-2xl border border-white/20 flex flex-col gap-2 min-w-[280px]">
+               <p class="text-[10px] text-indigo-100 font-bold uppercase tracking-widest">Referral Code</p>
+               <div class="flex items-center justify-between">
+                 <span class="text-xl font-mono font-bold tracking-widest"><%= referralToken %></span>
+                 <button onclick="copyText('<%= referralToken %>')" class="text-white hover:text-indigo-200 transition-colors">
+                   <i class="bi bi-copy"></i>
+                 </button>
+               </div>
+             </div>
+
+             <!-- Link Box -->
+             <div class="bg-white/10 backdrop-blur-lg p-4 rounded-2xl border border-white/20 flex flex-col gap-2 min-w-[280px]">
+               <p class="text-[10px] text-indigo-100 font-bold uppercase tracking-widest">Invite Link</p>
+               <div class="flex gap-2">
+                 <div class="bg-white/90 px-4 py-2.5 rounded-xl flex-1 text-indigo-900 font-mono text-xs truncate select-all" id="ref-url-box">
+                   <span id="display-url">Loading...</span>
+                 </div>
+                 <button onclick="copyRefLink()" class="w-10 h-10 rounded-xl bg-white text-indigo-600 flex items-center justify-center hover:bg-indigo-50 transition-all active:scale-95 shadow-lg">
+                   <i class="bi bi-link-45deg text-xl"></i>
+                 </button>
+               </div>
+             </div>
+          </div>
+        </div>
+        <!-- Decorative blobs -->
+        <div class="absolute -top-12 -right-12 w-48 h-48 bg-white/10 rounded-full blur-3xl"></div>
+        <div class="absolute -bottom-8 -left-8 w-32 h-32 bg-indigo-500/20 rounded-full blur-2xl"></div>
+      </div>
+      <script>
+        function copyText(text) {
+           navigator.clipboard.writeText(text).then(() => {
+             if (typeof showToast === 'function') showToast('Code copied!', 'success');
+           });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+          const refBox = document.getElementById('display-url');
+          if (refBox) {
+            const origin = window.location.origin;
+            const token = '<%= referralToken %>';
+            if (token) {
+              refBox.textContent = `${origin}/user/signup?ref=${token}`;
+            }
+          }
+        });
+
+        function copyRefLink() {
+          const url = document.getElementById('display-url').textContent.trim();
+          navigator.clipboard.writeText(url).then(() => {
+            if (typeof showToast === 'function') {
+                showToast('Invite link copied!', 'success');
+            } else {
+                alert('Copied to clipboard!');
+            }
+          });
+        }
+      </script>
+      <% } %>
+
       <!-- Tracking Banner -->
       <div class="tracking-banner rounded-3xl p-6 md:p-8 mb-6 flex items-center justify-between gap-4">
         <div class="relative z-10">

@@ -131,7 +131,9 @@
                 delivered: { label: 'Delivered', icon: 'bi-house-check', color: 'green' },
                 cancelled: { label: 'Cancelled', icon: 'bi-x-circle', color: 'red' },
                 partially_cancelled: { label: 'Partially Cancelled', icon: 'bi-exclamation-circle', color: 'orange' },
-                returned: { label: 'Returned', icon: 'bi-arrow-return-left', color: 'gray' }
+                return_requested: { label: 'Return Requested', icon: 'bi-arrow-return-left', color: 'purple' },
+                returned: { label: 'Returned', icon: 'bi-arrow-return-left', color: 'gray' },
+                return_rejected: { label: 'Return Rejected', icon: 'bi-x-circle', color: 'red' }
               };
               const currentStatus = statusConfig[order.orderStatus] || statusConfig.pending;
               const hasCoupon = !!order.couponCode || order.paymentStatus === 'adjusted';
@@ -228,13 +230,14 @@
                         </div>
                       </div>
                       <div class="divide-y">
-                        <% order.items.forEach(item=> {
-                          const itemStatus = (item.status && item.status !== 'pending') ? item.status :
-                          order.orderStatus;
-                          const iCfg = statusConfig[itemStatus];
+                        <% order.items.forEach((item) => {
+                          const itemStatus = (item.status && item.status !== 'pending') ? item.status : order.orderStatus;
+                          const iCfg = statusConfig[itemStatus] || { label: itemStatus, icon: 'bi-circle', color: 'gray' };
                           // Hide Cancel/Return button if coupon/offer applied — only full-order cancel/return is allowed
                           const canCancel = ['confirmed','processing'].includes(itemStatus) && order.discount === 0;
+                          // Can only return if delivered; not if already return_requested or returned
                           const canReturn = itemStatus === 'delivered' && order.discount === 0;
+                          const isPendingReturn = itemStatus === 'return_requested';
                           %>
                           <div class="p-6 hover:bg-gray-50/30 transition-colors">
                             <div class="flex flex-col sm:flex-row gap-5">
@@ -246,11 +249,9 @@
                                   <h4 class="font-bold text-gray-900">
                                     <%= item.productName %>
                                   </h4>
-                                  <p class="font-bold text-gray-900">₹<%= (item.finalAmount ?? item.lineTotal ??
-                                      0).toLocaleString('en-IN') %>
-                                  </p>
+                                  <p class="font-bold text-gray-900">₹<%= (item.finalAmount ?? item.lineTotal ?? 0).toLocaleString('en-IN') %></p>
                                 </div>
-                                <div class="flex flex-wrap gap-4 text-xs text-gray-500 mb-4">
+                                <div class="flex flex-wrap gap-4 text-xs text-gray-500 mb-3">
                                   <span>Quantity: <b class="text-gray-700">
                                       <%= item.quantity %>
                                     </b></span>
@@ -268,6 +269,17 @@
                                             <%= iCfg.label %>
                                           </span>
                                 </div>
+
+                                <%# Return rejection notice %>
+                                <% if (item.returnRejectionReason) { %>
+                                  <div class="mb-3 flex items-start gap-2 bg-red-50 border border-red-100 rounded-lg px-3 py-2 text-xs font-medium text-red-700">
+                                    <i class="bi bi-x-circle-fill mt-0.5 shrink-0"></i>
+                                    <span><b>Return rejected:</b> <%= item.returnRejectionReason %></span>
+                                  </div>
+                                <% } %>
+
+
+
                                 <div class="flex justify-end gap-3">
                                   <% if (canCancel) { %>
                                     <button onclick="openModal('cancel', '<%= item._id %>', '<%= item.productName %>')"
@@ -283,6 +295,7 @@
                             </div>
                           </div>
                           <% }) %>
+
                       </div>
                     </div>
                   </div>
@@ -312,8 +325,7 @@
                             </div>
                             <div class="flex justify-between pt-1">
                               <span class="text-lg font-bold text-gray-900">Total Paid</span>
-                              <span class="text-xl font-black text-red-600">₹<%=
-                                  order.totalAmount.toLocaleString('en-IN') %></span>
+                              <span class="text-xl font-black text-red-600">₹<%= order.totalAmount.toLocaleString('en-IN') %></span>
                             </div>
                             <div class="mt-6 pt-5 border-t space-y-1">
                               <% if (order.couponCode) { %>
@@ -357,6 +369,7 @@
                             </div>
                             <% const canCancelFull = ['confirmed', 'processing', 'partially_cancelled'].includes(order.orderStatus); %>
                             <% const canReturnFull = order.orderStatus === 'delivered'; %>
+                            <% const isReturnPending = order.orderStatus === 'return_requested'; %>
                             <% if (canCancelFull) { %>
                               <div class="mt-6 pt-5 border-t">
                                 <button onclick="openModal('cancel', null, 'Entire Order #<%= order.orderId %>')"

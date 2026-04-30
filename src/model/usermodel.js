@@ -101,7 +101,22 @@ const userSchema = new mongoose.Schema(
     otp: String,
     otpExpiresAt: Date,
 
-    deletedAt: { type: Date, default: null }
+    deletedAt: { type: Date, default: null },
+    referralToken: {
+      type: String,
+      unique: true,
+      sparse: true,
+      index: true
+    },
+    isReferralUsed: {
+      type: Boolean,
+      default: false
+    },
+    referredBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null
+    }
   },
   { timestamps: true }
 );

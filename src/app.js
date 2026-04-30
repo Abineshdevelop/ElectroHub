@@ -14,10 +14,8 @@ import cartRoutes from "./routes/user/cartRoutes.js"
 import wishlistRoutes from "./routes/user/wishlistRoutes.js";
 import { checkUserBlocked } from "./middlewares/userMiddleware.js";
 import checkoutRoutes from "./routes/user/checkoutRouter.js"
-import couponRouter from './routes/admin/adminRouter.js';
 import orderRouter from "./routes/user/orderRouter.js"
 import walletRouter from "./routes/user/walletRouter.js"
-import orderRouterAdmin from "./routes/admin/adminRouter.js"
 import userCouponRouter from "./routes/user/couponRouter.js";
 
 const app = express();
@@ -35,11 +33,6 @@ app.use("/uploads", express.static(path.join(__dirname, "public/uploads")));
 app.set("view engine", "ejs");
 app.set("views", path.resolve(__dirname, "views"));
 
-app.use((req, res, next) => {
-  res.set("Cache-Control", "no-store");
-  next();
-});
-
 app.use(
   session({
     secret: process.env.SESSION_SECRET || "electrohub_secret_key",
@@ -53,10 +46,11 @@ app.use(
   })
 );
 
-
 app.use(passport.initialize());
 app.use(passport.session());
 app.use(checkUserBlocked);
+
+// Routes
 app.use("/user", userRoutes);
 app.use("/admin", adminRoutes);
 app.use("/user", shopRoutes)
@@ -64,18 +58,13 @@ app.use("/user", detailsRoutes)
 app.use("/user", cartRoutes)
 app.use("/user", wishlistRoutes);
 app.use("/user", checkoutRoutes);
-app.use('/admin', couponRouter);
 app.use('/user', orderRouter);
 app.use('/user', walletRouter);
 app.use('/user', userCouponRouter);
-app.use('/admin', orderRouterAdmin);
-
 
 app.get("/check-session", (req, res) => {
   res.json(req.session);
 });
-
-
 
 app.use((req, res) => {
   res.status(404).render("user/404notfound", { user: req.session?.user || null });

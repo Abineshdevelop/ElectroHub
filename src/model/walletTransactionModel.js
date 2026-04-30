@@ -38,7 +38,7 @@ const walletTransactionSchema = new Schema(
     },
     reason: {
       type: String,
-      enum: ["order_refund", "order_payment", "wallet_topup", "admin_adjustment", "refund_adjustment"],
+      enum: ["order_refund", "order_payment", "wallet_topup", "admin_adjustment", "refund_adjustment", "referral_bonus", "referral_reward"],
       required: true,
     },
     referenceId: {

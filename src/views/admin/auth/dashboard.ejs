@@ -1,150 +1,172 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <title>Admin Dashboard | ElectroHub</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
-<body class="bg-gray-100">
+<body class="bg-gray-100 font-sans text-gray-800">
 
-  <!-- TOP NAVBAR -->
-  <header class="bg-white shadow-sm">
-    <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-      <div class="flex items-center gap-2">
-        <!-- <img src="/images/auth/auth-img.jpeg" alt="ElectroHub" class="h-8 w-8 rounded"> -->
-        <span class="text-xl font-bold">ElectroHub</span>
-        <span class="text-xs text-gray-500 ml-2">Next-Gen Electronics</span>
-      </div>
-      <nav class="flex items-center gap-6 text-sm font-medium">
-        <a href="#" class="hover:text-black text-gray-600">Home</a>
-        <a href="#" class="hover:text-black text-gray-600">Contact</a>
-        <a href="#" class="hover:text-black text-gray-600">About</a>
-        <a href="/admin/logout" class="text-red-600 hover:underline">Logout</a>
-      </nav>
-    </div>
-  </header>
+  <%- include('../layout/header') %>
 
   <div class="flex">
 
-    <!-- SIDEBAR -->
-    <aside class="w-64 min-h-[calc(100vh-64px)] bg-white border-r">
-      <div class="p-6 font-semibold">ElectroHub Admin</div>
-      <nav class="px-4 space-y-1 text-sm">
-        <a href="/admin/dashboard" class="flex items-center gap-2 px-3 py-2 rounded bg-gray-100">
-          <i class="bi bi-house"></i> Dashboard
-        </a>
-        <a href="/admin/orders" class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100">
-          <i class="bi bi-bag"></i> Orders
-        </a>
-        <a href="/admin/products" class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100">
-          <i class="bi bi-box"></i> Products
-        </a>
-        <a href="/admin/category" class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100">
-          <i class="bi bi-tags"></i> Category
-        </a>
-        <a href="/admin/offers" class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100">
-          <i class="bi bi-percent"></i> Offers
-        </a>
-        <a href="/admin/coupons" class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100">
-          <i class="bi bi-ticket"></i> Coupons
-        </a>
-        <a href="/admin/banners" class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100">
-          <i class="bi bi-image"></i> Banners
-        </a>
-        <a href="/admin/customers" class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100">
-          <i class="bi bi-people"></i> Customers
-        </a>
-        <a href="/admin/sales-report" class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100">
-          <i class="bi bi-graph-up"></i> Sales Report
-        </a>
-      </nav>
-    </aside>
+    <%- include('../layout/sidebar', { activePage: 'dashboard' }) %>
 
     <!-- MAIN CONTENT -->
-    <main class="flex-1 p-8">
+    <main class="flex-1 p-8 overflow-x-hidden">
 
-      <!-- Page Title + Export -->
-      <div class="flex items-center justify-between mb-6">
-        <h1 class="text-2xl font-semibold">Total Revenue</h1>
-        <button class="bg-gray-200 hover:bg-gray-300 text-sm px-4 py-2 rounded">
-          <i class="bi bi-download"></i> Export Data
+      <!-- Page Title -->
+      <div class="mb-8 flex items-center justify-between">
+        <div>
+          <h1 class="text-2xl font-bold text-gray-900 tracking-tight">Performance Control Panel</h1>
+          <p class="text-gray-500 text-sm mt-1 italic">Comprehensive analytics of ElectroHub ecosystem.</p>
+        </div>
+        <button onclick="window.print()" class="no-print bg-white border px-4 py-2 rounded text-xs font-bold hover:bg-gray-50 shadow-sm transition flex items-center gap-2">
+          <i class="bi bi-printer"></i> Print Analytics
         </button>
       </div>
 
-      <!-- KPI Cards -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div class="bg-white p-5 rounded shadow">
-          <p class="text-sm text-gray-500">Total Revenue</p>
-          <h2 class="text-2xl font-bold mt-1">₹120,500</h2>
+      <!-- Part 1: KPIs -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
+        <!-- Total Revenue -->
+        <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 transition hover:shadow-md text-center md:text-left">
+          <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Total Revenue</p>
+          <h2 class="text-xl font-bold text-gray-900">₹<%= kpi.totalRevenue.toLocaleString('en-IN') %></h2>
+          <div class="mt-3 text-[10px] font-bold text-gray-400 italic">AOV: ₹<%= Math.round(aov).toLocaleString('en-IN') %></div>
         </div>
-        <div class="bg-white p-5 rounded shadow">
-          <p class="text-sm text-gray-500">Total Orders</p>
-          <h2 class="text-2xl font-bold mt-1">350</h2>
+
+        <!-- Completed (Delivered) -->
+        <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 transition hover:shadow-md text-center md:text-left">
+          <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Completed</p>
+          <h2 class="text-xl font-bold text-green-600"><%= groupedCounts.completed %></h2>
+          <div class="mt-3 text-[10px] font-bold text-green-500 flex items-center justify-center md:justify-start gap-1"><i class="bi bi-check-circle"></i> Delivered</div>
         </div>
-        <div class="bg-white p-5 rounded shadow">
-          <p class="text-sm text-gray-500">Total Customers</p>
-          <h2 class="text-2xl font-bold mt-1">120</h2>
+
+        <!-- Pending Orders (All active statuses minus delivered/cancelled/returned) -->
+        <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 transition hover:shadow-md text-center md:text-left">
+          <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Pending Orders</p>
+          <h2 class="text-xl font-bold text-amber-500"><%= groupedCounts.pending %></h2>
+          <div class="mt-3 text-[10px] font-bold text-amber-500 italic">Requires review</div>
+        </div>
+
+        <!-- Closed (Cancelled) -->
+        <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 transition hover:shadow-md text-center md:text-left">
+          <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Closed</p>
+          <h2 class="text-xl font-bold text-gray-500"><%= groupedCounts.closed %></h2>
+          <div class="mt-3 text-[10px] font-bold text-red-500 flex items-center justify-center md:justify-start gap-1"><i class="bi bi-x-circle"></i> Cancelled</div>
+        </div>
+
+        <!-- Reverse Flow (Returned) -->
+        <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 transition hover:shadow-md text-center md:text-left">
+          <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Reverse Flow</p>
+          <h2 class="text-xl font-bold text-red-500"><%= groupedCounts.reverse %></h2>
+          <div class="mt-3 text-[10px] font-bold text-red-300">Returned/Refunds</div>
+        </div>
+
+        <!-- Total Users -->
+        <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 transition hover:shadow-md text-center md:text-left">
+          <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Total Users</p>
+          <h2 class="text-xl font-bold text-purple-600"><%= totalCustomers %></h2>
+          <div class="mt-3 text-[10px] font-bold text-gray-400">Account Holders</div>
         </div>
       </div>
 
-      <!-- Filters -->
-      <div class="bg-white p-5 rounded shadow mb-8">
-        <div class="flex flex-wrap gap-3 mb-4">
-          <button class="px-4 py-2 text-sm rounded bg-gray-200">Monthly</button>
-          <button class="px-4 py-2 text-sm rounded hover:bg-gray-100">Yearly</button>
-          <button class="px-4 py-2 text-sm rounded hover:bg-gray-100">Custom</button>
-        </div>
-        <div class="flex gap-4">
-          <input type="date" class="border rounded px-3 py-2 text-sm" />
-          <input type="date" class="border rounded px-3 py-2 text-sm" />
-          <button class="bg-black text-white px-4 py-2 rounded text-sm">Generate Report</button>
-        </div>
-      </div>
-
-      <!-- Chart Placeholder -->
-      <div class="bg-white p-6 rounded shadow mb-8">
-        <h3 class="font-medium mb-4">Revenue Growth</h3>
-        <div class="h-56 flex items-center justify-center text-gray-400 border rounded">
-          Chart will be integrated here
-        </div>
-      </div>
-
-      <!-- Category Revenue -->
-      <div class="bg-white p-6 rounded shadow">
-        <h3 class="font-medium mb-4">Revenue by Product Category</h3>
-
-        <div class="space-y-3 text-sm">
-          <div>
-            <div class="flex justify-between mb-1">
-              <span>Headphones</span>
-              <span>₹45,000</span>
-            </div>
-            <div class="h-2 bg-gray-200 rounded">
-              <div class="h-2 bg-black rounded w-[70%]"></div>
-            </div>
+      <!-- Part 2: Charts -->
+      <div class="bg-white p-7 rounded-2xl shadow-sm border border-gray-100 mb-8 overflow-hidden">
+        <div class="flex items-center justify-between mb-8 flex-wrap gap-4">
+          <h3 class="font-bold text-gray-900 uppercase text-xs tracking-widest flex items-center gap-2">
+            <i class="bi bi-graph-up-arrow text-blue-500"></i> Revenue Trend Analysis
+          </h3>
+          <div class="flex items-center bg-gray-100 p-1 rounded-xl border no-print">
+            <% ['daily','weekly', 'monthly', 'yearly'].forEach(f => { %>
+            <a href="/admin/dashboard?filter=<%= f %>" class="px-5 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg transition <%= currentFilter === f ? 'bg-white text-black shadow-sm' : 'text-gray-400 hover:text-gray-600' %>">
+              <%= f %>
+            </a>
+            <% }) %>
           </div>
+        </div>
+        <div class="relative h-[300px] w-full">
+          <canvas id="revenueChart"></canvas>
+        </div>
+      </div>
 
-          <div>
-            <div class="flex justify-between mb-1">
-              <span>Laptops</span>
-              <span>₹65,000</span>
-            </div>
-            <div class="h-2 bg-gray-200 rounded">
-              <div class="h-2 bg-black rounded w-[85%]"></div>
-            </div>
+      <!-- Part 3: Top 10 Best Sellers Sections -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div class="px-6 py-4 bg-gray-50 border-b flex items-center justify-between">
+            <h3 class="text-xs font-bold uppercase text-gray-600 tracking-wider">Top 10 Products</h3>
+            <i class="bi bi-box-seam text-gray-400"></i>
           </div>
+          <div class="p-6 space-y-4">
+            <% topProducts.forEach((p, idx) => { %>
+            <div class="flex items-center gap-4 group">
+              <span class="text-xs font-bold text-gray-300 w-4">#<%= idx + 1 %></span>
+              <div class="flex-1 min-w-0">
+                <p class="text-xs font-bold text-gray-800 truncate"><%= p.name %></p>
+                <div class="flex items-center justify-between mt-1">
+                  <span class="text-[10px] font-bold text-blue-500"><%= p.count %> units</span>
+                  <div class="h-1 bg-blue-100 w-20 rounded-full overflow-hidden">
+                    <div class="h-full bg-blue-500" style="width: <%= (p.count / (topProducts[0]?.count || 1)) * 100 %>%"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <% }) %>
+            <% if (topProducts.length === 0) { %><p class="text-center text-gray-400 text-xs py-10 italic">No sales data.</p><% } %>
+          </div>
+        </div>
 
-          <div>
-            <div class="flex justify-between mb-1">
-              <span>Accessories</span>
-              <span>₹10,500</span>
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div class="px-6 py-4 bg-gray-50 border-b flex items-center justify-between">
+            <h3 class="text-xs font-bold uppercase text-gray-600 tracking-wider">Top 10 Categories</h3>
+            <i class="bi bi-tags text-gray-400"></i>
+          </div>
+          <div class="p-6 space-y-4">
+            <% topCategories.forEach((cat, idx) => { %>
+            <div class="flex items-center gap-4 group">
+              <span class="text-xs font-bold text-gray-300 w-4">#<%= idx + 1 %></span>
+              <div class="flex-1 min-w-0">
+                <p class="text-xs font-bold text-gray-800 truncate italic"><%= cat.name %></p>
+                <div class="flex items-center justify-between mt-1">
+                  <span class="text-[10px] font-bold text-purple-500"><%= cat.count %> SOLD</span>
+                  <div class="h-1 bg-purple-100 w-20 rounded-full overflow-hidden">
+                    <div class="h-full bg-purple-500" style="width: <%= (cat.count / (topCategories[0]?.count || 1)) * 100 %>%"></div>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div class="h-2 bg-gray-200 rounded">
-              <div class="h-2 bg-black rounded w-[30%]"></div>
+            <% }) %>
+            <% if (topCategories.length === 0) { %><p class="text-center text-gray-400 text-xs py-10 italic">No category data.</p><% } %>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div class="px-6 py-4 bg-gray-50 border-b flex items-center justify-between">
+            <h3 class="text-xs font-bold uppercase text-gray-600 tracking-wider">Top 10 Brands</h3>
+            <i class="bi bi-award text-gray-400"></i>
+          </div>
+          <div class="p-6 space-y-4">
+            <% topBrands.forEach((b, idx) => { %>
+            <div class="flex items-center gap-4 group">
+              <span class="text-xs font-bold text-gray-300 w-4">#<%= idx + 1 %></span>
+              <div class="flex-1 min-w-0">
+                <p class="text-xs font-bold text-gray-800 truncate"><%= b._id || 'Generic' %></p>
+                <div class="flex items-center justify-between mt-1">
+                  <span class="text-[10px] font-bold text-amber-500"><%= b.count %> sales</span>
+                  <div class="h-1 bg-amber-100 w-20 rounded-full overflow-hidden">
+                    <div class="h-full bg-amber-500" style="width: <%= (b.count / (topBrands[0]?.count || 1)) * 100 %>%"></div>
+                  </div>
+                </div>
+              </div>
             </div>
+            <% }) %>
+            <% if (topBrands.length === 0) { %><p class="text-center text-gray-400 text-xs py-10 italic">No brand data.</p><% } %>
           </div>
         </div>
       </div>
@@ -152,5 +174,69 @@
     </main>
   </div>
 
+  <script>
+    const ctx = document.getElementById('revenueChart').getContext('2d');
+    const chartDataRaw = <%- JSON.stringify(chartData) %>;
+    new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: chartDataRaw.map(d => d._id),
+        datasets: [{
+          label: 'Revenue Growth (₹)',
+          data: chartDataRaw.map(d => d.revenue),
+          borderColor: '#111',
+          borderWidth: 2.5,
+          backgroundColor: 'rgba(0, 0, 0, 0.03)',
+          fill: true,
+          tension: 0.4,
+          pointRadius: 3,
+          pointBackgroundColor: '#111'
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: false
+          },
+          tooltip: {
+            backgroundColor: '#000',
+            padding: 12,
+            callbacks: {
+              label: (c) => ' ₹' + c.parsed.y.toLocaleString('en-IN')
+            }
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            grid: {
+              color: '#f3f4f6'
+            },
+            ticks: {
+              callback: v => '₹' + v.toLocaleString('en-IN'),
+              font: {
+                size: 9,
+                weight: 'bold'
+              }
+            }
+          },
+          x: {
+            grid: {
+              display: false
+            },
+            ticks: {
+              font: {
+                size: 9,
+                weight: 'bold'
+              }
+            }
+          }
+        }
+      }
+    });
+  </script>
 </body>
+
 </html>

@@ -8,7 +8,8 @@ const FORWARD_TRANSITIONS = {
   processing:          ['shipped', 'out_for_delivery', 'delivered', 'cancelled'],
   shipped:             ['out_for_delivery', 'delivered', 'cancelled'],
   out_for_delivery:    ['delivered', 'cancelled'],
-  delivered:           ['returned'],
+  delivered:           ['return_requested', 'returned'],
+  return_requested:    ['returned'],
   partially_cancelled: ['cancelled'],
   cancelled:           [],
   returned:            [],
@@ -75,7 +76,7 @@ export const getOrderDetail = async (req, res) => {
 
     if (ajax === '1') return res.json({ success: true, order });
 
-    res.render('admin/orderDetails', { order });
+    res.render('admin/orders', { order });
   } catch (err) {
     console.error(err);
     if (req.query.ajax === '1') return res.status(500).json({ success: false, message: 'Server error' });
@@ -104,6 +105,11 @@ export const updateOrderStatus = async (req, res) => {
 
     const oldStatus   = order.orderStatus;
     order.orderStatus = status;
+
+    // If order is delivered, it should be considered paid (especially for COD)
+    if (status === 'delivered' && order.paymentStatus !== 'refunded') {
+      order.paymentStatus = 'paid';
+    }
 
     if (['cancelled', 'returned'].includes(status) && !['cancelled', 'returned'].includes(oldStatus)) {
       if (order.paymentStatus === 'paid' || order.paymentStatus === 'refunded') {
@@ -206,7 +212,10 @@ export const updateItemStatus = async (req, res) => {
       const someCancelled = statuses.some(s => s === 'cancelled');
 
       if (allCancelled)       order.orderStatus = 'cancelled';
-      else if (allDelivered)  order.orderStatus = 'delivered';
+      else if (allDelivered)  {
+        order.orderStatus = 'delivered';
+        if (order.paymentStatus !== 'refunded') order.paymentStatus = 'paid';
+      }
       else if (allDone)       order.orderStatus = 'returned';
       else if (someCancelled) order.orderStatus = 'partially_cancelled';
       else {
@@ -236,6 +245,131 @@ export const deleteOrder = async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error(err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// PATCH /admin/orders/:id/return/approve
+export const approveReturn = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id))
+      return res.json({ success: false, message: 'Invalid order ID' });
+
+    const order = await Order.findById(id);
+    if (!order) return res.json({ success: false, message: 'Order not found' });
+
+    const returnItems = order.items.filter(i => i.status === 'return_requested');
+    if (returnItems.length === 0)
+      return res.json({ success: false, message: 'No pending return requests found' });
+
+    const now = new Date();
+    const Variant = (await import('../../model/variantModel.js')).default;
+
+    let totalRefund = 0;
+
+    for (const item of returnItems) {
+      item.status           = 'returned';
+      item.returnApprovedAt = now;
+
+      // Restore stock
+      await Variant.findByIdAndUpdate(item.variantId, { $inc: { stock: item.quantity } });
+
+      // Accumulate refund amount
+      const itemRefund = item.finalAmount != null
+        ? item.finalAmount
+        : Math.max(0, (item.lineTotal ?? 0) - (item.couponDiscount ?? 0));
+      totalRefund += itemRefund;
+    }
+
+    // Issue wallet refund if order was paid (Online) or was COD and Delivered
+    // We also check if it's currently 'pending' but delivered (common for COD)
+    const isEligibleForRefund = 
+      ['paid', 'refunded', 'partially_refunded'].includes(order.paymentStatus) ||
+      (order.paymentMethod === 'cod' && ['delivered', 'return_requested', 'returned'].includes(order.orderStatus));
+    
+    if (totalRefund > 0 && isEligibleForRefund) {
+      const alreadyRefunded = order.refundAmount || 0;
+      // We should not refund more than what was actually paid
+      const maxRefundable   = Math.max(0, (order.totalAmount || 0) - alreadyRefunded);
+      const safeRefund      = Math.min(totalRefund, maxRefundable);
+
+      if (safeRefund > 0) {
+        order.refundAmount      = alreadyRefunded + safeRefund;
+        order.refundStatus      = 'processed';
+        order.refundProcessedAt = now;
+        
+        // If we have now refunded everything, it's 'refunded'; otherwise 'partially_refunded'
+        const isFullyRefunded = order.refundAmount >= (order.totalAmount || 0);
+        order.paymentStatus   = isFullyRefunded ? 'refunded' : 'partially_refunded';
+        
+        await creditWallet(order.userId, safeRefund, `Refund for approved return on order #${order.orderId}`, "order_refund", order._id);
+      }
+    }
+
+    // Recalculate order-level status
+    const statuses = order.items.map(i => i.status);
+    const allDone  = statuses.every(s => ['returned', 'cancelled'].includes(s));
+    if (allDone) {
+      order.orderStatus = 'returned';
+    } else {
+      const anyActive = statuses.some(s => !['returned', 'cancelled'].includes(s));
+      order.orderStatus = anyActive ? order.orderStatus : 'returned';
+    }
+
+    await order.save();
+    res.json({ success: true, message: 'Return approved. Refund issued to customer wallet.', orderStatus: order.orderStatus });
+  } catch (err) {
+    console.error('approveReturn error:', err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// PATCH /admin/orders/:id/return/reject
+export const rejectReturn = async (req, res) => {
+  try {
+    const { id }    = req.params;
+    const { reason } = req.body;
+
+    if (!reason?.trim())
+      return res.json({ success: false, message: 'Please provide a rejection reason' });
+
+    if (!mongoose.Types.ObjectId.isValid(id))
+      return res.json({ success: false, message: 'Invalid order ID' });
+
+    const order = await Order.findById(id);
+    if (!order) return res.json({ success: false, message: 'Order not found' });
+
+    const returnItems = order.items.filter(i => i.status === 'return_requested');
+    if (returnItems.length === 0)
+      return res.json({ success: false, message: 'No pending return requests found' });
+
+    const now = new Date();
+
+    for (const item of returnItems) {
+      item.status                = 'return_rejected';
+      item.returnRejectedAt      = now;
+      item.returnRejectionReason = reason.trim();
+    }
+
+    // Update order status — if EVERY item is now terminal (delivered, cancelled, or rejected), 
+    // we determine the most appropriate order-level status.
+    const statuses = order.items.map(i => i.status);
+    const hasActive = statuses.some(s => !['cancelled', 'returned', 'return_rejected', 'delivered'].includes(s));
+    
+    if (!hasActive) {
+        const allRejected = statuses.every(s => s === 'return_rejected' || s === 'cancelled');
+        if (allRejected) {
+            order.orderStatus = 'return_rejected';
+        } else {
+            order.orderStatus = 'delivered';
+        }
+    }
+
+    await order.save();
+    res.json({ success: true, message: 'Return request rejected.', orderStatus: order.orderStatus });
+  } catch (err) {
+    console.error('rejectReturn error:', err);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };

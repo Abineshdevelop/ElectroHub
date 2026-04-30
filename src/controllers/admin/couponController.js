@@ -69,12 +69,19 @@ export const createCoupon = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Code must be 12 characters or less.' });
 
     const discount = Number(discountValue);
+    const minP = Number(minPurchaseAmount);
     if (isNaN(discount) || discount < 1)
       return res.status(400).json({ success: false, message: 'Discount must be at least 1.' });
     if (discountType === 'percentage' && discount > 100)
       return res.status(400).json({ success: false, message: 'Percentage discount cannot exceed 100%.' });
 
-    const minP = Number(minPurchaseAmount);
+
+
+    if (discountType === 'flat') {
+      if (discount >= minP)
+        return res.status(400).json({success: false,message: 'Flat discount must be less than the minimum purchase amount.'});
+    }
+    
     if (isNaN(minP) || minP <= 0)
       return res.status(400).json({ success: false, message: 'Minimum purchase must be greater than 0.' });
     if (minP > 1000000)

@@ -9,14 +9,16 @@ import { getCoupons, getCouponById, createCoupon, editCoupon, deleteCoupon, togg
 import { getOffersPage,getOfferById, searchProducts, searchCategories, createOffer, editOffer, toggleOffer, deleteOffer } from "../../controllers/admin/offersController.js";
 import { getBannersPage, getBannerById, createBanner, editBanner,  toggleBanner, deleteBanner} from "../../controllers/admin/bannerController.js";
 import { uploadBanner } from "../../middlewares/uploads.js";
-import { getOrders, getOrderDetail, updateOrderStatus, deleteOrder, updateItemStatus} from '../../controllers/admin/orderController.js'
+import { getOrders, getOrderDetail, updateOrderStatus, deleteOrder, updateItemStatus, approveReturn, rejectReturn } from '../../controllers/admin/orderController.js'
+import * as salesController from "../../controllers/admin/salesReportController.js";
 
 const router = express.Router();
 
 router.get ("/login",     isAdminLoggedOut, adminController.showLogin);
 router.post("/login",     isAdminLoggedOut, adminController.loginAdmin);
 router.get ("/logout",    isAdminLoggedIn,  adminController.logoutAdmin);
-router.get ("/dashboard", isAdminLoggedIn,  adminController.adminDashboard);
+router.get ("/dashboard",    isAdminLoggedIn,  adminController.adminDashboard);
+router.get ("/sales-report", isAdminLoggedIn,  salesController.getSalesReport);
 
 router.get   ("/customers",             isAdminLoggedIn, customersController.getCustomers);
 router.patch ("/customers/:id/block",   isAdminLoggedIn, customersController.blockUser);
@@ -64,6 +66,8 @@ router.delete('/banners/:id/delete', isAdminLoggedIn, deleteBanner);
 router.get   ('/orders',             isAdminLoggedIn, getOrders);
 router.get   ('/orders/:id',         isAdminLoggedIn, getOrderDetail);
 router.patch ('/orders/:id/status',  isAdminLoggedIn, updateOrderStatus);
+router.patch ('/orders/:id/return/approve', isAdminLoggedIn, approveReturn);
+router.patch ('/orders/:id/return/reject',  isAdminLoggedIn, rejectReturn);
 router.delete('/orders/:id/delete',  isAdminLoggedIn, deleteOrder);
 router.patch('/orders/:id/items/:itemId/status', isAdminLoggedIn, updateItemStatus);
 

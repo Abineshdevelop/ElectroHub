@@ -55,13 +55,15 @@ const orderItemSchema = new Schema(
     },
 status: {
   type: String,
-  enum: ["pending", "confirmed", "processing", "shipped", "out_for_delivery", "delivered", "cancelled", "returned"],
+  enum: ["pending", "confirmed", "processing", "shipped", "out_for_delivery", "delivered", "cancelled", "returned", "return_requested", "return_rejected"],
   default: "pending",
 },
     cancelReason: { type: String, default: null },
     returnReason: { type: String, default: null },
     returnRequestedAt: { type: Date, default: null },
     returnApprovedAt: { type: Date, default: null },
+    returnRejectedAt: { type: Date, default: null },
+    returnRejectionReason: { type: String, default: null },
   },
   { _id: true },
 );
@@ -131,7 +133,7 @@ const orderSchema = new Schema(
     razorpaySignature: { type: String, default: null },
 orderStatus: {
   type: String,
-  enum: ["pending", "confirmed", "processing", "shipped", "out_for_delivery", "delivered", "cancelled", "returned", "partially_cancelled", "expired"],
+  enum: ["pending", "confirmed", "processing", "shipped", "out_for_delivery", "delivered", "cancelled", "returned", "return_requested", "partially_cancelled", "expired", "return_rejected"],
   default: "pending",
 },
 paymentAttempts: [

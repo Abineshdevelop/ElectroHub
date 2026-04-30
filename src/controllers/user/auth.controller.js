@@ -2,11 +2,24 @@
 
 import User from "../../model/usermodel.js"
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 import sendMail from "../../services/mailService.js";
 import { AppError } from "../../errors/appError.js";
+import { creditWallet } from "./walletController.js";
 
 const MAX_RESENDS = 3;
 const MAX_ATTEMPTS = 5;
+
+export async function generateReferralToken() {
+  let token;
+  let isUnique = false;
+  while (!isUnique) {
+    token = crypto.randomBytes(4).toString("hex").toUpperCase();
+    const existing = await User.findOne({ referralToken: token });
+    if (!existing) isUnique = true;
+  }
+  return token;
+}
 
 export async function generateAndSendOtp(user) {
   const otp = Math.floor(1000 + Math.random() * 9000).toString();
@@ -27,7 +40,7 @@ export async function generateAndSendOtp(user) {
 
 export async function signupUser(req, res, next) {
   try {
-    const { firstName, lastName, email, phone, password } = req.body;
+    const { firstName, lastName, email, phone, password, referralCode } = req.body;
 
     if (!firstName || !lastName || !email || !phone || !password) {
       throw new AppError(400, "All fields are required");
@@ -35,6 +48,24 @@ export async function signupUser(req, res, next) {
 
     const cleanEmail = email.trim().toLowerCase();
     const cleanPhone = phone.trim();
+
+    let referredBy = null;
+    if (referralCode && referralCode.trim()) {
+      const trimmedCode = referralCode.trim().toUpperCase();
+      
+      const referrer = await User.findOne({ 
+        referralToken: trimmedCode
+      });
+      
+      if (referrer) {
+        if (referrer.email === cleanEmail || referrer.phone === cleanPhone) {
+           throw new AppError(400, "You cannot refer yourself");
+        }
+        referredBy = referrer._id;
+      } else {
+        throw new AppError(400, "Invalid referral code");
+      }
+    }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const phoneRegex = /^\d{10}$/;
@@ -88,7 +119,8 @@ export async function signupUser(req, res, next) {
       phone: cleanPhone,
       password: passwordHash,
       status: "pending",
-      authType: "local"
+      authType: "local",
+      referredBy: referredBy
     });
 
     await generateAndSendOtp(user);
@@ -184,6 +216,15 @@ export async function verifyOtp(req, res, next) {
     user.otpAttempts = 0;
     user.otpLockedUntil = null;
     user.otpResendCount = 0;
+
+    user.referralToken = await generateReferralToken();
+
+    if (user.referredBy) {
+        // Reward both
+        await creditWallet(user._id, 1000, "Signup referral bonus", "referral_bonus");
+        await creditWallet(user.referredBy, 1000, "Friend referral reward", "referral_reward");
+    }
+
     await user.save();
 
     req.session.user = {
@@ -598,5 +639,24 @@ export async function resetPassword(req, res) {
   } catch (err) {
     console.error(err);
     return res.status(500).json({ success: false, message: "Reset failed" });
+  }
+}
+
+export async function validateReferralCode(req, res) {
+  try {
+    const { code } = req.body;
+    if (!code) return res.json({ success: false, message: "No code provided" });
+
+    const referrer = await User.findOne({ 
+      referralToken: code.trim().toUpperCase() 
+    });
+    
+    if (referrer) {
+      return res.json({ success: true, message: "Valid referral code!" });
+    } else {
+      return res.json({ success: false, message: "Invalid referral code" });
+    }
+  } catch (err) {
+    return res.json({ success: false, message: "Error validating code" });
   }
 }

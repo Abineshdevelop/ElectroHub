@@ -11,6 +11,7 @@ const router = Router();
 
 router.get('/signup', isLoggedOut, userController.loadSignup)
 router.post('/signup', userController.signupUser)
+router.post('/validate-referral', userController.validateReferralCode)
 router.get('/signup-otp', userController.loadSignupOtp)
 router.post('/resend-otp', userController.resendOtp); 
 router.post('/verify-otp', userController.verifyOtp);

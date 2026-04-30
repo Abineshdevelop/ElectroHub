@@ -12,56 +12,61 @@
 <body class="bg-gray-100">
 
   <!-- TOP NAVBAR -->
-  <header class="bg-white shadow-sm">
-    <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-      <div class="flex items-center gap-2">
-        <span class="text-xl font-bold">ElectroHub</span>
-        <span class="text-xs text-gray-500 ml-2">Next-Gen Electronics</span>
-      </div>
-      <nav class="flex items-center gap-6 text-sm font-medium">
-        <a href="/admin/dashboard" class="hover:text-black text-gray-600">Home</a>
-        <a href="#" class="hover:text-black text-gray-600">Contact</a>
-        <a href="#" class="hover:text-black text-gray-600">About</a>
-        <a href="/admin/logout" class="text-red-600 hover:underline">Logout</a>
-      </nav>
+<header class="bg-white shadow-sm border-b no-print">
+  <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+    <div class="flex items-center gap-2">
+      <span class="text-xl font-bold">ElectroHub</span>
+      <span class="text-xs text-gray-500 ml-2">Next-Gen Electronics</span>
     </div>
-  </header>
+    <nav class="flex items-center gap-6 text-sm font-medium">
+      <a href="/admin/logout" class="text-red-600 hover:underline flex items-center gap-1">
+        <i class="bi bi-box-arrow-right"></i> Logout
+      </a>
+    </nav>
+  </div>
+</header>
 
-  <div class="flex">
-
-    <!-- SIDEBAR -->
-    <aside class="w-64 min-h-[calc(100vh-64px)] bg-white border-r">
+<div class="flex">
+  <!-- SIDEBAR -->
+  <aside class="w-64 min-h-[calc(100vh-64px)] bg-white border-r flex flex-col justify-between no-print">
+    <div>
       <div class="p-6 font-semibold">ElectroHub Admin</div>
       <nav class="px-4 space-y-1 text-sm">
-        <a href="/admin/dashboard" class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100">
+        <a href="/admin/dashboard"    class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 text-gray-700 transition">
           <i class="bi bi-house"></i> Dashboard
         </a>
-        <a href="/admin/orders" class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100">
+        <a href="/admin/orders"       class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 text-gray-700 transition">
           <i class="bi bi-bag"></i> Orders
         </a>
-        <a href="/admin/products" class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100">
+        <a href="/admin/products"     class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 text-gray-700 transition">
           <i class="bi bi-box"></i> Products
         </a>
-        <a href="/admin/category" class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100">
+        <a href="/admin/category"     class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 text-gray-700 transition">
           <i class="bi bi-tags"></i> Category
         </a>
-        <a href="/admin/offers" class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100">
+        <a href="/admin/offers"       class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 text-gray-700 transition">
           <i class="bi bi-percent"></i> Offers
         </a>
-        <a href="/admin/coupons" class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100">
+        <a href="/admin/coupons"      class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 text-gray-700 transition">
           <i class="bi bi-ticket"></i> Coupons
         </a>
-        <a href="/admin/banners" class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100">
+        <a href="/admin/banners"      class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 text-gray-700 transition">
           <i class="bi bi-image"></i> Banners
         </a>
-        <a href="/admin/customers" class="flex items-center gap-2 px-3 py-2 rounded bg-gray-100 font-semibold">
+        <a href="/admin/customers"    class="flex items-center gap-2 px-3 py-2 rounded bg-gray-100 font-semibold text-gray-900 shadow-sm transition">
           <i class="bi bi-people"></i> Customers
         </a>
-        <a href="/admin/sales-report" class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100">
+        <a href="/admin/sales-report" class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 text-gray-700 transition">
           <i class="bi bi-graph-up"></i> Sales Report
         </a>
       </nav>
-    </aside>
+    </div>
+    <div class="px-4 pb-6">
+      <a href="/admin/logout" class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 text-gray-700 text-sm transition">
+        <i class="bi bi-box-arrow-left"></i> Logout
+      </a>
+    </div>
+  </aside>
 
     <!-- MAIN CONTENT -->
     <main class="flex-1 p-8">
@@ -118,16 +123,17 @@
         <table class="w-full text-sm table-fixed">
           <thead>
             <tr class="border-b border-gray-200 bg-gray-50">
-              <th class="text-left px-5 py-4 font-semibold text-gray-600 w-[28%]">
+              <th class="text-left px-5 py-4 font-semibold text-gray-600 w-[24%]">
                 <div class="flex items-center gap-1">
                   Customer
                   <i id="sortIcon" class="<%= (_sort === 'asc') ? 'bi bi-arrow-up' : 'bi bi-arrow-down' %> text-xs text-gray-400"></i>
                 </div>
               </th>
-              <th class="text-left px-5 py-4 font-semibold text-gray-600 w-[15%]">Phone</th>
-              <th class="text-left px-5 py-4 font-semibold text-gray-600 w-[27%]">Email</th>
-              <th class="text-left px-5 py-4 font-semibold text-gray-600 w-[15%]">Status</th>
-              <th class="text-left px-5 py-4 font-semibold text-gray-600 w-[15%]">Action</th>
+              <th class="text-left px-5 py-4 font-semibold text-gray-600 w-[12%]">Phone</th>
+              <th class="text-left px-5 py-4 font-semibold text-gray-600 w-[22%]">Email</th>
+              <th class="text-left px-5 py-4 font-semibold text-gray-600 w-[12%]">Ref Code</th>
+              <th class="text-left px-5 py-4 font-semibold text-gray-600 w-[14%]">Status</th>
+              <th class="text-left px-5 py-4 font-semibold text-gray-600 w-[16%]">Action</th>
             </tr>
           </thead>
           <tbody id="customersTableBody" class="divide-y divide-gray-100">
@@ -143,7 +149,7 @@
 
             <% users.forEach(user => { %>
               <tr class="hover:bg-gray-50 transition" data-user-id="<%= user._id %>">
-                <td class="px-5 py-3.5 w-[28%]">
+                <td class="px-5 py-3.5 w-[24%]">
                   <div class="flex items-center gap-3 min-w-0">
                     <div class="w-8 h-8 shrink-0 rounded-full bg-gray-200 text-gray-700 flex items-center justify-center text-sm font-semibold uppercase">
                       <%= (user.firstName?.[0] || 'U') + (user.lastName?.[0] || '') %>
@@ -151,9 +157,10 @@
                     <span class="font-medium text-gray-800 truncate"><%= user.firstName %> <%= user.lastName %></span>
                   </div>
                 </td>
-                <td class="px-5 py-3.5 text-gray-600 w-[15%] truncate"><%= user.phone || "—" %></td>
-                <td class="px-5 py-3.5 text-gray-700 w-[27%] truncate"><%= user.email %></td>
-                <td class="px-5 py-3.5 w-[15%]" data-status-cell>
+                <td class="px-5 py-3.5 text-gray-600 w-[12%] truncate"><%= user.phone || "—" %></td>
+                <td class="px-5 py-3.5 text-gray-700 w-[22%] truncate"><%= user.email %></td>
+                <td class="px-5 py-3.5 text-gray-500 w-[12%] font-mono text-xs truncate uppercase"><%= user.referralToken || "—" %></td>
+                <td class="px-5 py-3.5 w-[14%]" data-status-cell>
                   <% if (user.status === 'blocked') { %>
                     <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">
                       <span class="w-1.5 h-1.5 rounded-full bg-red-500 mr-1.5"></span> Blocked
@@ -164,7 +171,7 @@
                     </span>
                   <% } %>
                 </td>
-                <td class="px-5 py-3.5 w-[15%]" data-action-cell>
+                <td class="px-5 py-3.5 w-[16%]" data-action-cell>
                   <div class="flex items-center gap-2">
                     <% if (user.status === 'blocked') { %>
                       <button
@@ -429,7 +436,7 @@
 
         return `
           <tr class="hover:bg-gray-50 transition" data-user-id="${u._id}">
-            <td class="px-5 py-3.5 w-[28%]">
+            <td class="px-5 py-3.5 w-[24%]">
               <div class="flex items-center gap-3 min-w-0">
                 <div class="w-8 h-8 shrink-0 rounded-full bg-gray-200 text-gray-700 flex items-center justify-center text-sm font-semibold uppercase">
                   ${escHtml(initials)}
@@ -437,10 +444,11 @@
                 <span class="font-medium text-gray-800 truncate">${escHtml(u.firstName)} ${escHtml(u.lastName)}</span>
               </div>
             </td>
-            <td class="px-5 py-3.5 text-gray-600 w-[15%] truncate">${escHtml(u.phone || '—')}</td>
-            <td class="px-5 py-3.5 text-gray-700 w-[27%] truncate">${escHtml(u.email)}</td>
-            <td class="px-5 py-3.5 w-[15%]" data-status-cell>${statusBadge}</td>
-            <td class="px-5 py-3.5 w-[15%]" data-action-cell>
+            <td class="px-5 py-3.5 text-gray-600 w-[12%] truncate">${escHtml(u.phone || '—')}</td>
+            <td class="px-5 py-3.5 text-gray-700 w-[22%] truncate">${escHtml(u.email)}</td>
+            <td class="px-5 py-3.5 text-gray-500 w-[12%] font-mono text-xs truncate uppercase">${escHtml(u.referralToken || '—')}</td>
+            <td class="px-5 py-3.5 w-[14%]" data-status-cell>${statusBadge}</td>
+            <td class="px-5 py-3.5 w-[16%]" data-action-cell>
               <div class="flex items-center gap-2">
                 ${toggleBtn}
                 <button onclick="openConfirm('delete','${u._id}','','${fullName}')"

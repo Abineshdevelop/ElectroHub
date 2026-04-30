@@ -60,7 +60,8 @@ export async function getCart(req, res, next) {
     const enrichedItems = [];
     const validVariantIds = [];
 
-    for (const cartItem of cart.items) {
+    if (cart) {
+      for (const cartItem of cart.items) {
       //looping cart item
       const product = await Product.findById(cartItem.productId)
         .select("productName isActive isDeleted categoryId")
@@ -104,13 +105,14 @@ export async function getCart(req, res, next) {
       validVariantIds.push(String(variant._id));
     }
 
-    // remove product or varient that is deleted
-    const hadInvalidItems = enrichedItems.length !== cart.items.length;
-    if (hadInvalidItems) {
-      cart.items = cart.items.filter((i) =>
-        validVariantIds.includes(String(i.variantId)),
-      );
-      await cart.save();
+      // remove product or varient that is deleted
+      const hadInvalidItems = enrichedItems.length !== cart.items.length;
+      if (hadInvalidItems) {
+        cart.items = cart.items.filter((i) =>
+          validVariantIds.includes(String(i.variantId)),
+        );
+        await cart.save();
+      }
     }
 
     const subtotal = enrichedItems.reduce(
@@ -120,7 +122,7 @@ export async function getCart(req, res, next) {
 
     return res.render("user/cart/cart", {
       user: req.session.user,
-      cart: { ...cart, items: enrichedItems }, //cart.Object()
+      cart: cart ? { ...cart.toObject(), items: enrichedItems } : { items: [] },
       subtotal,
     });
   } catch (err) {

@@ -1,0 +1,32 @@
+<!-- SIDEBAR -->
+<aside class="w-64 min-h-[calc(100vh-64px)] bg-white border-r flex flex-col justify-between no-print">
+  <div>
+    <div class="p-6 font-semibold">ElectroHub Admin</div>
+    <nav class="px-4 space-y-1 text-sm">
+      <% 
+        const menuItems = [
+          { id: 'dashboard',    label: 'Dashboard',    icon: 'bi-house',    path: '/admin/dashboard' },
+          { id: 'orders',       label: 'Orders',       icon: 'bi-bag',      path: '/admin/orders' },
+          { id: 'products',     label: 'Products',     icon: 'bi-box',      path: '/admin/products' },
+          { id: 'category',     label: 'Category',     icon: 'bi-tags',     path: '/admin/category' },
+          { id: 'offers',       label: 'Offers',       icon: 'bi-percent',  path: '/admin/offers' },
+          { id: 'coupons',      label: 'Coupons',      icon: 'bi-ticket',   path: '/admin/coupons' },
+          { id: 'banners',      label: 'Banners',      icon: 'bi-image',    path: '/admin/banners' },
+          { id: 'customers',    label: 'Customers',    icon: 'bi-people',   path: '/admin/customers' },
+          { id: 'sales-report', label: 'Sales Report', icon: 'bi-graph-up', path: '/admin/sales-report' }
+        ];
+      %>
+      <% menuItems.forEach(item => { %>
+        <a href="<%= item.path %>" 
+           class="flex items-center gap-2 px-3 py-2 rounded transition <%= (typeof activePage !== 'undefined' && activePage === item.id) ? 'bg-gray-100 font-semibold text-gray-900 shadow-sm' : 'hover:bg-gray-100 text-gray-700' %>">
+          <i class="<%= item.icon %>"></i> <%= item.label %>
+        </a>
+      <% }) %>
+    </nav>
+  </div>
+  <div class="px-4 pb-6">
+    <a href="/admin/logout" class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 text-gray-700 text-sm transition">
+      <i class="bi bi-box-arrow-left"></i> Logout
+    </a>
+  </div>
+</aside>

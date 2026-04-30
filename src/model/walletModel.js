@@ -16,6 +16,10 @@ const walletSchema = new Schema(
       default: 0,
       min: 0,
     },
+    referralused: {
+      type:Boolean,
+      default: false,
+    },
   },
   { timestamps: true }
 );
