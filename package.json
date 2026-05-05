@@ -5,6 +5,7 @@
     "dotenv": "^17.3.1",
     "easyinvoice": "^3.0.47",
     "ejs": "^4.0.1",
+    "exceljs": "^4.4.0",
     "express": "^5.2.1",
     "express-session": "^1.19.0",
     "mongoose": "^9.2.1",

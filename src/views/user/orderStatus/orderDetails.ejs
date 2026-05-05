@@ -120,12 +120,11 @@
 
             <% 
               const isFailed = order.paymentStatus === 'failed';
-              const steps = ['confirmed', 'processing', 'shipped', 'out_for_delivery', 'delivered'];
+              const steps = ['confirmed', 'shipped', 'out_for_delivery', 'delivered'];
               const currentIdx = steps.indexOf(order.orderStatus);
               const statusConfig = {
                 pending: { label: 'Pending', icon: 'bi-hourglass-split', color: 'gray' },
                 confirmed: { label: 'Confirmed', icon: 'bi-check-circle', color: 'blue' },
-                processing: { label: 'Processing', icon: 'bi-gear', color: 'amber' },
                 shipped: { label: 'Shipped', icon: 'bi-truck', color: 'indigo' },
                 out_for_delivery: { label: 'Out for Delivery', icon: 'bi-geo', color: 'sky' },
                 delivered: { label: 'Delivered', icon: 'bi-house-check', color: 'green' },
@@ -234,7 +233,7 @@
                           const itemStatus = (item.status && item.status !== 'pending') ? item.status : order.orderStatus;
                           const iCfg = statusConfig[itemStatus] || { label: itemStatus, icon: 'bi-circle', color: 'gray' };
                           // Hide Cancel/Return button if coupon/offer applied — only full-order cancel/return is allowed
-                          const canCancel = ['confirmed','processing'].includes(itemStatus) && order.discount === 0;
+                          const canCancel = ['confirmed'].includes(itemStatus) && order.discount === 0;
                           // Can only return if delivered; not if already return_requested or returned
                           const canReturn = itemStatus === 'delivered' && order.discount === 0;
                           const isPendingReturn = itemStatus === 'return_requested';
@@ -280,14 +279,41 @@
 
 
 
-                                <div class="flex justify-end gap-3">
+                                <div class="flex flex-col gap-2 mt-3 w-full">
+                                  <div class="flex justify-end gap-3">
+                                    <% if (canCancel) { %>
+                                      <button
+                                        onclick="toggleInlineCancel('<%= item._id %>')"
+                                        class="text-[10px] font-black uppercase tracking-widest text-red-500 hover:text-red-700 px-3 py-1.5 border border-red-200 rounded-lg bg-red-50/50 transition">
+                                        <i class="bi bi-x-circle"></i> Cancel Item
+                                      </button>
+                                    <% } if (canReturn) { %>
+                                      <button
+                                        onclick="toggleInlineReturn('<%= item._id %>')"
+                                        class="text-xs font-black uppercase tracking-widest text-white bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg shadow-sm transition active:scale-95 flex items-center gap-1.5">
+                                        <i class="bi bi-box-arrow-left"></i> Request Return
+                                      </button>
+                                    <% } %>
+                                  </div>
                                   <% if (canCancel) { %>
-                                    <button onclick="openModal('cancel', '<%= item._id %>', '<%= item.productName %>')"
-                                      class="text-[10px] font-black uppercase tracking-widest text-red-500 hover:text-red-700 px-3 py-1.5 border border-red-200 rounded-lg bg-red-50/50 transition">Cancel</button>
-                                  <% } if (canReturn) { %>
-                                    <button
-                                      onclick="openModal('return', '<%= item._id %>', '<%= item.productName %>')"
-                                      class="text-[10px] font-black uppercase tracking-widest text-blue-600 hover:text-blue-800 px-3 py-1.5 border border-blue-200 rounded-lg bg-blue-50/50 transition">Return</button>
+                                    <div id="inline-cancel-<%= item._id %>" class="hidden w-full bg-red-50/60 border border-red-100 rounded-xl p-4 text-left mt-1">
+                                       <label class="block text-[10px] font-black text-red-800 uppercase tracking-widest mb-1.5">Why are you cancelling this item?</label>
+                                       <textarea id="cancel-reason-<%= item._id %>" rows="3" class="w-full text-sm p-3 border border-red-200 rounded-lg outline-none focus:ring-2 focus:ring-red-200 mb-3 resize-none" placeholder="Share your reason for cancellation..."></textarea>
+                                       <div class="flex gap-2">
+                                         <button onclick="toggleInlineCancel('<%= item._id %>')" class="flex-1 py-2.5 text-xs font-bold text-gray-500 hover:text-gray-700 border border-gray-200 rounded-lg bg-white transition">Dismiss</button>
+                                         <button onclick="submitInlineCancel('<%= item._id %>')" class="flex-1 py-2.5 text-xs font-bold text-white bg-red-600 hover:bg-red-700 rounded-lg shadow-sm transition active:scale-95">Confirm Cancel</button>
+                                       </div>
+                                    </div>
+                                  <% } %>
+                                  <% if (canReturn) { %>
+                                    <div id="inline-return-<%= item._id %>" class="hidden w-full bg-blue-50/60 border border-blue-100 rounded-xl p-4 text-left mt-1">
+                                       <label class="block text-[10px] font-black text-blue-800 uppercase tracking-widest mb-1.5">Why are you returning this item?</label>
+                                       <textarea id="reason-<%= item._id %>" rows="3" class="w-full text-sm p-3 border border-blue-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-200 mb-3 resize-none" placeholder="Describe the issue (damaged, wrong item, etc.)..."></textarea>
+                                       <div class="flex gap-2">
+                                         <button onclick="toggleInlineReturn('<%= item._id %>')" class="flex-1 py-2.5 text-xs font-bold text-gray-500 hover:text-gray-700 border border-gray-200 rounded-lg bg-white transition">Dismiss</button>
+                                         <button onclick="submitInlineReturn('<%= item._id %>')" class="flex-1 py-2.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm transition active:scale-95">Confirm Return</button>
+                                       </div>
+                                    </div>
                                   <% } %>
                                 </div>
 
@@ -367,25 +393,42 @@
                                 </span>
                               </div>
                             </div>
-                            <% const canCancelFull = ['confirmed', 'processing', 'partially_cancelled'].includes(order.orderStatus); %>
+                            <% const canCancelFull = ['confirmed', 'partially_cancelled'].includes(order.orderStatus); %>
                             <% const canReturnFull = order.orderStatus === 'delivered'; %>
                             <% const isReturnPending = order.orderStatus === 'return_requested'; %>
                             <% if (canCancelFull) { %>
                               <div class="mt-6 pt-5 border-t">
-                                <button onclick="openModal('cancel', null, 'Entire Order #<%= order.orderId %>')"
+                                <button onclick="toggleInlineCancel('full')"
                                   class="w-full py-2.5 bg-white border border-red-200 text-red-600 font-bold rounded-xl hover:bg-red-50 transition-all text-xs shadow-sm active:scale-95 flex items-center justify-center gap-2">
                                   <i class="bi bi-x-circle"></i> Cancel Entire Order
                                 </button>
+                                <div id="inline-cancel-full" class="hidden mt-3 p-4 bg-red-50/50 border border-red-100 rounded-xl">
+                                  <label class="block text-[10px] font-black text-red-800 uppercase tracking-widest mb-1.5">Reason for cancelling entire order?</label>
+                                  <textarea id="cancel-reason-full" rows="3" class="w-full text-sm p-3 border border-red-200 rounded-lg outline-none focus:ring-2 focus:ring-red-200 mb-3 resize-none" placeholder="Describe the issue..."></textarea>
+                                  <div class="flex gap-2">
+                                    <button onclick="toggleInlineCancel('full')" class="flex-1 py-2.5 text-xs font-bold text-gray-500 hover:text-gray-700 border border-gray-200 rounded-lg bg-white transition">Dismiss</button>
+                                    <button onclick="submitInlineCancel('full')" class="flex-1 py-2.5 text-xs font-bold text-white bg-red-600 hover:bg-red-700 rounded-lg shadow-sm transition active:scale-95">Confirm Cancel</button>
+                                  </div>
+                                </div>
                                 <p class="text-[10px] text-gray-400 text-center mt-2 px-4 italic">Cancelling the entire order will refund the full amount to your wallet.</p>
                               </div>
                             <% } else if (canReturnFull) { %>
-                              <div class="mt-6 pt-5 border-t">
-                                <button onclick="openModal('return', null, 'Entire Order #<%= order.orderId %>')"
-                                  class="w-full py-2.5 bg-white border border-indigo-200 text-indigo-600 font-bold rounded-xl hover:bg-indigo-50 transition-all text-xs shadow-sm active:scale-95 flex items-center justify-center gap-2">
-                                  <i class="bi bi-box-arrow-left"></i> Return Entire Order
-                                </button>
-                                <p class="text-[10px] text-gray-400 text-center mt-2 px-4 italic">Returning the entire order will refund the full amount to your wallet upon approval.</p>
-                              </div>
+                                <div class="mt-6 pt-5 border-t">
+                                  <button onclick="toggleInlineReturn('full')"
+                                    class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-all text-sm shadow-sm active:scale-95 flex items-center justify-center gap-2">
+                                    <i class="bi bi-box-arrow-left"></i> Return Entire Order
+                                  </button>
+                                  
+                                  <div id="inline-return-full" class="hidden mt-3 p-4 bg-indigo-50/50 border border-indigo-100 rounded-xl">
+                                    <label class="block text-[10px] font-black text-indigo-800 uppercase tracking-widest mb-1.5">Why are you returning this order?</label>
+                                    <textarea id="reason-full" rows="3" class="w-full text-sm p-3 border border-indigo-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-200 mb-3 resize-none" placeholder="Describe the issue..."></textarea>
+                                    <div class="flex gap-2">
+                                      <button onclick="toggleInlineReturn('full')" class="flex-1 py-2.5 text-xs font-bold text-gray-500 hover:text-gray-700 border border-gray-200 rounded-lg bg-white transition">Dismiss</button>
+                                      <button onclick="submitInlineReturn('full')" class="flex-1 py-2.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm transition active:scale-95">Confirm Return</button>
+                                    </div>
+                                  </div>
+                                  <p class="text-[10px] text-gray-400 text-center mt-2 px-4 italic">Refund will be issued to your wallet upon admin approval.</p>
+                                </div>
                             <% } %>
                       </div>
                     </div>
@@ -587,7 +630,7 @@
             return;
           }
 
-          lastRazorpayData = res;
+          lastRazorpayData = data;
           initiateRazorpay(res, btn, originalHTML);
         } catch { showToast('Connection failed.', 'error'); btn.disabled = false; btn.innerHTML = originalHTML; }
       }
@@ -682,6 +725,75 @@
           if (data.success) { showToast(data.message, 'success'); closeModal(); setTimeout(() => location.reload(), 1500); }
           else { showToast(data.message, 'error'); btn.disabled = false; btn.innerText = 'Confirm'; }
         } catch { showToast('Error occurred.', 'error'); btn.disabled = false; }
+      }
+
+      function toggleInlineReturn(id) {
+        const el = document.getElementById(`inline-return-${id}`);
+        if (el.classList.contains('hidden')) {
+          el.classList.remove('hidden');
+          el.classList.add('block');
+        } else {
+          el.classList.add('hidden');
+          el.classList.remove('block');
+        }
+      }
+
+      async function submitInlineReturn(id) {
+        const reasonInput = document.getElementById(`reason-${id}`);
+        const reason = reasonInput.value.trim();
+        if (!reason) { showToast('Please enter a return reason.', 'error'); return; }
+        
+        const itemId = id === 'full' ? null : id;
+        
+        showToast('Processing return request...', 'success');
+        try {
+          const resp = await fetch(`/user/orders/${ORDER_ID}/return`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reason: reason, itemId: itemId })
+          });
+          const data = await resp.json();
+          if (data.success) { 
+            showToast(data.message, 'success'); 
+            setTimeout(() => location.reload(), 1500); 
+          } else { 
+            showToast(data.message, 'error'); 
+          }
+        } catch { showToast('Error occurred.', 'error'); }
+      }
+
+      function toggleInlineCancel(id) {
+        const el = document.getElementById(`inline-cancel-${id}`);
+        if (el.classList.contains('hidden')) {
+          el.classList.remove('hidden');
+          el.classList.add('block');
+        } else {
+          el.classList.add('hidden');
+          el.classList.remove('block');
+        }
+      }
+
+      async function submitInlineCancel(id) {
+        const reasonInput = document.getElementById(`cancel-reason-${id}`);
+        const reason = reasonInput.value.trim();
+        if (!reason) { showToast('Please enter a cancellation reason.', 'error'); return; }
+        if (reason.length < 6) { showToast('Please enter a reason with at least 6 characters.', 'error'); return; }
+        
+        const itemId = id === 'full' ? null : id;
+        
+        showToast('Processing cancellation...', 'success');
+        try {
+          const resp = await fetch(`/user/orders/${ORDER_ID}/cancel`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reason: reason, itemId: itemId })
+          });
+          const data = await resp.json();
+          if (data.success) { 
+            showToast(data.message, 'success'); 
+            setTimeout(() => location.reload(), 1500); 
+          } else { 
+            showToast(data.message, 'error'); 
+          }
+        } catch { showToast('Error occurred.', 'error'); }
       }
 
       // Close modals on overlay click

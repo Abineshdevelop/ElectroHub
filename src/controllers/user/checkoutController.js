@@ -334,7 +334,7 @@ export const placeOrder = async (req, res) => {
 
       const order = await Order.create({
         userId,
-        items: orderItems,
+        items: orderItems.map(i => ({ ...i, status: "confirmed" })),
         shippingAddress: formatAddress(selectedAddress),
         couponCode: req.session.appliedCoupon || null,
         couponId:   req.session.couponId   || null,
@@ -384,7 +384,7 @@ export const placeOrder = async (req, res) => {
 
       const order = await Order.create({
         userId,
-        items: orderItems,
+        items: orderItems.map(i => ({ ...i, status: "confirmed" })),
         shippingAddress: formatAddress(selectedAddress),
         couponCode: req.session.appliedCoupon || null,
         couponId:   req.session.couponId   || null,
@@ -447,7 +447,7 @@ export const placeOrder = async (req, res) => {
       discount:        couponDiscount,
       shipping:        0,
       totalAmount:     total,
-      paymentMethod:   "card",
+      paymentMethod:   "razorpay",
       paymentStatus:   "pending",
       orderStatus:     "pending",
       razorpayOrderId: rzpOrder.id,
@@ -518,6 +518,7 @@ export const verifyPayment = async (req, res) => {
     if (!stockResult.success) {
       order.paymentStatus = "failed";
       order.orderStatus = "cancelled";
+      order.items.forEach(i => i.status = "cancelled");
       order.cancelReason = "Stock unavailable at time of fulfillment";
       await order.save();
       return res.json({
@@ -537,6 +538,7 @@ export const verifyPayment = async (req, res) => {
 
     order.paymentStatus = "paid";
     order.orderStatus = "confirmed";
+    order.items.forEach(i => i.status = "confirmed");
     order.razorpayOrderId = razorpayOrderId;
     order.razorpayPaymentId = razorpayPaymentId;
     order.razorpaySignature = razorpaySignature;
@@ -644,6 +646,7 @@ export const retryPayment = async (req, res) => {
 
       order.paymentStatus = "paid";
       order.orderStatus = "confirmed";
+      order.items.forEach(i => i.status = "confirmed");
       await order.save();
 
       return res.json({

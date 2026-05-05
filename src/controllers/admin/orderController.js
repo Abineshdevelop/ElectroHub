@@ -3,9 +3,8 @@ import mongoose from "mongoose";
 import { creditWallet } from "../user/walletController.js";
 
 const FORWARD_TRANSITIONS = {
-  pending:             ['confirmed', 'processing', 'shipped', 'out_for_delivery', 'delivered', 'cancelled'],
-  confirmed:           ['processing', 'shipped', 'out_for_delivery', 'delivered', 'cancelled'],
-  processing:          ['shipped', 'out_for_delivery', 'delivered', 'cancelled'],
+  pending:             ['confirmed', 'shipped', 'out_for_delivery', 'delivered', 'cancelled'],
+  confirmed:           ['shipped', 'out_for_delivery', 'delivered', 'cancelled'],
   shipped:             ['out_for_delivery', 'delivered', 'cancelled'],
   out_for_delivery:    ['delivered', 'cancelled'],
   delivered:           ['return_requested', 'returned'],
@@ -88,7 +87,7 @@ export const updateOrderStatus = async (req, res) => {
   try {
     const { id }     = req.params;
     const { status } = req.body;
-    const allowed    = ['pending','confirmed','processing','shipped','out_for_delivery','delivered','cancelled','returned'];
+    const allowed    = ['pending','confirmed','shipped','out_for_delivery','delivered','cancelled','returned'];
 
     if (!allowed.includes(status))
       return res.json({ success: false, message: 'Invalid status' });
@@ -106,13 +105,15 @@ export const updateOrderStatus = async (req, res) => {
     const oldStatus   = order.orderStatus;
     order.orderStatus = status;
 
-    // If order is delivered, it should be considered paid (especially for COD)
+    // If order is delivered, mark as paid (handles COD — cash collected on delivery)
     if (status === 'delivered' && order.paymentStatus !== 'refunded') {
       order.paymentStatus = 'paid';
     }
 
     if (['cancelled', 'returned'].includes(status) && !['cancelled', 'returned'].includes(oldStatus)) {
-      if (order.paymentStatus === 'paid' || order.paymentStatus === 'refunded') {
+      // COD orders: customer never paid online, no wallet refund
+      const isCOD = order.paymentMethod === 'cod';
+      if (!isCOD && (order.paymentStatus === 'paid' || order.paymentStatus === 'refunded')) {
         const Variant = (await import("../../model/variantModel.js")).default;
         for (const item of order.items) {
           if (!['cancelled', 'returned'].includes(item.status)) {
@@ -129,6 +130,14 @@ export const updateOrderStatus = async (req, res) => {
           order.refundProcessedAt = new Date();
           order.paymentStatus     = 'refunded';
           await creditWallet(order.userId, refundAmount, `Refund for Admin updated ${status} order #${order.orderId}`);
+        }
+      } else if (isCOD) {
+        // COD: still restore stock even though no wallet refund
+        const Variant = (await import("../../model/variantModel.js")).default;
+        for (const item of order.items) {
+          if (!['cancelled', 'returned'].includes(item.status)) {
+            await Variant.findByIdAndUpdate(item.variantId, { $inc: { stock: item.quantity } });
+          }
         }
       }
     }
@@ -149,7 +158,7 @@ export const updateItemStatus = async (req, res) => {
   try {
     const { id, itemId } = req.params;
     const { status }     = req.body;
-    const allowed = ['pending','confirmed','processing','shipped','out_for_delivery','delivered','cancelled','returned'];
+    const allowed = ['pending','confirmed','shipped','out_for_delivery','delivered','cancelled','returned'];
 
     if (!allowed.includes(status))
       return res.json({ success: false, message: 'Invalid status' });
@@ -179,10 +188,12 @@ export const updateItemStatus = async (req, res) => {
     item.status     = status;
 
     if (['cancelled', 'returned'].includes(status) && !['cancelled', 'returned'].includes(oldStatus)) {
-      if (order.paymentStatus === 'paid' || order.paymentStatus === 'refunded') {
-        const Variant = (await import("../../model/variantModel.js")).default;
-        await Variant.findByIdAndUpdate(item.variantId, { $inc: { stock: item.quantity } });
+      const isCOD = order.paymentMethod === 'cod';
+      const Variant = (await import("../../model/variantModel.js")).default;
+      await Variant.findByIdAndUpdate(item.variantId, { $inc: { stock: item.quantity } });
 
+      // COD orders: customer never paid online, no wallet refund
+      if (!isCOD && (order.paymentStatus === 'paid' || order.paymentStatus === 'refunded')) {
         const rawRefund       = item.finalAmount != null ? item.finalAmount : Math.max(0, (item.lineTotal ?? 0) - (item.couponDiscount ?? 0));
         const alreadyRefunded = order.refundAmount || 0;
         const refundAmt       = Math.min(rawRefund, Math.max(0, (order.totalAmount || 0) - alreadyRefunded));
@@ -219,7 +230,7 @@ export const updateItemStatus = async (req, res) => {
       else if (allDone)       order.orderStatus = 'returned';
       else if (someCancelled) order.orderStatus = 'partially_cancelled';
       else {
-        const priority = ['out_for_delivery', 'shipped', 'processing', 'confirmed'];
+        const priority = ['out_for_delivery', 'shipped', 'confirmed'];
         const active   = statuses.filter(s => !['cancelled', 'returned'].includes(s));
         order.orderStatus = priority.find(p => active.includes(p)) || active[0] || order.orderStatus;
       }
@@ -282,11 +293,12 @@ export const approveReturn = async (req, res) => {
       totalRefund += itemRefund;
     }
 
-    // Issue wallet refund if order was paid (Online) or was COD and Delivered
-    // We also check if it's currently 'pending' but delivered (common for COD)
+    // Issue wallet refund only for online payments (not COD)
+    // COD: customer never paid digitally, so no wallet credit on return
+    const isCODOrder = order.paymentMethod === 'cod';
     const isEligibleForRefund = 
-      ['paid', 'refunded', 'partially_refunded'].includes(order.paymentStatus) ||
-      (order.paymentMethod === 'cod' && ['delivered', 'return_requested', 'returned'].includes(order.orderStatus));
+      !isCODOrder &&
+      ['paid', 'refunded', 'partially_refunded'].includes(order.paymentStatus);
     
     if (totalRefund > 0 && isEligibleForRefund) {
       const alreadyRefunded = order.refundAmount || 0;

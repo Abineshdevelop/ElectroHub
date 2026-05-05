@@ -12,7 +12,7 @@ import "./passport.js";
 import detailsRoutes from "./routes/user/detailsRoutes.js"
 import cartRoutes from "./routes/user/cartRoutes.js"
 import wishlistRoutes from "./routes/user/wishlistRoutes.js";
-import { checkUserBlocked } from "./middlewares/userMiddleware.js";
+import { checkUserBlocked, attachUserLocals } from "./middlewares/userMiddleware.js";
 import checkoutRoutes from "./routes/user/checkoutRouter.js"
 import orderRouter from "./routes/user/orderRouter.js"
 import walletRouter from "./routes/user/walletRouter.js"
@@ -49,6 +49,7 @@ app.use(
 app.use(passport.initialize());
 app.use(passport.session());
 app.use(checkUserBlocked);
+app.use(attachUserLocals); //keep user detsils in every page
 
 // Routes
 app.use("/user", userRoutes);

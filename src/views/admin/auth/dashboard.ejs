@@ -27,9 +27,14 @@
           <h1 class="text-2xl font-bold text-gray-900 tracking-tight">Performance Control Panel</h1>
           <p class="text-gray-500 text-sm mt-1 italic">Comprehensive analytics of ElectroHub ecosystem.</p>
         </div>
-        <button onclick="window.print()" class="no-print bg-white border px-4 py-2 rounded text-xs font-bold hover:bg-gray-50 shadow-sm transition flex items-center gap-2">
-          <i class="bi bi-printer"></i> Print Analytics
-        </button>
+        <div class="flex gap-2 no-print">
+            <a href="/admin/dashboard/download/pdf?filter=<%= currentFilter %>" class="bg-white border hover:bg-gray-50 text-xs font-bold px-4 py-2 rounded shadow-sm flex items-center gap-2 transition">
+                <i class="bi bi-file-earmark-pdf text-red-500"></i> PDF Report
+            </a>
+            <a href="/admin/dashboard/download/excel?filter=<%= currentFilter %>" class="bg-white border hover:bg-gray-50 text-xs font-bold px-4 py-2 rounded shadow-sm flex items-center gap-2 transition">
+              <i class="bi bi-file-earmark-spreadsheet text-green-600"></i> Excel (.xlsx)
+            </a>
+        </div>
       </div>
 
       <!-- Part 1: KPIs -->
@@ -169,6 +174,37 @@
             <% if (topBrands.length === 0) { %><p class="text-center text-gray-400 text-xs py-10 italic">No brand data.</p><% } %>
           </div>
         </div>
+      </div>
+
+      <!-- Part 4: Recent Transactions Table -->
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-8">
+          <div class="px-6 py-4 bg-gray-50 border-b flex items-center justify-between">
+            <h3 class="text-xs font-bold uppercase text-gray-600 tracking-wider">Recent Sales Transactions</h3>
+            <span class="text-[10px] font-bold text-gray-400 italic">Showing last 10 entries</span>
+          </div>
+          <table class="w-full text-left text-xs">
+              <thead class="bg-white text-gray-400 font-bold border-b">
+                  <tr>
+                      <th class="px-6 py-3 uppercase">Order ID</th>
+                      <th class="px-6 py-3 uppercase">Customer</th>
+                      <th class="px-6 py-3 uppercase">Date</th>
+                      <th class="px-6 py-3 uppercase">Status</th>
+                      <th class="px-6 py-3 uppercase text-right">Revenue</th>
+                  </tr>
+              </thead>
+              <tbody class="divide-y">
+                  <% recentOrders.forEach(o => { %>
+                  <tr class="hover:bg-gray-50 transition">
+                      <td class="px-6 py-4 font-bold text-gray-900"><%= o.orderId %></td>
+                      <td class="px-6 py-4 text-gray-600 italic font-medium"><%= o.userId?.firstName %> <%= o.userId?.lastName %></td>
+                      <td class="px-6 py-4 text-gray-500 font-mono"><%= new Date(o.createdAt).toLocaleDateString('en-IN') %></td>
+                      <td class="px-6 py-4"><span class="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-tighter <%= o.orderStatus==='delivered'?'bg-green-100 text-green-700':'bg-blue-100 text-blue-700' %>"><%= o.orderStatus %></span></td>
+                      <td class="px-6 py-4 text-right font-bold">₹<%= o.totalAmount.toLocaleString('en-IN') %></td>
+                  </tr>
+                  <% }) %>
+                  <% if (recentOrders.length === 0) { %><tr><td colspan="5" class="px-6 py-10 text-center text-gray-400 italic">No orders found.</td></tr><% } %>
+              </tbody>
+          </table>
       </div>
 
     </main>

@@ -35,12 +35,12 @@
           <p class="text-gray-500 text-sm mt-1 italic">Detailed business growth analysis.</p>
         </div>
         <div class="flex gap-2 no-print">
-            <button onclick="window.print()" class="bg-white border hover:bg-gray-50 text-xs font-bold px-4 py-2 rounded shadow-sm flex items-center gap-2 transition">
+            <a href="/admin/sales-report/download/pdf?<%= new URLSearchParams(query).toString() %>" class="bg-white border hover:bg-gray-50 text-xs font-bold px-4 py-2 rounded shadow-sm flex items-center gap-2 transition">
                 <i class="bi bi-file-earmark-pdf text-red-500"></i> PDF Report
-            </button>
-            <button onclick="downloadCSV()" class="bg-white border hover:bg-gray-50 text-xs font-bold px-4 py-2 rounded shadow-sm flex items-center gap-2 transition">
-              <i class="bi bi-file-earmark-spreadsheet text-green-600"></i> Excel (CSV)
-            </button>
+            </a>
+            <a href="/admin/sales-report/download/excel?<%= new URLSearchParams(query).toString() %>" class="bg-white border hover:bg-gray-50 text-xs font-bold px-4 py-2 rounded shadow-sm flex items-center gap-2 transition">
+              <i class="bi bi-file-earmark-spreadsheet text-green-600"></i> Excel (.xlsx)
+            </a>
         </div>
       </div>
 
@@ -151,13 +151,7 @@
       },
       options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { grid: { color: '#f3f4f6' }, ticks: { font: { size: 9 } } }, x: { grid: { display: false }, ticks: { font: { size: 9 } } } } }
     });
-    function downloadCSV() {
-      const rows = [["Order ID", "Customer", "Date", "Status", "Total Revenue"]];
-      const orders = <%- JSON.stringify(orders) %>;
-      orders.forEach(o => { rows.push([o.orderId, `${o.userId?.firstName || ''} ${o.userId?.lastName || ''}`, new Date(o.createdAt).toISOString().split('T')[0], o.orderStatus, o.totalAmount]); });
-      let csv = "data:text/csv;charset=utf-8," + rows.map(e => e.join(",")).join("\n");
-      const a = document.createElement("a"); a.setAttribute("href", encodeURI(csv)); a.setAttribute("download", "ElectroHub_Sales_Report.csv"); document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    }
+    });
   </script>
 </body>
 </html>

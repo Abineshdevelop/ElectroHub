@@ -67,8 +67,6 @@ function validateOfferBody({
   return errors;
 }
 
-// Mongoose can't auto-populate refId because the schema has no `ref`.
-// We manually fetch the correct model based on offerType.
 async function populateOfferRef(offer) {
   const plain = offer.toObject ? offer.toObject() : { ...offer };
   try {
@@ -266,6 +264,8 @@ export const searchCategories = async (req, res) => {
       .select("categoryName")
       .limit(10)
       .lean();
+
+      console.log(categories)
 
     res.json({
       results: categories.map((c) => ({ _id: c._id, name: c.categoryName })),

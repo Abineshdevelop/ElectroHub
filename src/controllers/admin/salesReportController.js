@@ -1,38 +1,56 @@
 import Order from "../../model/orderModel.js";
 import User from "../../model/usermodel.js";
 import { AppError } from "../../errors/appError.js";
+import * as reportService from "../../services/reportService.js";
+
+const getMatchFilter = (query) => {
+  const { startDate, endDate, filterType = 'monthly' } = query;
+  let match = { orderStatus: { $nin: ['cancelled', 'returned', 'return_requested', 'expired'] } };
+
+  if (startDate && endDate) {
+    match.createdAt = { $gte: new Date(startDate), $lte: new Date(endDate) };
+  } else if (filterType === 'daily') {
+    const start = new Date(); start.setHours(0, 0, 0, 0);
+    match.createdAt = { $gte: start };
+  } else if (filterType === 'weekly') {
+    const start = new Date(); start.setDate(start.getDate() - 7);
+    match.createdAt = { $gte: start };
+  } else if (filterType === 'yearly') {
+    const start = new Date(new Date().getFullYear(), 0, 1);
+    match.createdAt = { $gte: start };
+  } else {
+    const start = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    match.createdAt = { $gte: start };
+  }
+  return match;
+};
 
 export const getSalesReport = async (req, res) => {
   try {
     if (!req.session.admin) return res.redirect("/admin/login");
 
-    const { startDate, endDate, filterType = 'monthly' } = req.query;
-    let match = { orderStatus: { $nin: ['cancelled', 'returned', 'return_requested', 'expired'] } };
-
-    // Date Filtering Logic
-    if (startDate && endDate) {
-      match.createdAt = { $gte: new Date(startDate), $lte: new Date(endDate) };
-    } else if (filterType === 'daily') {
-      const start = new Date(); start.setHours(0, 0, 0, 0);
-      match.createdAt = { $gte: start };
-    } else if (filterType === 'weekly') {
-      const start = new Date(); start.setDate(start.getDate() - 7);
-      match.createdAt = { $gte: start };
-    } else if (filterType === 'yearly') {
-      const start = new Date(new Date().getFullYear(), 0, 1);
-      match.createdAt = { $gte: start };
-    } else {
-      // Monthly default
-      const start = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
-      match.createdAt = { $gte: start };
-    }
+    const match = getMatchFilter(req.query);
 
     // 1. KPIs: Revenue, Orders, Discounts
     const kpiPromise = Order.aggregate([
       { $match: match },
       { $group: {
           _id:           null,
-          totalRevenue:  { $sum: "$totalAmount" },
+          totalRevenue: { 
+            $sum: {
+              $cond: [
+                { $or: [
+                  { $eq: ["$orderStatus", "delivered"] },
+                  { $and: [
+                    { $eq: ["$paymentStatus", "paid"] },
+                    { $not: [{ $in: ["$orderStatus", ["cancelled", "returned", "return_requested", "return_rejected"]] }] }
+                  ]}
+                ]},
+                "$totalAmount",
+                0
+              ]
+            }
+          },
           totalOrders:   { $sum: 1 },
           totalDiscount: { $sum: "$discount" }
       }}
@@ -43,7 +61,21 @@ export const getSalesReport = async (req, res) => {
       { $match: match },
       { $group: {
           _id:     { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
-          revenue: { $sum: "$totalAmount" }
+          revenue: { 
+            $sum: {
+              $cond: [
+                { $or: [
+                  { $eq: ["$orderStatus", "delivered"] },
+                  { $and: [
+                    { $eq: ["$paymentStatus", "paid"] },
+                    { $not: [{ $in: ["$orderStatus", ["cancelled", "returned", "return_requested", "return_rejected"]] }] }
+                  ]}
+                ]},
+                "$totalAmount",
+                0
+              ]
+            }
+          }
       }},
       { $sort: { "_id": 1 } }
     ]);
@@ -102,6 +134,50 @@ export const getSalesReport = async (req, res) => {
 
   } catch (err) {
     console.error("Sales Report error:", err);
-    res.status(500).render("error", { title: "Error", message: "Failed to generate sales report" });
+    res.status(500).send("Failed to generate sales report");
+  }
+};
+
+export const downloadPDF = async (req, res) => {
+  try {
+    const match = getMatchFilter(req.query);
+    const orders = await Order.find(match).populate('userId', 'firstName lastName').sort({ createdAt: -1 }).lean();
+    
+    const data = orders.map(o => ({
+      orderId: o.orderId,
+      customer: `${o.userId?.firstName || ''} ${o.userId?.lastName || ''}`,
+      date: new Date(o.createdAt).toLocaleDateString('en-IN'),
+      status: o.orderStatus,
+      paymentMethod: o.paymentMethod,
+      products: o.items.map(i => `${i.productName} - ${i.quantity} qty`).join('\n'),
+      revenue: o.totalAmount
+    }));
+
+    await reportService.generatePDFReport(res, data, 'ElectroHub_Sales_Report', 'Sales & Revenue Report');
+  } catch (err) {
+    console.error("PDF Download error:", err);
+    res.status(500).send("Failed to generate PDF");
+  }
+};
+
+export const downloadExcel = async (req, res) => {
+  try {
+    const match = getMatchFilter(req.query);
+    const orders = await Order.find(match).populate('userId', 'firstName lastName').sort({ createdAt: -1 }).lean();
+    
+    const data = orders.map(o => ({
+      orderId: o.orderId,
+      customer: `${o.userId?.firstName || ''} ${o.userId?.lastName || ''}`,
+      date: new Date(o.createdAt).toLocaleDateString('en-IN'),
+      status: o.orderStatus,
+      paymentMethod: o.paymentMethod,
+      products: o.items.map(i => `${i.productName} - ${i.quantity} qty`).join('\n'),
+      revenue: o.totalAmount
+    }));
+
+    await reportService.generateExcelReport(res, data, 'ElectroHub_Sales_Report');
+  } catch (err) {
+    console.error("Excel Download error:", err);
+    res.status(500).send("Failed to generate Excel");
   }
 };

@@ -57,23 +57,18 @@ router.get("/auth/google/callback",
   }
 );
 
-// forget password
 router.get("/forgot-password", isLoggedOut, userController.loadForgotPassword);
 router.post("/forgot-password", isLoggedOut, userController.forgotPassword);
 
-//otp verification
 router.get("/forgot-password-otp", isLoggedOut, userController.loadForgotPasswordOtp);
 router.post("/verify-forgot-otp", userController.verifyForgotOtp);
 
-// reset password
 router.get("/reset-password", isLoggedOut, userController.loadResetPassword);
 router.post("/reset-password", isLoggedOut, userController.resetPassword);
 
-//dashboard
 
 router.get("/dashboard", isUserLoggedIn, profileController.loadDashboard);
 
-//address
 router.get("/address", isUserLoggedIn, addressController.loadAddress);
 router.patch("/address/remove-default/:id", isUserLoggedIn, addressController.removeDefaultAddress);
 router.patch("/address/default/:id", isUserLoggedIn, addressController.setDefaultAddress);
@@ -101,7 +96,7 @@ router.post(
   isUserLoggedIn,
   profileController.removeAvatar
 );
-// routes/userRoutes.js
+
 router.post("/profile/email/request-otp", isUserLoggedIn, profileController.requestEmailChangeOtp);
 router.post("/profile/email/verify-otp", isUserLoggedIn, profileController.verifyEmailChangeOtp);
 router.post("/profile/update", isUserLoggedIn, profileController.updateProfileDetails);

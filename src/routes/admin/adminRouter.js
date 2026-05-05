@@ -18,7 +18,12 @@ router.get ("/login",     isAdminLoggedOut, adminController.showLogin);
 router.post("/login",     isAdminLoggedOut, adminController.loginAdmin);
 router.get ("/logout",    isAdminLoggedIn,  adminController.logoutAdmin);
 router.get ("/dashboard",    isAdminLoggedIn,  adminController.adminDashboard);
+router.get ("/dashboard/download/pdf",   isAdminLoggedIn, adminController.downloadPDF);
+router.get ("/dashboard/download/excel", isAdminLoggedIn, adminController.downloadExcel);
+
 router.get ("/sales-report", isAdminLoggedIn,  salesController.getSalesReport);
+router.get ("/sales-report/download/pdf",   isAdminLoggedIn, salesController.downloadPDF);
+router.get ("/sales-report/download/excel", isAdminLoggedIn, salesController.downloadExcel);
 
 router.get   ("/customers",             isAdminLoggedIn, customersController.getCustomers);
 router.patch ("/customers/:id/block",   isAdminLoggedIn, customersController.blockUser);

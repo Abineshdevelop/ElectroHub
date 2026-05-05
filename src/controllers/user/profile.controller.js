@@ -6,6 +6,10 @@ import fs from "fs"
 import sendMail from "../../services/mailService.js"
 import bcrypt from "bcryptjs"
 import { generateReferralToken } from "./auth.controller.js";
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -38,7 +42,7 @@ export async function loadDashboard (req, res){
     const totalOrders = await Order.countDocuments({ userId });
     const pendingOrders = await Order.countDocuments({ 
         userId, 
-        orderStatus: { $in: ["pending", "confirmed", "processing", "shipped", "out_for_delivery"] } 
+        orderStatus: { $in: ["pending", "confirmed", "shipped", "out_for_delivery"] }
     });
     const completedOrders = await Order.countDocuments({ 
         userId, 
@@ -252,8 +256,11 @@ export async function updateAvatar (req, res) {
     const user = await User.findById(req.session.user._id);
     if (user.profileImage) {
       const publicDir = path.join(__dirname, "../../public");
-      const oldPath = path.join(publicDir, user.profileImage.replace("/uploads", "uploads"));
-      if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+      // user.profileImage is like "/uploads/profile/filename.png"
+      // we remove the leading slash if present to join correctly
+      const relativePath = user.profileImage.startsWith('/') ? user.profileImage.substring(1) : user.profileImage;
+      const filePath = path.join(publicDir, relativePath);
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
     }
     user.profileImage = `/uploads/profile/${req.file.filename}`;
     await user.save();
@@ -269,7 +276,8 @@ export async function updateAvatar (req, res) {
     const user = await User.findById(req.session.user._id);
     if (user.profileImage) {
       const publicDir = path.join(__dirname, "../../public");
-      const filePath = path.join(publicDir, user.profileImage.replace("/uploads", "uploads"));
+      const relativePath = user.profileImage.startsWith('/') ? user.profileImage.substring(1) : user.profileImage;
+      const filePath = path.join(publicDir, relativePath);
       if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
     }
     user.profileImage = null;
@@ -624,8 +632,11 @@ export async function updateAvatarAjax (req, res){
     const user = await User.findById(req.session.user._id);
     if (user.profileImage) {
       const publicDir = path.join(__dirname, "../../public");
-      const oldPath = path.join(publicDir, user.profileImage.replace("/uploads", "uploads"));
-      if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+      // user.profileImage is like "/uploads/profile/filename.png"
+      // we remove the leading slash if present to join correctly
+      const relativePath = user.profileImage.startsWith('/') ? user.profileImage.substring(1) : user.profileImage;
+      const filePath = path.join(publicDir, relativePath);
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
     }
     user.profileImage = `/uploads/profile/${req.file.filename}`;
     await user.save();
@@ -641,7 +652,8 @@ export async function removeAvatarAjax (req, res){
     const user = await User.findById(req.session.user._id);
     if (user.profileImage) {
       const publicDir = path.join(__dirname, "../../public");
-      const filePath = path.join(publicDir, user.profileImage.replace("/uploads", "uploads"));
+      const relativePath = user.profileImage.startsWith('/') ? user.profileImage.substring(1) : user.profileImage;
+      const filePath = path.join(publicDir, relativePath);
       if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
     }
     user.profileImage = null;

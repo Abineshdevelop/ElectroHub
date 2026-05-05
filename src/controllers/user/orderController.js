@@ -52,7 +52,7 @@ export const getOrderHistory = async (req, res) => {
 
     const filter = { userId };
     if (tab === "pending")
-      filter.orderStatus = { $in: ["confirmed", "processing"] };
+      filter.orderStatus = { $in: ["confirmed"] };
     if (tab === "completed") filter.orderStatus = "delivered";
     if (tab === "cancelled")
       filter.orderStatus = { $in: ["cancelled", "partially_cancelled"] };
@@ -70,7 +70,7 @@ export const getOrderHistory = async (req, res) => {
       Order.countDocuments({ userId }),
       Order.countDocuments({
         userId,
-        orderStatus: { $in: ["confirmed", "processing"] },
+        orderStatus: { $in: ["confirmed"] },
       }),
       Order.countDocuments({ userId, orderStatus: "delivered" }),
       Order.countDocuments({
@@ -162,16 +162,18 @@ export const cancelOrder = async (req, res) => {
         return res.json({ success: false, message: "Item already cancelled" });
 
       const effectiveItemStatus = getEffectiveStatus(item, order.orderStatus);
-      if (!["confirmed", "processing"].includes(effectiveItemStatus))
+      if (!["confirmed"].includes(effectiveItemStatus))
         return res.json({
           success: false,
           message: `Item cannot be cancelled at this stage (${effectiveItemStatus})`,
         });
 
-      //item refund caculation
+      //item refund calculation
       let refundAmount = 0;
 
-      if (order.paymentStatus === "paid" || order.paymentMethod === "wallet") {
+      // COD orders: customer never paid online, so no wallet refund
+      const isCODItem = order.paymentMethod === "cod";
+      if (!isCODItem && (order.paymentStatus === "paid" || order.paymentMethod === "wallet")) {
         const cancelItemPrice =
           item.lineTotal || item.unitPrice * item.quantity || 0;
         // Cap at what's technically refundable as a safety check
@@ -223,7 +225,8 @@ export const cancelOrder = async (req, res) => {
         order.orderStatus = "cancelled";
         order.cancelReason = reason.trim();
         order.cancelledAt = new Date();
-        if (["paid", "adjusted"].includes(order.paymentStatus))
+        // COD: no online payment, don't mark as refunded
+        if (!isCODItem && ["paid", "adjusted"].includes(order.paymentStatus))
           order.paymentStatus = "refunded";
       } else {
         order.orderStatus = "partially_cancelled";
@@ -246,7 +249,7 @@ export const cancelOrder = async (req, res) => {
 
     //full order cancel
     if (
-      !["confirmed", "processing", "partially_cancelled"].includes(
+      !["confirmed", "partially_cancelled"].includes(
         order.orderStatus,
       )
     )
@@ -255,6 +258,7 @@ export const cancelOrder = async (req, res) => {
         message: `Order cannot be cancelled at this stage (${order.orderStatus})`,
       });
 
+    const isCOD = order.paymentMethod === "cod";
     const cancellableItems = order.items.filter(
       (i) => !["cancelled", "returned"].includes(i.status),
     );
@@ -273,8 +277,9 @@ export const cancelOrder = async (req, res) => {
       0,
       (order.totalAmount || 0) - alreadyRefunded,
     );
+    // COD orders: customer never paid online, so no wallet refund
     const refundAmount =
-      order.paymentStatus === "paid" ? Math.min(rawRefund, maxRefundable) : 0;
+      (!isCOD && order.paymentStatus === "paid") ? Math.min(rawRefund, maxRefundable) : 0;
 
     order.orderStatus = "cancelled";
     order.cancelReason = reason.trim();
@@ -301,12 +306,11 @@ export const cancelOrder = async (req, res) => {
       );
     }
 
-    const wasPaid = order.paymentStatus == "paid";
-    const isCOD = order.paymentMethod == "cod";
+    const wasPaid = order.paymentStatus === "paid";
 
     await order.save();
 
-    // Only restore stock if it was actually deducted (payment paid)
+    // Only restore stock if it was actually deducted (payment paid or COD)
     if (isCOD || wasPaid || order.paymentStatus === "refunded") {
       await restoreStock(cancellableItems);
     }
@@ -330,12 +334,13 @@ export const requestReturn = async (req, res) => {
     const userId = req.session.user._id;
     const { orderId } = req.params;
     const { reason, itemId } = req.body;
-
-    if (!reason?.trim())
+    
+    if (!reason?.trim()) {
       return res.json({
         success: false,
         message: "Please provide a return reason",
       });
+    }
 
     if (!mongoose.Types.ObjectId.isValid(orderId))
       return res.json({ success: false, message: "Invalid order ID" });

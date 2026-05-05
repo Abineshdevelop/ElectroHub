@@ -44,7 +44,7 @@ export const getCoupons = async (req, res) => {
   }
 };
 
-export const getCouponById = async (req, res) => {
+export const getCouponById = async (req, res) => {//for edit the coupon
   try {
     const coupon = await Coupon.findOne({ _id: req.params.id, isDeleted: false }).lean();
     if (!coupon) return res.status(404).json({ success: false, message: 'Coupon not found.' });
@@ -74,8 +74,6 @@ export const createCoupon = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Discount must be at least 1.' });
     if (discountType === 'percentage' && discount > 100)
       return res.status(400).json({ success: false, message: 'Percentage discount cannot exceed 100%.' });
-
-
 
     if (discountType === 'flat') {
       if (discount >= minP)

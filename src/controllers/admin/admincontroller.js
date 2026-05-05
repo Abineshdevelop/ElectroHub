@@ -1,6 +1,30 @@
-import Order    from "../../model/orderModel.js";
-import User     from "../../model/usermodel.js";
+import Order from "../../model/orderModel.js";
+import User from "../../model/usermodel.js";
 import { AppError } from "../../errors/appError.js";
+import * as reportService from "../../services/reportService.js";
+
+const getDashboardMatch = (filter) => {
+  const now = new Date();
+  let dateMatch = {};
+  if (filter === 'daily') {
+    const start = new Date(); start.setHours(0,0,0,0);
+    dateMatch.createdAt = { $gte: start };
+  } else if (filter === 'weekly') {
+    const start = new Date(); start.setDate(now.getDate() - 7);
+    dateMatch.createdAt = { $gte: start };
+  } else if (filter === 'monthly') {
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    dateMatch.createdAt = { $gte: start };
+  } else if (filter === 'yearly') {
+    const start = new Date(now.getFullYear(), 0, 1);
+    dateMatch.createdAt = { $gte: start };
+  }
+
+  return { 
+      orderStatus: { $nin: ['cancelled', 'returned', 'return_requested', 'expired'] },
+      ...dateMatch
+  };
+};
 
 export const showLogin = (req, res) => {
   if (req.session.admin) return res.redirect("/admin/dashboard");
@@ -19,9 +43,7 @@ export const loginAdmin = async (req, res, next) => {
     const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 
     if (!ADMIN_EMAIL || !ADMIN_PASSWORD) {
-      return res
-        .status(500)
-        .json({ success: false, message: "Admin credentials not configured" });
+      return res.status(500).json({ success: false, message: "Admin credentials not configured" });
     }
 
     if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
@@ -48,36 +70,29 @@ export const adminDashboard = async (req, res) => {
     if (!req.session.admin) return res.redirect("/admin/login");
 
     const filter = req.query.filter || 'monthly';
-    const now    = new Date();
-    
-    // Define Date Match based on filter
-    let dateMatch = {};
-    if (filter === 'daily') {
-      const start = new Date(); start.setHours(0,0,0,0);
-      dateMatch.createdAt = { $gte: start };
-    } else if (filter === 'weekly') {
-      const start = new Date(); start.setDate(now.getDate() - 7);
-      dateMatch.createdAt = { $gte: start };
-    } else if (filter === 'monthly') {
-      const start = new Date(now.getFullYear(), now.getMonth(), 1);
-      dateMatch.createdAt = { $gte: start };
-    } else if (filter === 'yearly') {
-      const start = new Date(now.getFullYear(), 0, 1);
-      dateMatch.createdAt = { $gte: start };
-    }
-
-    const baseMatch = { 
-        orderStatus: { $nin: ['cancelled', 'returned', 'return_requested', 'expired'] },
-        ...dateMatch
-    };
+    const baseMatch = getDashboardMatch(filter);
     
     // 1. KPI Aggregations (Filtered)
     const kpiPromise = Order.aggregate([
       { $match: baseMatch },
       { $group: {
-          _id:          null,
-          totalRevenue: { $sum: "$totalAmount" },
-          totalOrders:  { $sum: 1 }
+          _id: null,
+          totalRevenue: { 
+            $sum: {
+              $cond: [
+                { $or: [
+                  { $eq: ["$orderStatus", "delivered"] },
+                  { $and: [
+                    { $eq: ["$paymentStatus", "paid"] },
+                    { $not: [{ $in: ["$orderStatus", ["cancelled", "returned", "return_requested", "return_rejected"]] }] }
+                  ]}
+                ]},
+                "$totalAmount",
+                0
+              ]
+            }
+          },
+          totalOrders: { $sum: 1 }
       }}
     ]);
 
@@ -101,7 +116,21 @@ export const adminDashboard = async (req, res) => {
       { $match: baseMatch },
       { $group: {
           _id:     { $dateToString: { format: dateGroup, date: "$createdAt" } },
-          revenue: { $sum: "$totalAmount" },
+          revenue: { 
+            $sum: {
+              $cond: [
+                { $or: [
+                  { $eq: ["$orderStatus", "delivered"] },
+                  { $and: [
+                    { $eq: ["$paymentStatus", "paid"] },
+                    { $not: [{ $in: ["$orderStatus", ["cancelled", "returned", "return_requested", "return_rejected"]] }] }
+                  ]}
+                ]},
+                "$totalAmount",
+                0
+              ]
+            }
+          },
           count:   { $sum: 1 }
       }},
       { $sort: { "_id": 1 } },
@@ -168,14 +197,21 @@ export const adminDashboard = async (req, res) => {
       { $limit: 10 }
     ]);
 
-    const [kpis, statusCountsRaw, totalCustomers, chartData, topProducts, topCategories, topBrands] = await Promise.all([
+    const recentOrdersPromise = Order.find(baseMatch)
+      .sort({ createdAt: -1 })
+      .limit(10)
+      .populate('userId', 'firstName lastName email')
+      .lean();
+
+    const [kpis, statusCountsRaw, totalCustomers, chartData, topProducts, topCategories, topBrands, recentOrders] = await Promise.all([
       kpiPromise,
       statusCountsPromise,
       userCountPromise,
       chartDataPromise,
       topProductsPromise,
       topCategoriesPromise,
-      topBrandsPromise
+      topBrandsPromise,
+      recentOrdersPromise
     ]);
 
     const kpi = kpis[0] || { totalRevenue: 0, totalOrders: 0 };
@@ -212,12 +248,13 @@ export const adminDashboard = async (req, res) => {
       topProducts,
       topCategories,
       topBrands,
+      recentOrders,
       currentFilter: filter
     });
 
   } catch (err) {
     console.error("Dashboard error:", err);
-    res.status(500).render("error", { title: "Error", message: "Failed to load dashboard" });
+    res.status(500).send("Failed to load dashboard");
   }
 };
 
@@ -229,9 +266,57 @@ export const logoutAdmin = (req, res) => {
   });
 };
 
+export const downloadPDF = async (req, res) => {
+  try {
+    const filter = req.query.filter || 'monthly';
+    const match = getDashboardMatch(filter);
+    const orders = await Order.find(match).populate('userId', 'firstName lastName').sort({ createdAt: -1 }).limit(10).lean();
+    
+    const data = orders.map(o => ({
+      orderId: o.orderId,
+      customer: `${o.userId?.firstName || ''} ${o.userId?.lastName || ''}`,
+      date: new Date(o.createdAt).toLocaleDateString('en-IN'),
+      status: o.orderStatus,
+      paymentMethod: o.paymentMethod,
+      products: o.items.map(i => `${i.productName} - ${i.quantity} qty`).join('\n'),
+      revenue: o.totalAmount
+    }));
+
+    await reportService.generatePDFReport(res, data, 'ElectroHub_Dashboard_Report', 'Dashboard Recent Transactions');
+  } catch (err) {
+    console.error("Dashboard PDF error:", err);
+    res.status(500).send("Failed to generate PDF");
+  }
+};
+
+export const downloadExcel = async (req, res) => {
+  try {
+    const filter = req.query.filter || 'monthly';
+    const match = getDashboardMatch(filter);
+    const orders = await Order.find(match).populate('userId', 'firstName lastName').sort({ createdAt: -1 }).limit(10).lean();
+    
+    const data = orders.map(o => ({
+      orderId: o.orderId,
+      customer: `${o.userId?.firstName || ''} ${o.userId?.lastName || ''}`,
+      date: new Date(o.createdAt).toLocaleDateString('en-IN'),
+      status: o.orderStatus,
+      paymentMethod: o.paymentMethod,
+      products: o.items.map(i => `${i.productName} - ${i.quantity} qty`).join('\n'),
+      revenue: o.totalAmount
+    }));
+
+    await reportService.generateExcelReport(res, data, 'ElectroHub_Dashboard_Report');
+  } catch (err) {
+    console.error("Dashboard Excel error:", err);
+    res.status(500).send("Failed to generate Excel");
+  }
+};
+
 export default {
   showLogin,
   loginAdmin,
   adminDashboard,
   logoutAdmin,
+  downloadPDF,
+  downloadExcel
 };
