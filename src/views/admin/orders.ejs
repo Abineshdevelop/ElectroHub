@@ -15,7 +15,7 @@
     @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
   </style>
 </head>
-<body class="bg-gray-100 text-gray-800 font-sans">
+<body class="bg-gray-50 text-gray-800 font-sans">
 
 <div id="toast"></div>
 
@@ -24,9 +24,9 @@
   const ADMIN_FORWARD = {
     pending:             ['confirmed', 'shipped', 'out_for_delivery', 'delivered'],
     confirmed:           ['shipped', 'out_for_delivery', 'delivered'],
-    shipped:             ['out_for_delivery', 'delivered', 'cancelled'],
-    out_for_delivery:    ['delivered', 'cancelled'],
-    delivered:           ['returned'],
+    shipped:             ['out_for_delivery', 'delivered'],
+    out_for_delivery:    ['delivered'],
+    delivered:           [],
     return_requested:    ['returned'],
     partially_cancelled: ['cancelled'],
     cancelled:           [],
@@ -47,9 +47,7 @@
     return_rejected:     { label: 'Return Rejected',    icon: 'bi-x-circle',          color: 'red'    },
   };
 
-  const curSt        = statusConfig[order.orderStatus] || statusConfig.pending;
-  const validNext    = ADMIN_FORWARD[order.orderStatus]  || [];
-  const hasCoupon    = order.discount > 0;
+  const hasCoupon    = order.discount > 0 && order.couponStatus !== 'removed';
   const returnRequestedItems = order.items.filter(i => i.status === 'return_requested');
 %>
 
@@ -111,27 +109,30 @@
   </aside>
 
   <!-- Main Content -->
-  <main class="flex-1 p-8">
-    <div class="mb-6 flex items-center justify-between">
+  <main class="flex-1 p-6 lg:p-8">
+    <div class="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
       <div>
-        <a href="/admin/orders" class="text-xs font-bold text-blue-600 hover:underline mb-2 inline-block"><i class="bi bi-arrow-left"></i> Back to Orders</a>
-        <h1 class="text-2xl font-bold flex items-center gap-3">
-          Order Details 
-          <span class="text-sm font-normal text-gray-400">#<%= order.orderId %></span>
+        <a href="/admin/orders" class="mb-3 inline-flex items-center gap-2 text-sm font-semibold text-gray-600 hover:text-gray-950">
+          <i class="bi bi-arrow-left"></i> Back to Orders
+        </a>
+        <p class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-1">Order Details</p>
+        <h1 class="text-2xl font-bold flex flex-wrap items-center gap-3 text-gray-950">
+          <%= order.orderId %>
+          <span class="font-mono text-xs font-semibold text-gray-400">#<%= String(order._id).slice(-8) %></span>
         </h1>
       </div>
-      <div class="flex gap-2">
+      <div class="flex flex-wrap gap-2">
          <% if (order.paymentStatus === 'failed') { %>
-           <span class="bg-red-100 text-red-600 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1">
+           <span class="bg-red-50 border border-red-100 text-red-600 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1">
              <i class="bi bi-shield-x"></i> Payment Cancelled
            </span>
          <% } %>
          <% if (hasCoupon) { %>
-           <span class="bg-amber-50 border border-amber-200 text-amber-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1">
-             <i class="bi bi-ticket-perforated-fill"></i> Coupon Applied — Item cancel blocked
+           <span class="bg-amber-50 border border-amber-200 text-amber-700 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1">
+             <i class="bi bi-ticket-perforated-fill"></i> Coupon Applied
            </span>
          <% } %>
-         <span class="bg-white border px-4 py-1 rounded-full text-xs font-bold shadow-sm">
+         <span class="bg-white border border-gray-200 px-3 py-1.5 rounded-lg text-xs font-bold text-gray-600 shadow-sm">
            Created: <%= new Date(order.createdAt).toLocaleDateString() %>
          </span>
       </div>
@@ -139,42 +140,12 @@
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       
-      <!-- Left: Items & Global Status -->
+      <!-- Left: Items & Returns -->
       <div class="lg:col-span-2 space-y-6">
-        
-        <!-- Global Status Management -->
-        <div class="bg-white p-6 rounded-lg shadow-sm border">
-          <h3 class="font-bold text-gray-900 mb-4 border-b pb-2">Global Order Status</h3>
-          <div class="flex flex-wrap items-center gap-4">
-             <span class="px-4 py-2 rounded-full border bg-<%= curSt.color %>-50 text-<%= curSt.color %>-600 text-sm font-bold flex items-center gap-2">
-               <i class="bi <%= curSt.icon %>"></i> <%= curSt.label %>
-             </span>
-             <% if (validNext.length > 0) { %>
-               <i class="bi bi-arrow-right text-gray-300"></i>
-               <div class="flex-1 max-w-xs">
-                 <select id="globalStatusSelect" class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
-                   <option value="">— Select next status —</option>
-                   <% validNext.forEach(st => { %>
-                     <option value="<%= st %>"><%= statusConfig[st] ? statusConfig[st].label : st.toUpperCase() %></option>
-                   <% }) %>
-                 </select>
-               </div>
-               <button
-                 onclick="applyGlobalStatus('<%= order._id %>')"
-                 class="px-4 py-2 bg-gray-900 hover:bg-black text-white text-sm font-bold rounded-lg transition">
-                 Update Status
-               </button>
-             <% } else { %>
-               <% if (['cancelled','returned','delivered'].includes(order.orderStatus)) { %>
-                 <span class="text-xs text-gray-400 italic">This order is in a terminal state — no further status changes allowed.</span>
-               <% } %>
-             <% } %>
-          </div>
-        </div>
 
         <!-- ⬇️  RETURN REQUESTS PANEL (only when items are pending) -->
         <% if (returnRequestedItems.length > 0) { %>
-        <div class="bg-purple-50 border border-purple-200 p-6 rounded-lg shadow-sm">
+        <div class="bg-purple-50 border border-purple-200 p-5 rounded-xl shadow-sm">
           <div class="flex items-center justify-between mb-4 border-b border-purple-200 pb-3">
             <h3 class="font-bold text-purple-900 flex items-center gap-2">
               <i class="bi bi-arrow-return-left text-purple-600"></i>
@@ -221,20 +192,24 @@
         <% } %>
 
         <!-- Inventory / Item List -->
-        <div class="bg-white rounded-lg shadow-sm border overflow-hidden">
-          <div class="px-6 py-4 border-b bg-gray-50 flex justify-between items-center">
-             <h3 class="font-bold text-gray-800">Inventory Management</h3>
-             <div class="flex items-center gap-3">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          <div class="px-6 py-4 border-b bg-gray-50/70 flex flex-col gap-2 sm:flex-row sm:justify-between sm:items-center">
+             <div>
+               <h3 class="font-bold text-gray-900">Items</h3>
+               <p class="text-xs text-gray-500 mt-0.5">Update each product status independently.</p>
+             </div>
+             <div class="flex flex-wrap items-center gap-3">
                <% if (hasCoupon) { %>
-                 <span class="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-1 rounded-full">
+                 <span class="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-1 rounded-lg">
                    Coupon order — individual item cancel blocked
                  </span>
                <% } %>
                <span class="text-xs font-bold text-gray-400"><%= order.items.length %> Items</span>
              </div>
           </div>
-          <table class="w-full text-left text-sm">
-            <thead class="bg-gray-50 text-[10px] uppercase text-gray-400 font-black">
+          <div class="overflow-x-auto">
+          <table class="w-full min-w-[760px] text-left text-sm">
+            <thead class="bg-gray-50 text-[10px] uppercase tracking-wider text-gray-400 font-black">
               <tr>
                 <th class="px-6 py-3">Product</th>
                 <th class="px-6 py-3">Qty</th>
@@ -246,21 +221,32 @@
               <% order.items.forEach(item => { 
                 const iStatus     = item.status || order.orderStatus;
                 const iCfg        = statusConfig[iStatus] || statusConfig.pending;
+                const itemSafety  = (typeof itemCancellationSafety !== 'undefined' && itemCancellationSafety[String(item._id)]) || { allowed: true };
+                const hideItemCancel = !itemSafety.allowed;
                 // Forward-only valid next statuses for this item
                 let validItemNext = ADMIN_FORWARD[iStatus] || [];
-                // If coupon/offer applied, block individual item cancellation
-                if (hasCoupon) {
+                if (hideItemCancel) {
                   validItemNext = validItemNext.filter(s => s !== 'cancelled');
                 }
               %>
-                <tr class="hover:bg-gray-50 transition-colors">
+                <tr class="hover:bg-gray-50/70 transition-colors align-top">
                   <td class="px-6 py-4">
                     <div class="flex items-center gap-3">
                        <img src="<%= item.productImage %>" class="w-10 h-10 rounded border object-cover">
                        <div>
-                         <p class="font-bold text-gray-800"><%= item.productName %></p>
-                         <% if(item.variantAttributes){ %>
-                           <p class="text-[10px] text-gray-400"><%= Object.values(item.variantAttributes).join(' · ') %></p>
+                         <p class="font-bold text-gray-800">
+                           <% if (item.productId && item.productId.brandName) { %>
+                             <span class="text-[9px] font-bold text-red-500 uppercase tracking-widest block mb-0.5"><%= item.productId.brandName %></span>
+                           <% } %>
+                           <%= item.productName %>
+                         </p>
+                         <% 
+                           const attributes = (item.variantAttributes && Object.keys(item.variantAttributes).length > 0)
+                             ? item.variantAttributes
+                             : (item.variantId && item.variantId.options ? item.variantId.options : null);
+                         %>
+                         <% if (attributes) { %>
+                           <p class="text-[10px] text-gray-400"><%= Object.entries(attributes).map(([k,v]) => `${k}: ${v}`).join(' · ') %></p>
                          <% } %>
                        </div>
                     </div>
@@ -269,13 +255,11 @@
                   <td class="px-6 py-4 font-bold text-gray-900">₹<%= (item.finalAmount ?? item.lineTotal ?? 0).toLocaleString() %></td>
                   <td class="px-6 py-4">
                     <div class="flex flex-col gap-2">
-                      <span class="text-[9px] font-black uppercase text-<%= iCfg.color %>-600 bg-<%= iCfg.color %>-50 border border-<%= iCfg.color %>-100 px-2 py-0.5 rounded-full inline-block w-fit"><%= iCfg.label %></span>
-                      <% if (hasCoupon) { %>
-                        <span class="text-[10px] text-amber-600 italic">Use global update</span>
-                      <% } else if (validItemNext.length > 0) { %>
-                        <div class="flex items-center gap-1.5">
+                      <span class="text-[9px] font-black uppercase text-<%= iCfg.color %>-600 bg-<%= iCfg.color %>-50 border border-<%= iCfg.color %>-100 px-2 py-1 rounded-lg inline-block w-fit"><%= iCfg.label %></span>
+                      <% if (validItemNext.length > 0) { %>
+                        <div class="flex items-center gap-2">
                           <div class="relative flex-1">
-                            <select id="isel-<%= item._id %>" class="border rounded px-2 py-1 text-[10px] font-bold outline-none hover:border-gray-300 appearance-none pr-6 cursor-pointer">
+                            <select id="isel-<%= item._id %>" class="w-full border border-gray-200 rounded-lg px-2.5 py-2 text-xs font-bold outline-none hover:border-gray-300 appearance-none pr-7 cursor-pointer">
                                <option value="">— next —</option>
                                <% validItemNext.forEach(st => { %>
                                  <option value="<%= st %>"><%= statusConfig[st] ? statusConfig[st].label.toUpperCase() : st.toUpperCase() %></option>
@@ -284,12 +268,17 @@
                             <i class="bi bi-chevron-down absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-400 text-[8px] pointer-events-none"></i>
                           </div>
                           <button onclick="applyItemStatus('<%= order._id %>', '<%= item._id %>')"
-                            class="text-[10px] font-bold px-2 py-1 bg-gray-800 hover:bg-gray-900 text-white rounded transition shrink-0">
+                            class="text-xs font-bold px-3 py-2 bg-gray-800 hover:bg-gray-900 text-white rounded-lg transition shrink-0">
                             Apply
                           </button>
                         </div>
                       <% } else { %>
                         <span class="text-[10px] text-gray-400 italic">Terminal</span>
+                      <% } %>
+                      <% if ((ADMIN_FORWARD[iStatus] || []).includes('cancelled') && hideItemCancel) { %>
+                        <span class="text-[10px] text-amber-700 bg-amber-50 border border-amber-100 rounded px-2 py-1 leading-snug">
+                          Item cancel hidden: coupon minimum would be lost. Keep this item or cancel the remaining order before out for delivery.
+                        </span>
                       <% } %>
                     </div>
                   </td>
@@ -306,6 +295,7 @@
               <% }) %>
             </tbody>
           </table>
+          </div>
         </div>
 
       </div>
@@ -314,7 +304,7 @@
       <div class="space-y-6">
         
         <!-- Customer Info -->
-        <div class="bg-white p-6 rounded-lg shadow-sm border">
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
           <h3 class="font-bold text-gray-900 mb-4 border-b pb-2">Customer Info</h3>
           <div class="space-y-4">
             <div class="flex items-center gap-3">
@@ -337,7 +327,7 @@
         </div>
 
         <!-- Billing Card -->
-        <div class="bg-white p-6 rounded-lg shadow-sm border border-l-4 border-l-blue-600">
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
           <h3 class="font-bold text-gray-900 mb-6 border-b pb-2">Billing Summary</h3>
           <div class="space-y-3 text-sm">
              <div class="flex justify-between text-gray-500 font-medium">
@@ -393,30 +383,6 @@
     setTimeout(() => box.remove(), 3500);
   }
 
-  async function applyGlobalStatus(orderId) {
-    const select = document.getElementById('globalStatusSelect');
-    const status = select.value;
-    if (!status) { showToast('Please select a status to apply.', 'error'); return; }
-
-    try {
-      const res  = await fetch(`/admin/orders/${orderId}/status`, {
-        method:  'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ status })
-      });
-      const data = await res.json();
-      if (data.success) {
-        showToast('Order status updated.');
-        setTimeout(() => location.reload(), 1000);
-      } else {
-        showToast(data.message || 'Update failed.', 'error');
-        select.value = '';
-      }
-    } catch(err) {
-      showToast('Network error.', 'error');
-    }
-  }
-
   async function applyItemStatus(orderId, itemId) {
     const select = document.getElementById(`isel-${itemId}`);
     const status = select ? select.value : '';
@@ -466,39 +432,6 @@
         }
       }
     });
-  }
-
-  let _rejectOrderId = null;
-  function openRejectModal(orderId) {
-    _rejectOrderId = orderId;
-    document.getElementById('rejectReason').value = '';
-    document.getElementById('rejectModal').classList.remove('hidden');
-    document.getElementById('rejectModal').classList.add('flex');
-  }
-  function closeRejectModal() {
-    document.getElementById('rejectModal').classList.add('hidden');
-    document.getElementById('rejectModal').classList.remove('flex');
-  }
-  async function submitReject() {
-    const reason = document.getElementById('rejectReason').value.trim();
-    if (!reason) { showToast('Please enter a rejection reason.', 'error'); return; }
-    try {
-      const res  = await fetch(`/admin/orders/${_rejectOrderId}/return/reject`, {
-        method:  'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ reason })
-      });
-      const data = await res.json();
-      if (data.success) {
-        showToast('Return request rejected.');
-        closeRejectModal();
-        setTimeout(() => location.reload(), 1200);
-      } else {
-        showToast(data.message || 'Rejection failed.', 'error');
-      }
-    } catch(err) {
-      showToast('Network error.', 'error');
-    }
   }
 
   async function submitPanelReject(orderId) {
@@ -556,24 +489,6 @@
   }
 </script>
 
-<!-- Reject Reason Modal -->
-<div id="rejectModal" class="hidden fixed inset-0 bg-black/50 z-50 items-center justify-center">
-  <div class="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl">
-    <h3 class="text-lg font-bold text-gray-900 mb-1">Reject Return Request</h3>
-    <p class="text-sm text-gray-400 mb-5">This reason will be shown to the customer.</p>
-    <label class="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Rejection Reason</label>
-    <textarea id="rejectReason" rows="3"
-      class="w-full border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-red-100 outline-none resize-none mb-5"
-      placeholder="e.g. Item shows signs of use beyond normal testing..."></textarea>
-    <div class="flex gap-3">
-      <button onclick="closeRejectModal()"
-        class="flex-1 py-2.5 border border-gray-200 rounded-xl font-bold text-gray-500 hover:bg-gray-50 text-sm transition">Cancel</button>
-      <button onclick="submitReject()"
-        class="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold text-sm transition">Confirm Reject</button>
-    </div>
-  </div>
-</div>
-
 <!-- Custom Action Confirmation Modal -->
 <div id="actionConfirmModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] items-center justify-center p-4">
   <div class="bg-white rounded-3xl p-8 w-full max-w-sm shadow-2xl scale-up-center">
@@ -619,9 +534,21 @@
       }
 
       .order-row:hover {
-        background: #f9fafb;
+        background: #f8fafc;
       }
+
+      .admin-card {
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+      }
+
+      .action-btns { display: inline-flex; align-items: center; white-space: nowrap; width: 100%; }
+      .action-btns .sep { color: #d1d5db; user-select: none; padding: 0 5px; flex-shrink: 0; }
+      .action-btns button { white-space: nowrap; background: none; border: none; padding: 0; cursor: pointer; font-size: 0.875rem; font-weight: 500; flex-shrink: 0; }
     </style>
+    <%- include('./layout/admin-ui') %>
   </head>
 
   <body class="bg-gray-100">
@@ -631,21 +558,28 @@
 <div class="flex">
   <%- include('./layout/sidebar', { activePage: 'orders' }) %>
 
-      <main class="flex-1 p-8 min-w-0">
+      <main class="flex-1 p-6 lg:p-8 min-w-0">
 
-        <div class="flex items-center justify-between mb-6">
-          <h1 class="text-2xl font-semibold">Orders</h1>
-          <span id="totalBadge" class="text-sm text-gray-500 bg-white border px-4 py-1.5 rounded-full">Total: <%= total
-              %></span>
+        <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between mb-6">
+          <div>
+            <p class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-1">Admin</p>
+            <h1 class="text-2xl font-semibold text-gray-950">Orders</h1>
+            <p class="text-sm text-gray-500 mt-1">Search, filter, and manage customer orders.</p>
+          </div>
+          <span id="totalBadge" class="inline-flex w-fit items-center gap-2 text-sm text-gray-600 bg-white border border-gray-200 px-4 py-2 rounded-lg shadow-sm">
+            <i class="bi bi-receipt text-gray-400"></i>
+            Total: <%= total %>
+          </span>
         </div>
 
         <!-- Filters -->
-        <div class="bg-white p-4 rounded shadow mb-5 flex flex-wrap gap-3 items-center">
-          <div class="relative flex-1 min-w-[200px] max-w-sm">
+        <div class="admin-card p-4 mb-5">
+          <div class="flex flex-wrap gap-3 items-center">
+          <div class="relative flex-1 min-w-[240px]">
             <i class="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
             <input id="searchInput" type="text" value="<%= query || '' %>"
               placeholder="Search by order ID, name or email…" autocomplete="off"
-              class="w-full pl-9 pr-8 py-2 border border-gray-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 transition" />
+              class="w-full pl-9 pr-9 py-2.5 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-gray-200 transition" />
             <i id="searchSpinner"
               class="bi bi-arrow-repeat animate-spin absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm hidden"></i>
             <!-- Suggestions Dropdown -->
@@ -657,7 +591,7 @@
             <i
               class="bi bi-sort-down absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none"></i>
             <select id="sortSelect"
-              class="appearance-none pl-9 pr-8 py-2 border border-gray-200 rounded bg-white text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-300 transition cursor-pointer">
+              class="appearance-none pl-9 pr-8 py-2.5 border border-gray-200 rounded-lg bg-white text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-200 transition cursor-pointer">
               <option value="desc" <%=(_sort==='desc' )?'selected':'' %>>Latest First</option>
               <option value="asc" <%=(_sort==='asc' ) ?'selected':'' %>>Oldest First</option>
             </select>
@@ -665,45 +599,51 @@
               class="bi bi-chevron-down absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none"></i>
           </div>
           <button id="clearBtn" onclick="clearSearch()"
-            class="px-4 py-2 border border-gray-200 bg-white hover:bg-gray-50 rounded text-gray-600 text-sm transition <%= query ? '' : 'hidden' %>">Clear</button>
+            class="px-4 py-2.5 border border-gray-200 bg-white hover:bg-gray-50 rounded-lg text-gray-600 text-sm transition <%= query ? '' : 'hidden' %>">Clear</button>
           <button onclick="exportCSV()"
-            class="flex items-center gap-2 px-4 py-2 border border-gray-200 bg-white hover:bg-gray-50 rounded text-sm text-gray-700 transition">
+            class="flex items-center gap-2 px-4 py-2.5 border border-gray-200 bg-white hover:bg-gray-50 rounded-lg text-sm text-gray-700 transition">
             <i class="bi bi-download"></i> Export Data
           </button>
+          </div>
         </div>
 
         <!-- Status Tabs -->
         <div id="statusTabs" class="flex items-center gap-2 mb-5 flex-wrap">
-          <% ['all','pending','confirmed','shipped','out_for_delivery','delivered','cancelled','partially_cancelled','returned'].forEach(function(s){
+          <% ['all','return_requested','confirmed','shipped','out_for_delivery','delivered','cancelled','partially_cancelled','returned'].forEach(function(s){
             %>
-            <% const tabLabels={ all:'All Orders', pending: 'Pending' , confirmed:'Confirmed', shipped:'Shipped',
+            <% const tabLabels={ all:'All Orders', return_requested:'Return Requested', confirmed:'Confirmed', shipped:'Shipped',
               out_for_delivery:'Out for Delivery', delivered:'Delivered', cancelled:'Cancelled',
               partially_cancelled:'Partially Cancelled', returned:'Returned' }; %>
               <button data-status="<%= s %>"
-                class="status-tab px-4 py-2 rounded text-sm font-medium transition border
-            <%= _status === s ? 'bg-gray-900 text-white border-gray-900' : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50' %>">
+                class="admin-filter-tab status-tab <%= _status === s ? 'active' : '' %>">
                 <%= tabLabels[s] || s %>
               </button>
               <% }); %>
         </div>
 
         <!-- Table -->
-        <div class="bg-white rounded shadow overflow-hidden mb-5">
-          <table class="w-full text-sm">
+        <div class="admin-card overflow-hidden mb-5">
+          <div class="overflow-x-auto">
+          <table class="w-full min-w-[980px] text-sm">
             <thead>
-              <tr class="bg-gray-50 border-b border-gray-200">
-                <th class="text-left px-5 py-3.5 font-semibold text-gray-600 w-[15%]">Order ID</th>
-                <th class="text-left px-5 py-3.5 font-semibold text-gray-600 w-[15%]">Date</th>
-                <th class="text-left px-5 py-3.5 font-semibold text-gray-600 w-[25%]">Customer</th>
-                <th class="text-left px-5 py-3.5 font-semibold text-gray-600 w-[25%]">Status</th>
-                <th class="text-left px-5 py-3.5 font-semibold text-gray-600 w-[20%]">Actions</th>
+              <tr class="bg-gray-50 border-b border-gray-200 text-[11px] uppercase tracking-wider text-gray-500">
+                <th class="text-left px-5 py-3.5 font-black w-[18%]">Order</th>
+                <th class="text-left px-5 py-3.5 font-black w-[12%]">Date</th>
+                <th class="text-left px-5 py-3.5 font-black w-[28%]">Customer</th>
+                <th class="text-left px-5 py-3.5 font-black w-[12%]">Items</th>
+                <th class="text-left px-5 py-3.5 font-black w-[16%]">Total</th>
+                <th class="text-left px-5 py-3.5 font-black w-[14%]">Actions</th>
               </tr>
             </thead>
             <tbody id="ordersTableBody" class="divide-y divide-gray-100">
               <% if (orders.length===0) { %>
                 <tr>
-                  <td colspan="5" class="px-5 py-12 text-center text-gray-400">
-                    <i class="bi bi-bag text-3xl block mb-2"></i>No orders found.
+                  <td colspan="6" class="px-5 py-16 text-center text-gray-400">
+                    <div class="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-3">
+                      <i class="bi bi-bag text-2xl"></i>
+                    </div>
+                    <p class="font-semibold text-gray-600">No orders found</p>
+                    <p class="text-xs mt-1">Try a different search or status filter.</p>
                   </td>
                 </tr>
                 <% } %>
@@ -715,19 +655,20 @@
                     <tr class="order-row transition align-top" data-order-id="<%= o._id %>">
 
                       <!-- Order ID -->
-                      <td class="px-5 py-3.5">
+                      <td class="px-5 py-4">
                         <span class="font-mono text-xs font-semibold text-gray-800 block">
                           <%= o.orderId %>
                         </span>
+                        <span class="text-[10px] text-gray-400">#<%= String(o._id).slice(-6) %></span>
                       </td>
 
                       <!-- Date -->
-                      <td class="px-5 py-3.5 text-xs text-gray-500 whitespace-nowrap">
+                      <td class="px-5 py-4 text-xs text-gray-500 whitespace-nowrap">
                         <%= dateStr %>
                       </td>
 
                       <!-- Customer -->
-                      <td class="px-5 py-3.5">
+                      <td class="px-5 py-4">
                         <div class="flex items-center gap-2">
                           <div
                             class="w-9 h-9 shrink-0 rounded-full bg-gray-200 text-gray-700 flex items-center justify-center text-xs font-semibold">
@@ -745,46 +686,28 @@
                         </div>
                       </td>
 
-                      <!-- Status -->
-                      <td class="px-5 py-3.5">
-                        <% 
-                          const STATUS_CONFIG_EJS = {
-                            pending: { label: 'Pending', bg: 'bg-gray-50', text: 'text-gray-600', dot: 'bg-gray-400' },
-                            confirmed: { label: 'Confirmed', bg: 'bg-blue-50', text: 'text-blue-600', dot: 'bg-blue-400' },
-                            shipped: { label: 'Shipped', bg: 'bg-cyan-50', text: 'text-cyan-700', dot: 'bg-cyan-400' },
-                            out_for_delivery: { label: 'Out for Delivery', bg: 'bg-indigo-50', text: 'text-indigo-700', dot: 'bg-indigo-400' },
-                            delivered: { label: 'Delivered', bg: 'bg-green-50', text: 'text-green-700', dot: 'bg-green-400' },
-                            cancelled: { label: 'Cancelled', bg: 'bg-red-50', text: 'text-red-600', dot: 'bg-red-400' },
-                            partially_cancelled: { label: 'Partially Cancelled', bg: 'bg-orange-50', text: 'text-orange-700', dot: 'bg-orange-400' },
-                            return_requested: { label: 'Return Requested', bg: 'bg-indigo-50', text: 'text-indigo-700', dot: 'bg-indigo-400' },
-                            returned: { label: 'Returned', bg: 'bg-purple-50', text: 'text-purple-700', dot: 'bg-purple-400' },
-                            expired: { label: 'Expired', bg: 'bg-gray-50', text: 'text-gray-600', dot: 'bg-gray-400' },
-                            return_rejected: { label: 'Return Rejected', bg: 'bg-red-50', text: 'text-red-700', dot: 'bg-red-500' }
-                          };
-                          const sc = STATUS_CONFIG_EJS[o.orderStatus] || { label: o.orderStatus, bg: 'bg-gray-100', text: 'text-gray-700', dot: 'bg-gray-400' };
-                        %>
-                        <div class="flex flex-col gap-2">
-                          <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium w-32 <%= sc.bg %> <%= sc.text %>">
-                            <span class="w-1.5 h-1.5 rounded-full shrink-0 <%= sc.dot %> mr-1.5"></span>
-                            <span class="truncate"><%= sc.label %></span>
-                          </span>
-                        </div>
+                      <td class="px-5 py-4 text-sm font-semibold text-gray-700">
+                        <%= (o.items || []).length %>
+                      </td>
+
+                      <td class="px-5 py-4">
+                        <p class="font-bold text-gray-950">₹<%= Number(o.totalAmount || 0).toLocaleString('en-IN') %></p>
+                        <p class="text-[10px] uppercase text-gray-400"><%= o.paymentMethod || '' %></p>
                       </td>
 
                       <!-- Actions -->
-                      <td class="px-5 py-3.5">
-                        <div class="flex items-center gap-2 text-sm font-medium">
-                          <button onclick="window.location.href='/admin/orders/<%= o._id %>'"
-                            class="text-blue-600 hover:text-blue-800 transition">View Detail</button>
-                          <span class="text-gray-300">|</span>
-                          <button onclick="openDeleteConfirm('<%= o._id %>','<%= o.orderId %>')"
-                            class="text-red-500 hover:text-red-700 transition">Delete</button>
+                      <td class="px-5 py-4">
+                        <div class="action-btns text-sm font-medium">
+                          <button onclick="window.location.href='/admin/orders/<%= o._id %>'" class="text-blue-600 hover:text-blue-800">View</button>
+                          <span class="sep">|</span>
+                          <button onclick="openDeleteConfirm('<%= o._id %>','<%= o.orderId %>')" class="text-red-500 hover:text-red-700">Delete</button>
                         </div>
                       </td>
                     </tr>
                     <% }); %>
             </tbody>
           </table>
+          </div>
         </div>
 
         <!-- Pagination -->
@@ -829,8 +752,6 @@
       </main>
     </div>
 
-    <!-- ══════════ MODALS MOVED ══════════ -->
-
     <!-- ══════════ DELETE CONFIRM MODAL ══════════ -->
     <div id="confirmModal" class="fixed inset-0 z-[80] hidden items-center justify-center">
       <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" onclick="closeDeleteConfirm()"></div>
@@ -850,7 +771,7 @@
         </div>
       </div>
     </div>
-a
+
     <!-- TOAST -->
     <div id="toast"
       class="fixed top-[72px] right-5 z-[9999] hidden items-center gap-3 px-5 py-3.5 rounded-xl shadow-xl text-white text-sm font-medium min-w-[220px] max-w-xs">
@@ -862,9 +783,6 @@ a
       let currentStatus = '<%= _status %>';
       let debounceTimer = null;
       let _deleteId = null;
-      let _openOrderId = null;
-      let _activeOrderId = null;
-      let _activeItemId = null;
 
       const searchInput = document.getElementById('searchInput');
       const sortSelect = document.getElementById('sortSelect');
@@ -875,48 +793,9 @@ a
       const searchSpinner = document.getElementById('searchSpinner');
       const searchSuggestions = document.getElementById('searchSuggestions');
 
-      const STATUS_CONFIG = {
-        pending: { label: 'Pending', bg: 'bg-gray-100', text: 'text-gray-700', dot: 'bg-gray-500' },
-        confirmed: { label: 'Confirmed', bg: 'bg-blue-100', text: 'text-blue-700', dot: 'bg-blue-500' },
-        shipped: { label: 'Shipped', bg: 'bg-cyan-100', text: 'text-cyan-700', dot: 'bg-cyan-500' },
-        out_for_delivery: { label: 'Out for Delivery', bg: 'bg-indigo-100', text: 'text-indigo-700', dot: 'bg-indigo-500' },
-        delivered: { label: 'Delivered', bg: 'bg-green-100', text: 'text-green-700', dot: 'bg-green-500' },
-        cancelled: { label: 'Cancelled', bg: 'bg-red-100', text: 'text-red-700', dot: 'bg-red-500' },
-        partially_cancelled: { label: 'Partially Cancelled', bg: 'bg-orange-100', text: 'text-orange-700', dot: 'bg-orange-500' },
-        return_requested: { label: 'Return Requested', bg: 'bg-indigo-100', text: 'text-indigo-700', dot: 'bg-indigo-500' },
-        returned: { label: 'Returned', bg: 'bg-purple-100', text: 'text-purple-700', dot: 'bg-purple-500' },
-        return_rejected: { label: 'Return Rejected', bg: 'bg-red-100', text: 'text-red-700', dot: 'bg-red-500' }
-      };
-
-      const PILL_CONFIG = {
-        pending: 'bg-gray-50 text-gray-600',
-        confirmed: 'bg-blue-50 text-blue-600',
-        shipped: 'bg-cyan-50 text-cyan-700',
-        out_for_delivery: 'bg-indigo-50 text-indigo-700',
-        delivered: 'bg-green-50 text-green-700',
-        cancelled: 'bg-red-50 text-red-600',
-        return_requested: 'bg-indigo-50 text-indigo-700',
-        returned: 'bg-purple-50 text-purple-700',
-        return_rejected: 'bg-red-50 text-red-700'
-      };
-
-      function statusBadgeHtml(status) {
-        const sc = STATUS_CONFIG[status] || { label: status, bg: 'bg-gray-100', text: 'text-gray-700', dot: 'bg-gray-400' };
-        return `<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium w-32 ${sc.bg} ${sc.text}">
-      <span class="w-1.5 h-1.5 rounded-full shrink-0 ${sc.dot} mr-1.5"></span><span class="truncate">${sc.label}</span></span>`;
-      }
-
-      function pillHtml(status) {
-        const cls = PILL_CONFIG[status] || 'bg-gray-50 text-gray-600';
-        const lbl = status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-        return `<span class="text-[10px] px-1.5 py-0.5 rounded-full font-medium ${cls}">${lbl}</span>`;
-      }
-
       function escHtml(s) {
         return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
       }
-
-      // changeOrderStatus and ADMIN_FORWARD removed.
 
       // ── Export CSV ──────────────────────────────────────────────────────────
       function exportCSV() {
@@ -1023,8 +902,7 @@ a
         if (!btn) return;
         currentStatus = btn.dataset.status;
         document.querySelectorAll('.status-tab').forEach(b => {
-          const active = b.dataset.status === currentStatus;
-          b.className = `status-tab px-4 py-2 rounded text-sm font-medium transition border ${active ? 'bg-gray-900 text-white border-gray-900' : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'}`;
+          b.classList.toggle('active', b.dataset.status === currentStatus);
         });
         fetchOrders(1);
       });
@@ -1033,8 +911,9 @@ a
       function renderTable(orders) {
         const tbody = document.getElementById('ordersTableBody');
         if (!orders || orders.length === 0) {
-          tbody.innerHTML = `<tr><td colspan="5" class="px-5 py-12 text-center text-gray-400">
-        <i class="bi bi-bag text-3xl block mb-2"></i>No orders found.</td></tr>`;
+          tbody.innerHTML = `<tr><td colspan="6" class="px-5 py-16 text-center text-gray-400">
+        <div class="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-3"><i class="bi bi-bag text-2xl"></i></div>
+        <p class="font-semibold text-gray-600">No orders found</p><p class="text-xs mt-1">Try a different search or status filter.</p></td></tr>`;
           return;
         }
         tbody.innerHTML = orders.map(o => {
@@ -1046,11 +925,12 @@ a
 
           return `
         <tr class="order-row transition align-top" data-order-id="${o._id}">
-          <td class="px-5 py-3.5">
+          <td class="px-5 py-4">
             <span class="font-mono text-xs font-semibold text-gray-800 block">${escHtml(o.orderId)}</span>
+            <span class="text-[10px] text-gray-400">#${escHtml(String(o._id).slice(-6))}</span>
           </td>
-          <td class="px-5 py-3.5 text-xs text-gray-500 whitespace-nowrap">${dateStr}</td>
-          <td class="px-5 py-3.5">
+          <td class="px-5 py-4 text-xs text-gray-500 whitespace-nowrap">${dateStr}</td>
+          <td class="px-5 py-4">
             <div class="flex items-center gap-2">
               <div class="w-9 h-9 shrink-0 rounded-full bg-gray-200 text-gray-700 flex items-center justify-center text-xs font-semibold">${initial}</div>
               <div class="min-w-0">
@@ -1059,16 +939,16 @@ a
               </div>
             </div>
           </td>
-          <td class="px-5 py-3.5">
-            <div class="flex flex-col gap-2">
-              ${statusBadgeHtml(o.orderStatus)}
-            </div>
+          <td class="px-5 py-4 text-sm font-semibold text-gray-700">${(o.items || []).length}</td>
+          <td class="px-5 py-4">
+            <p class="font-bold text-gray-950">₹${Number(o.totalAmount || 0).toLocaleString('en-IN')}</p>
+            <p class="text-[10px] uppercase text-gray-400">${escHtml(o.paymentMethod || '')}</p>
           </td>
-          <td class="px-5 py-3.5">
-            <div class="flex items-center gap-2 text-sm font-medium">
-              <button onclick="window.location.href='/admin/orders/${o._id}'" class="text-blue-600 hover:text-blue-800 transition">View Detail</button>
-              <span class="text-gray-300">|</span>
-              <button onclick="openDeleteConfirm('${o._id}','${escHtml(o.orderId)}')" class="text-red-500 hover:text-red-700 transition">Delete</button>
+          <td class="px-5 py-4">
+            <div class="action-btns text-sm font-medium">
+              <button onclick="window.location.href='/admin/orders/${o._id}'" class="text-blue-600 hover:text-blue-800">View</button>
+              <span class="sep">|</span>
+              <button onclick="openDeleteConfirm('${o._id}','${escHtml(o.orderId)}')" class="text-red-500 hover:text-red-700">Delete</button>
             </div>
           </td>
         </tr>`;
@@ -1089,8 +969,6 @@ a
           : `<span class="inline-flex items-center justify-center w-8 h-8 text-sm rounded border border-gray-200 bg-white opacity-40 cursor-not-allowed"><i class="bi bi-chevron-right text-xs"></i></span>`;
         paginationWrap.innerHTML = html;
       }
-
-      // Modals moved to orderDetails.ejs
 
       // ── Delete ─────────────────────────────────────────────────────────────
       function openDeleteConfirm(id, label) {
@@ -1136,121 +1014,7 @@ a
         _toastTimer = setTimeout(() => toast.classList.add('hidden'), 3500);
       }
 
-      // ── Return Approval / Rejection ────────────────────────────────
-      async function adminApproveReturn(orderId) {
-        showConfirm({
-          title: 'Approve Return?',
-          message: 'Approve all pending return requests? This will issue an immediate refund to the customer\'s wallet.',
-          confirmText: 'Approve & Refund',
-          confirmColor: 'bg-green-600',
-          onConfirm: async () => {
-            try {
-              const res = await fetch(`/admin/orders/${orderId}/return/approve`, { method: 'PATCH', credentials: 'include' });
-              const data = await res.json();
-              if (data.success) {
-                showToast('Return approved. Refund issued.', 'success');
-                closeOrderModal();
-                fetchOrders();
-              } else { showToast(data.message || 'Approval failed.', 'error'); }
-            } catch { showToast('Network error.', 'error'); }
-          }
-        });
-      }
-
-      let _activeRejectId = null;
-      function openRejectModalModal(orderId) {
-        _activeRejectId = orderId;
-        document.getElementById('modalRejectReason').value = '';
-        document.getElementById('modalRejectContainer').classList.remove('hidden');
-        document.getElementById('modalRejectContainer').classList.add('flex');
-      }
-
-      function closeRejectModal() {
-        document.getElementById('modalRejectContainer').classList.add('hidden');
-        document.getElementById('modalRejectContainer').classList.remove('flex');
-        _activeRejectId = null;
-      }
-
-      async function submitRejectRequest() {
-        const orderId = _activeRejectId;
-        const reason = document.getElementById('modalRejectReason').value.trim();
-        if (!reason) { showToast('Please enter a rejection reason.', 'error'); return; }
-
-        try {
-          const res = await fetch(`/admin/orders/${orderId}/return/reject`, {
-            method: 'PATCH', credentials: 'include',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ reason })
-          });
-          const data = await res.json();
-          if (data.success) {
-            showToast('Return request rejected.', 'success');
-            closeRejectModal();
-            closeOrderModal();
-            fetchOrders();
-          } else { showToast(data.message || 'Rejection failed.', 'error'); }
-        } catch { showToast('Network error.', 'error'); }
-      }
-
-      // ── Custom Action Confirmation Modal Logic ──────────────────────────────
-      let _actionConfirmCallback = null;
-      function showConfirm({ title, message, confirmText, confirmColor, onConfirm }) {
-        document.getElementById('actionConfirmModalTitle').innerText = title || 'Are you sure?';
-        document.getElementById('actionConfirmModalMessage').innerText = message || '';
-        const btn = document.getElementById('actionConfirmModalBtn');
-        btn.innerText = confirmText || 'Confirm';
-        btn.className = `flex-1 py-3 ${confirmColor || 'bg-gray-900'} text-white rounded-xl font-bold text-sm transition hover:opacity-90 active:scale-95`;
-        _actionConfirmCallback = onConfirm;
-        document.getElementById('actionConfirmModal').classList.remove('hidden');
-        document.getElementById('actionConfirmModal').classList.add('flex');
-      }
-
-      function closeActionConfirmModal() {
-        document.getElementById('actionConfirmModal').classList.add('hidden');
-        document.getElementById('actionConfirmModal').classList.remove('flex');
-        _actionConfirmCallback = null;
-      }
-
-      function executeActionConfirm() {
-        if (_actionConfirmCallback) _actionConfirmCallback();
-        closeActionConfirmModal();
-      }
     </script>
-    <!-- Custom Action Confirm Modal -->
-    <div id="actionConfirmModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] items-center justify-center p-4">
-      <div class="bg-white rounded-3xl p-8 w-full max-w-sm shadow-2xl scale-up-center">
-        <div class="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mb-6 mx-auto">
-          <i class="bi bi-question-circle text-gray-400 text-3xl"></i>
-        </div>
-        <h3 id="actionConfirmModalTitle" class="text-xl font-black text-gray-900 text-center mb-2">Confirm Action</h3>
-        <p id="actionConfirmModalMessage" class="text-sm text-gray-500 text-center mb-8 px-2 font-medium leading-relaxed"></p>
-        <div class="flex gap-3">
-          <button onclick="closeActionConfirmModal()"
-            class="flex-1 py-3 border border-gray-100 rounded-xl font-bold text-gray-400 hover:bg-gray-50 text-sm transition active:scale-95">Cancel</button>
-          <button id="actionConfirmModalBtn" onclick="executeActionConfirm()"
-            class="flex-1 py-3 bg-gray-900 text-white rounded-xl font-bold text-sm transition shadow-lg shadow-gray-200">Confirm</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Custom Reject Modal -->
-    <div id="modalRejectContainer" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] items-center justify-center p-4">
-      <div class="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl scale-up-center">
-        <h3 class="text-xl font-black text-gray-900 mb-2">Reject Return</h3>
-        <p class="text-xs font-medium text-gray-400 mb-6">Explain the reason for rejecting this return request.</p>
-        
-        <textarea id="modalRejectReason" rows="4" 
-          class="w-full bg-gray-50 border border-gray-100 rounded-2xl p-4 text-sm focus:ring-2 focus:ring-red-100 outline-none resize-none mb-6"
-          placeholder="e.g. Returned item was damaged or missing parts..."></textarea>
-          
-        <div class="flex gap-3">
-          <button onclick="closeRejectModal()"
-            class="flex-1 py-3 border border-gray-100 rounded-xl font-bold text-gray-400 hover:bg-gray-50 text-sm transition">Cancel</button>
-          <button onclick="submitRejectRequest()"
-            class="flex-1 py-3 bg-red-600 text-white rounded-xl font-bold text-sm transition shadow-lg shadow-red-100">Confirm Reject</button>
-        </div>
-      </div>
-    </div>
 
     <style>
       .scale-up-center { animation: scale-up-center 0.2s cubic-bezier(0.390, 0.575, 0.565, 1.000) both; }

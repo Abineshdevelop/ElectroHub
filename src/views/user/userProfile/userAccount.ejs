@@ -554,8 +554,6 @@
   <form id="cropForm" action="/user/profile/avatar" method="POST" enctype="multipart/form-data" class="hidden">
     <input type="file" id="croppedFile" name="avatar" />
   </form>
-
-  <%- include('../partials/layout-scripts') %>
 <script>
 
 function showToast(msg, type = 'error') {
@@ -724,10 +722,24 @@ document.getElementById('editProfileForm').addEventListener('submit', async e =>
   }
 });
 
+function liveValidateProfileName(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const v = el.value.trim();
+  const errId = id + 'Err';
+  if (!v) { clearErr(errId); return; }
+  if (!nameRegex.test(v)) {
+    setErr(errId, 'Only letters allowed — no numbers or symbols');
+    return;
+  }
+  clearErr(errId);
+}
+
 ['firstName', 'lastName'].forEach(id => {
   const el = document.getElementById(id);
   if (!el) return;
-  el.addEventListener('input', () => clearErr(id + 'Err'));
+  el.addEventListener('input', () => liveValidateProfileName(id));
+  el.addEventListener('blur', () => liveValidateProfileName(id));
   el.addEventListener('keypress', e => { if (!/[A-Za-z ]/.test(e.key)) e.preventDefault(); });
 });
 
@@ -957,7 +969,20 @@ document.getElementById('verifyOtpBtn')?.addEventListener('click', async () => {
 });
 
 // Clear field error on input
-document.getElementById('newEmail')?.addEventListener('input', () => clearErr('newEmailErr'));
+document.getElementById('newEmail')?.addEventListener('input', () => {
+  const email = document.getElementById('newEmail').value.trim();
+  const currentEmail = (document.getElementById('emailDisplay')?.value || '').trim().toLowerCase();
+  if (!email) { clearErr('newEmailErr'); return; }
+  if (!emailRegex.test(email)) {
+    setErr('newEmailErr', 'Enter a valid email address');
+    return;
+  }
+  if (email.toLowerCase() === currentEmail) {
+    setErr('newEmailErr', 'New email must be different from your current email');
+    return;
+  }
+  clearErr('newEmailErr');
+});
 
 let pResend = 3, pAttempts = 0, pLocked = false, pSending = false;
 let pTimer = null, pOtp = null;
@@ -1165,9 +1190,37 @@ document.getElementById('verifyPasswordOtpBtn')?.addEventListener('click', async
   }
 });
 
-['currentPassword','newPasswordPw','confirmPasswordPw'].forEach(id =>
-  document.getElementById(id)?.addEventListener('input', () => clearErr(id + 'Err'))
-);
+function liveValidatePasswordField() {
+  const cur  = document.getElementById('currentPassword')?.value.trim() || '';
+  const nw   = document.getElementById('newPasswordPw')?.value.trim() || '';
+  const conf = document.getElementById('confirmPasswordPw')?.value.trim() || '';
+
+  if (cur) clearErr('currentPasswordErr');
+
+  if (!nw) clearErr('newPasswordPwErr');
+  else if (nw.length >= 6) clearErr('newPasswordPwErr');
+  else setErr('newPasswordPwErr', 'Minimum 6 characters required');
+
+  if (!conf) clearErr('confirmPasswordPwErr');
+  else if (nw && conf === nw) clearErr('confirmPasswordPwErr');
+  else if (nw && conf !== nw) setErr('confirmPasswordPwErr', 'Passwords do not match');
+  else clearErr('confirmPasswordPwErr');
+}
+
+['currentPassword','newPasswordPw','confirmPasswordPw'].forEach(id => {
+  document.getElementById(id)?.addEventListener('input', liveValidatePasswordField);
+  document.getElementById(id)?.addEventListener('blur', liveValidatePasswordField);
+});
+
+document.getElementById('emailOtpBoxes')?.addEventListener('input', () => {
+  clearErr('emailOtpErr');
+  eOtp?.clearError();
+}, true);
+
+document.getElementById('pwOtpBoxes')?.addEventListener('input', () => {
+  clearErr('passwordOtpErr');
+  pOtp?.clearError();
+}, true);
 
 let cropInst;
 
@@ -1237,5 +1290,6 @@ document.getElementById('cropSave').onclick = async () => {
 };
 </script>
 
+  <%- include('../partials/footer') %>
 </body>
 </html>

@@ -54,18 +54,18 @@ export async function addAddress(req, res, next) {
       !country ||
       !pincode
     ) {
-      throw AppError(400, "All fields are required");
+      throw new AppError(400, "All fields are required");
     }
 
     const phoneRegex = /^\d{10}$/;
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
     if (!phoneRegex.test(phone)) {
-      throw AppError(400, "Invalid phone number");
+      throw new AppError(400, "Invalid phone number");
     }
 
     if (!emailRegex.test(email)) {
-      throw AppError(400, "Invalid email address");
+      throw new AppError(400, "Invalid email address");
     }
 
     await Address.create({
@@ -114,21 +114,14 @@ export async function deleteAddress(req, res, next) {
     const address = await Address.findOne({ _id: addressId, userId });
 
     if (!address) {
-      throw AppError(404, "Address not found");
+      throw new AppError(404, "Address not found");
     }
 
     await Address.deleteOne({ _id: addressId, userId });
 
-    // Log remaining addresses after delete
-    const remaining = await Address.find({ userId }).lean();
-    console.log(
-      "Remaining after delete:",
-      remaining.map((a) => ({ id: a._id, isDefault: a.isDefault })),
-    );
-
     return res.json({ success: true });
   } catch (err) {
-    next(404);
+    next(err);
   }
 }
 
@@ -170,14 +163,14 @@ export async function updateAddress(req, res, next) {
       !country ||
       !pincode
     ) {
-      throw AppError(400, "All fields are required");
+      throw new AppError(400, "All fields are required");
     }
 
     const phoneRegex = /^\d{10}$/;
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-    if (!phoneRegex.test(phone)) throw AppError(400, "Invalid phone number");
-    if (!emailRegex.test(email)) throw AppError(400, "Invalid email address");
+    if (!phoneRegex.test(phone)) throw new AppError(400, "Invalid phone number");
+    if (!emailRegex.test(email)) throw new AppError(400, "Invalid email address");
     const updated = await Address.findOneAndUpdate(
       { _id: addressId, userId },
       {
@@ -194,7 +187,7 @@ export async function updateAddress(req, res, next) {
       { returnDocument: "after" },
     );
 
-    if (!updated) throw AppError(404, "Address not found");
+    if (!updated) throw new AppError(404, "Address not found");
     return res.json({ success: true });
   } catch (err) {
     next(err);

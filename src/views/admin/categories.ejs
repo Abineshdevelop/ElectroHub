@@ -7,6 +7,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css"/>
+  <style>
+    .crop-overlay { position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:9997;display:flex;align-items:center;justify-content:center; }
+  </style>
+  <%- include('./layout/admin-ui') %>
 </head>
 <body class="bg-gray-100">
 
@@ -125,26 +130,41 @@
             <% categories.forEach(cat => { %>
                 
               <tr class="hover:bg-gray-50 transition" data-id="<%= cat._id %>">
-                <td class="px-5 py-3.5 font-medium text-gray-800"><%= cat.categoryName %></td>
+                <td class="px-5 py-3.5 font-medium text-gray-800">
+                  <div class="flex items-center gap-3">
+                    <% if (cat.image) { %>
+                      <img src="<%= cat.image %>" alt="<%= cat.categoryName %>" class="w-10 h-10 object-cover rounded shadow-sm">
+                    <% } else { %>
+                      <div class="w-10 h-10 bg-gray-100 rounded flex items-center justify-center shadow-sm">
+                        <i class="bi bi-image text-gray-400"></i>
+                      </div>
+                    <% } %>
+                    <span><%= cat.categoryName %></span>
+                  </div>
+                </td>
                 <td class="px-5 py-3.5 text-gray-600"><%= cat.createdAt.toISOString().split('T')[0] %></td>
                 <td class="px-5 py-3.5">
                   <% if (cat.isActive) { %>
-                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
-                      <span class="w-1.5 h-1.5 rounded-full bg-green-500 mr-1.5"></span>Active
-                    </span>
+                    <span class="status-pill status-pill-active">Active</span>
                   <% } else { %>
-                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">
-                      <span class="w-1.5 h-1.5 rounded-full bg-red-500 mr-1.5"></span>Inactive
-                    </span>
+                    <span class="status-pill status-pill-inactive">Inactive</span>
                   <% } %>
                 </td>
                 <td class="px-5 py-3.5">
-                  <div class="flex items-center gap-2 text-sm font-medium text-blue-600">
-                    <button onclick="openViewModal('<%= cat._id %>')" class="hover:text-blue-800 transition">View</button>
-                    <span class="text-gray-300">|</span>
-                    <button onclick="openForm('edit','<%= cat._id %>')" class="hover:text-blue-800 transition">Edit</button>
-                    <span class="text-gray-300">|</span>
-                    <button onclick="openDeleteConfirm('<%= cat._id %>','<%= cat.categoryName %>')" class="text-red-500 hover:text-red-700 transition">Delete</button>
+                  <div class="action-btns text-sm font-medium">
+                    <button onclick="openViewModal('<%= cat._id %>')" class="text-blue-600 hover:text-blue-800">View</button>
+                    <span class="sep">|</span>
+                    <button onclick="openForm('edit','<%= cat._id %>')" class="text-blue-600 hover:text-blue-800">Edit</button>
+                    <span class="sep">|</span>
+                    <span id="toggleWrap_<%= cat._id %>">
+                      <% if (cat.isActive) { %>
+                        <button type="button" class="admin-btn-block" onclick="toggleCategory('<%= cat._id %>', true, <%= JSON.stringify(cat.categoryName) %>)">Block</button>
+                      <% } else { %>
+                        <button type="button" class="admin-btn-unblock" onclick="toggleCategory('<%= cat._id %>', false, <%= JSON.stringify(cat.categoryName) %>)">Unblock</button>
+                      <% } %>
+                    </span>
+                    <span class="sep">|</span>
+                    <button onclick="openDeleteConfirm('<%= cat._id %>','<%= cat.categoryName %>')" class="admin-btn-delete">Delete</button>
                   </div>
                 </td>
               </tr>
@@ -223,6 +243,18 @@
               <div class="flex justify-end mt-1">
                 <p class="text-xs text-gray-400"><span id="descCount">0</span>/200</p>
               </div>
+            </div>
+
+            <div class="mb-4">
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">
+                Category Image <span class="text-red-500">*</span>
+              </label>
+              <input id="fImage" type="file" accept="image/*" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200 transition cursor-pointer"/>
+              <div class="flex items-center gap-3 mt-3">
+                <img id="fImagePreview" class="w-16 h-16 object-cover rounded shadow-sm hidden" alt="Category Image Preview"/>
+                <button type="button" id="removeImageBtn" class="text-xs font-semibold text-red-500 hover:text-red-700 hidden" onclick="removeImage()">Remove</button>
+              </div>
+              <p id="imageErr" class="text-red-500 text-xs mt-1 hidden"></p>
             </div>
 
             <div>
@@ -341,12 +373,34 @@
   </div>
 </div>
 
+<!-- CROP MODAL -->
+<div id="cropOverlay" class="crop-overlay hidden">
+  <div class="bg-white rounded-2xl p-5 w-full max-w-lg mx-4 shadow-2xl">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="font-semibold text-gray-900 flex items-center gap-2">
+        <i class="bi bi-crop text-gray-600"></i> Crop Image
+      </h3>
+      <button type="button" onclick="closeCropModal()" class="text-gray-400 hover:text-gray-700"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div class="bg-gray-100 rounded-xl overflow-hidden" style="max-height:360px">
+      <img id="cropImg" src="" alt="" style="max-width:100%;display:block"/>
+    </div>
+    <div class="flex gap-2 mt-4 justify-end">
+      <button type="button" onclick="skipCrop()" class="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">Skip</button>
+      <button type="button" onclick="applyCrop()" class="px-5 py-2 bg-gray-800 hover:bg-gray-900 text-white rounded-lg text-sm font-semibold">
+        <i class="bi bi-check-lg mr-1"></i>Crop & Use
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- TOAST -->
 <div id="toast" class="fixed top-[72px] right-5 z-[9999] hidden items-center gap-3 px-5 py-3.5 rounded-xl shadow-xl text-white text-sm font-medium min-w-[220px] max-w-xs">
   <i id="toastIcon" class="text-lg shrink-0"></i>
   <span id="toastMsg" class="leading-snug"></span>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
 <script>
 // ══════════════════════════════════
 //  SEARCH / SORT / PAGINATION
@@ -450,20 +504,31 @@ function renderTable(cats) {
   tbody.innerHTML = cats.map(cat => {
     const date  = new Date(cat.createdAt).toISOString().split('T')[0];
     const badge = cat.isActive
-      ? `<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700"><span class="w-1.5 h-1.5 rounded-full bg-green-500 mr-1.5"></span>Active</span>`
-      : `<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700"><span class="w-1.5 h-1.5 rounded-full bg-red-500 mr-1.5"></span>Inactive</span>`;
+      ? `<span class="status-pill status-pill-active">Active</span>`
+      : `<span class="status-pill status-pill-inactive">Inactive</span>`;
+    const imageHtml = cat.image 
+      ? `<img src="${cat.image}" alt="${escHtml(cat.categoryName)}" class="w-10 h-10 object-cover rounded shadow-sm">`
+      : `<div class="w-10 h-10 bg-gray-100 rounded flex items-center justify-center shadow-sm"><i class="bi bi-image text-gray-400"></i></div>`;
+      
     return `
       <tr class="hover:bg-gray-50 transition" data-id="${cat._id}">
-        <td class="px-5 py-3.5 font-medium text-gray-800">${escHtml(cat.categoryName)}</td>
+        <td class="px-5 py-3.5 font-medium text-gray-800">
+          <div class="flex items-center gap-3">
+            ${imageHtml}
+            <span>${escHtml(cat.categoryName)}</span>
+          </div>
+        </td>
         <td class="px-5 py-3.5 text-gray-600">${date}</td>
         <td class="px-5 py-3.5">${badge}</td>
         <td class="px-5 py-3.5">
-          <div class="flex items-center gap-2 text-sm font-medium text-blue-600">
-            <button onclick="openViewModal('${cat._id}')" class="hover:text-blue-800 transition">View</button>
-            <span class="text-gray-300">|</span>
-            <button onclick="openForm('edit','${cat._id}')" class="hover:text-blue-800 transition">Edit</button>
-            <span class="text-gray-300">|</span>
-            <button onclick="openDeleteConfirm('${cat._id}','${escHtml(cat.categoryName)}')" class="text-red-500 hover:text-red-700 transition">Delete</button>
+          <div class="action-btns text-sm font-medium">
+            <button onclick="openViewModal('${cat._id}')" class="text-blue-600 hover:text-blue-800">View</button>
+            <span class="sep">|</span>
+            <button onclick="openForm('edit','${cat._id}')" class="text-blue-600 hover:text-blue-800">Edit</button>
+            <span class="sep">|</span>
+            <span id="toggleWrap_${cat._id}">${categoryToggleBtnHtml(cat._id, cat.isActive, cat.categoryName)}</span>
+            <span class="sep">|</span>
+            <button onclick="openDeleteConfirm('${cat._id}','${escHtml(cat.categoryName)}')" class="admin-btn-delete">Delete</button>
           </div>
         </td>
       </tr>`;
@@ -487,9 +552,14 @@ function renderPagination(current, total) {
 // ══════════════════════════════════
 //  FORM STATE
 // ══════════════════════════════════
-let _editingId   = null;
-let _specRows    = [];
-let _variantRows = [];
+let _editingId        = null;
+let _specRows         = [];
+let _variantRows      = [];
+let _cropperInst      = null;
+let _cropFile         = null;
+let _croppedImageFile = null;
+let _imageRemoved     = false;
+let _hasExistingImage = false;
 
 document.getElementById('fCatName').addEventListener('input', function () {
   this.value = this.value.replace(/[^a-zA-Z &\-\/]/g, '');
@@ -499,6 +569,78 @@ document.getElementById('fCatName').addEventListener('input', function () {
 document.getElementById('fDescription').addEventListener('input', function () {
   document.getElementById('descCount').textContent = this.value.length;
 });
+document.getElementById('fImage').addEventListener('change', function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  this.value = '';
+  startCropForImage(file);
+});
+
+function startCropForImage(file) {
+  _cropFile = file;
+  const img = document.getElementById('cropImg');
+  img.src = URL.createObjectURL(file);
+  document.getElementById('cropOverlay').classList.remove('hidden');
+  if (_cropperInst) { _cropperInst.destroy(); _cropperInst = null; }
+  img.onload = () => {
+    _cropperInst = new Cropper(img, {
+      aspectRatio: 1,
+      viewMode: 1,
+      autoCropArea: 0.9,
+      movable: true,
+      zoomable: true
+    });
+  };
+}
+
+function applyCrop() {
+  if (!_cropperInst) return;
+  _cropperInst.getCroppedCanvas({ maxWidth: 800, maxHeight: 800 }).toBlob(blob => {
+    const file = new File([blob], _cropFile.name, { type: 'image/jpeg' });
+    const url = URL.createObjectURL(blob);
+    _croppedImageFile = file;
+    _imageRemoved = false;
+    
+    const preview = document.getElementById('fImagePreview');
+    preview.src = url;
+    preview.classList.remove('hidden');
+    document.getElementById('removeImageBtn').classList.remove('hidden');
+    clearFieldError('fImage', 'imageErr');
+    
+    closeCropModal();
+  }, 'image/jpeg', 0.92);
+}
+
+function skipCrop() {
+  _croppedImageFile = _cropFile;
+  _imageRemoved = false;
+  const url = URL.createObjectURL(_cropFile);
+  
+  const preview = document.getElementById('fImagePreview');
+  preview.src = url;
+  preview.classList.remove('hidden');
+  document.getElementById('removeImageBtn').classList.remove('hidden');
+  clearFieldError('fImage', 'imageErr');
+  
+  closeCropModal();
+}
+
+function closeCropModal() {
+  document.getElementById('cropOverlay').classList.add('hidden');
+  if (_cropperInst) { _cropperInst.destroy(); _cropperInst = null; }
+}
+
+function removeImage() {
+  _croppedImageFile = null;
+  _imageRemoved = true;
+  _hasExistingImage = false;
+  
+  const preview = document.getElementById('fImagePreview');
+  preview.src = '';
+  preview.classList.add('hidden');
+  document.getElementById('removeImageBtn').classList.add('hidden');
+  document.getElementById('fImage').value = '';
+}
 
 function setFieldError(inputId, errId, msg) {
   const el = document.getElementById(inputId);
@@ -525,7 +667,16 @@ function openForm(mode, id = null) {
   document.getElementById('nameCount').textContent = '0';
   document.getElementById('descCount').textContent = '0';
   document.getElementById('statusActive').checked  = true;
+  document.getElementById('fImage').value = '';
+  document.getElementById('fImagePreview').classList.add('hidden');
+  document.getElementById('fImagePreview').src = '';
+  document.getElementById('removeImageBtn').classList.add('hidden');
   clearFieldError('fCatName', 'nameErr');
+  clearFieldError('fImage', 'imageErr');
+
+  _croppedImageFile = null;
+  _imageRemoved = false;
+  _hasExistingImage = false;
 
   if (mode === 'create') {
     _specRows    = [];
@@ -555,6 +706,14 @@ function openForm(mode, id = null) {
 
         if (cat.isActive) document.getElementById('statusActive').checked   = true;
         else              document.getElementById('statusInactive').checked = true;
+        
+        if (cat.image) {
+          const preview = document.getElementById('fImagePreview');
+          preview.src = cat.image;
+          preview.classList.remove('hidden');
+          document.getElementById('removeImageBtn').classList.remove('hidden');
+          _hasExistingImage = true;
+        }
 
         _specRows = (cat.specificationsConfig || []).map(s => ({
           name: s.name || '', required: !!s.required,
@@ -763,6 +922,14 @@ function validateForm() {
   if (!name) { setFieldError('fCatName', 'nameErr', 'Category name is required.'); showToast('Category name is required.', 'error'); document.getElementById('fCatName').focus(); return false; }
   if (!/^[a-zA-Z &\-\/]+$/.test(name)) { setFieldError('fCatName', 'nameErr', 'Category name must contain letters only — no numbers.'); showToast('Category name must contain letters only.', 'error'); return false; }
 
+  const hasImage = _croppedImageFile || (_hasExistingImage && !_imageRemoved);
+  if (!hasImage) {
+    setFieldError('fImage', 'imageErr', 'Category image is required.');
+    showToast('Category image is required.', 'error');
+    return false;
+  }
+  clearFieldError('fImage', 'imageErr');
+
   const specNames = [];
   for (let i = 0; i < _specRows.length; i++) {
     const sName = (_specRows[i].name || '').trim();
@@ -826,6 +993,7 @@ function validateForm() {
 // ══════════════════════════════════
 async function submitForm() {
   clearFieldError('fCatName', 'nameErr');
+  clearFieldError('fImage', 'imageErr');
   if (!validateForm()) return;
   const name = document.getElementById('fCatName').value.trim();
   const description = document.getElementById('fDescription').value.trim();
@@ -836,10 +1004,23 @@ async function submitForm() {
   const cleanVariantsData = _variantRows.map(v => v.usesSuffix
     ? { variantName: v.variantName.trim(), usesSuffix: true, plainValues: [], suffixes: (v.suffixes || []).map(s => ({ unit: (s.unit || '').trim().toUpperCase(), values: (s.values || []).map(x => (x || '').trim()).filter(Boolean) })) }
     : { variantName: v.variantName.trim(), usesSuffix: false, plainValues: (v.plainValues || []).map(x => (x || '').trim()).filter(Boolean), suffixes: [] });
+  
+  const formData = new FormData();
+  formData.append('categoryName', name);
+  formData.append('description', description);
+  formData.append('isActive', isActive);
+  formData.append('specificationsConfig', JSON.stringify(cleanSpecsData));
+  formData.append('variantOptions', JSON.stringify(cleanVariantsData));
+  formData.append('imageRemoved', _imageRemoved);
+  
+  if (_croppedImageFile) {
+    formData.append('image', _croppedImageFile);
+  }
+
   try {
     const url = _editingId ? `/admin/category/${_editingId}/edit` : '/admin/category/create';
     const method = _editingId ? 'PUT' : 'POST';
-    const res = await fetch(url, { method, credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ categoryName: name, description, isActive, specificationsConfig: cleanSpecsData, variantOptions: cleanVariantsData }) });
+    const res = await fetch(url, { method, credentials: 'include', body: formData });
     const data = await res.json();
     if (data.success) {
       showToast(data.message || (_editingId ? 'Category updated!' : 'Category created!'), 'success');
@@ -847,6 +1028,7 @@ async function submitForm() {
     } else {
       showToast(data.message || 'Something went wrong.', 'error');
       if (data.message?.toLowerCase().includes('name')) setFieldError('fCatName', 'nameErr', data.message);
+      if (data.message?.toLowerCase().includes('image')) setFieldError('fImage', 'imageErr', data.message);
       btn.disabled = false; lbl.textContent = _editingId ? 'Save Changes' : 'Create Category';
     }
   } catch (err) {
@@ -865,8 +1047,8 @@ function openViewModal(id) {
     document.getElementById('viewModalTitle').textContent = cat.categoryName;
     document.getElementById('viewEditBtn').onclick = () => { closeViewModal(); openForm('edit', cat._id); };
     const statusBadge = cat.isActive
-      ? `<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700"><span class="w-1.5 h-1.5 rounded-full bg-green-500 mr-1.5"></span>Active</span>`
-      : `<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700"><span class="w-1.5 h-1.5 rounded-full bg-red-500 mr-1.5"></span>Inactive</span>`;
+      ? `<span class="status-pill status-pill-active">Active</span>`
+      : `<span class="status-pill status-pill-inactive">Inactive</span>`;
     let html = `<div class="grid grid-cols-2 gap-4 pb-3 border-b border-gray-100">
       <div><p class="text-xs text-gray-400 uppercase tracking-wide mb-1">Added Date</p><p class="font-semibold text-gray-800">${date}</p></div>
       <div><p class="text-xs text-gray-400 uppercase tracking-wide mb-1">Status</p>${statusBadge}</div>
@@ -882,6 +1064,40 @@ function openViewModal(id) {
   }).catch(() => showToast('Failed to load category.', 'error'));
 }
 function closeViewModal() { hideModal('viewModal'); }
+
+// ══════════════════════════════════
+//  TOGGLE STATUS
+// ══════════════════════════════════
+function categoryToggleBtnHtml(id, isActive, name) {
+  const safe = JSON.stringify(name ?? '');
+  return isActive
+    ? `<button type="button" class="admin-btn-block" onclick="toggleCategory('${id}', true, ${safe})">Block</button>`
+    : `<button type="button" class="admin-btn-unblock" onclick="toggleCategory('${id}', false, ${safe})">Unblock</button>`;
+}
+
+async function toggleCategory(id, isCurrentlyActive, name) {
+  const action = isCurrentlyActive ? 'block' : 'unblock';
+  if (!confirm(`${action.charAt(0).toUpperCase() + action.slice(1)} category "${name}"?`)) return;
+  try {
+    const res  = await fetch(`/admin/category/${id}/toggle`, { method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' } });
+    const data = await res.json();
+    if (!data.success) { showToast(data.message || 'Update failed.', 'error'); return; }
+    const row = document.querySelector(`tr[data-id="${id}"]`);
+    if (row) {
+      const statusCell = row.cells[2];
+      if (statusCell) {
+        statusCell.innerHTML = data.isActive
+          ? '<span class="status-pill status-pill-active">Active</span>'
+          : '<span class="status-pill status-pill-inactive">Inactive</span>';
+      }
+      const wrap = document.getElementById(`toggleWrap_${id}`);
+      if (wrap) wrap.innerHTML = categoryToggleBtnHtml(id, data.isActive, name);
+    }
+    showToast(data.message || 'Status updated.', 'success');
+  } catch {
+    showToast('Network error. Please try again.', 'error');
+  }
+}
 
 // ══════════════════════════════════
 //  DELETE

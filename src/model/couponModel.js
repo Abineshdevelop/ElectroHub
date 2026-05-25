@@ -60,6 +60,23 @@ const couponSchema = new mongoose.Schema(
         ref: "User",
       },
     ],
+    usageLimit: {
+      type: Number,
+      default: 0, // 0 means unlimited
+      min: 0,//prevent negative value 
+    },
+    eligibleCategories: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Category",
+      }
+    ],
+    eligibleProducts: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Product",
+      }
+    ],
     isDeleted: {
       type: Boolean,
       default: false,

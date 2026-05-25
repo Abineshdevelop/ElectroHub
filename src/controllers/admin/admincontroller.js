@@ -1,28 +1,24 @@
 import Order from "../../model/orderModel.js";
 import User from "../../model/usermodel.js";
 import { AppError } from "../../errors/appError.js";
-import * as reportService from "../../services/reportService.js";
+import {
+  resolveDateRange,
+  summarizeKpisFromOrders,
+  buildChartSeriesFromOrders,
+  buildSalesReportPayload,
+  buildDashboardGroupedCounts,
+  classifyOrderBucket,
+} from "../../services/salesRevenueService.js";
+import {
+  generateSalesPDFReport,
+  generateSalesExcelReport,
+} from "../../services/salesReportExportService.js";
 
 const getDashboardMatch = (filter) => {
-  const now = new Date();
-  let dateMatch = {};
-  if (filter === 'daily') {
-    const start = new Date(); start.setHours(0,0,0,0);
-    dateMatch.createdAt = { $gte: start };
-  } else if (filter === 'weekly') {
-    const start = new Date(); start.setDate(now.getDate() - 7);
-    dateMatch.createdAt = { $gte: start };
-  } else if (filter === 'monthly') {
-    const start = new Date(now.getFullYear(), now.getMonth(), 1);
-    dateMatch.createdAt = { $gte: start };
-  } else if (filter === 'yearly') {
-    const start = new Date(now.getFullYear(), 0, 1);
-    dateMatch.createdAt = { $gte: start };
-  }
-
-  return { 
-      orderStatus: { $nin: ['cancelled', 'returned', 'return_requested', 'expired'] },
-      ...dateMatch
+  const range = resolveDateRange({ filterType: filter });
+  return {
+    orderStatus: { $nin: ["expired"] },
+    ...range.mongoMatch,
   };
 };
 
@@ -69,34 +65,14 @@ export const adminDashboard = async (req, res) => {
   try {
     if (!req.session.admin) return res.redirect("/admin/login");
 
-    const filter = req.query.filter || 'monthly';
+    const filter = req.query.filter || "monthly";
     const baseMatch = getDashboardMatch(filter);
-    
-    // 1. KPI Aggregations (Filtered)
-    const kpiPromise = Order.aggregate([
-      { $match: baseMatch },
-      { $group: {
-          _id: null,
-          totalRevenue: { 
-            $sum: {
-              $cond: [
-                { $or: [
-                  { $eq: ["$orderStatus", "delivered"] },
-                  { $and: [
-                    { $eq: ["$paymentStatus", "paid"] },
-                    { $not: [{ $in: ["$orderStatus", ["cancelled", "returned", "return_requested", "return_rejected"]] }] }
-                  ]}
-                ]},
-                "$totalAmount",
-                0
-              ]
-            }
-          },
-          totalOrders: { $sum: 1 }
-      }}
-    ]);
 
-    // 2. Status Counts (Overall)
+    const ordersForKpiPromise = Order.find(baseMatch)
+      .populate("userId", "firstName lastName email")
+      .lean();
+
+    // Status Counts (Overall)
     const statusCountsPromise = Order.aggregate([
       { $group: {
           _id: "$orderStatus",
@@ -106,42 +82,10 @@ export const adminDashboard = async (req, res) => {
 
     const userCountPromise = User.countDocuments({ deletedAt: null, isAdmin: false });
 
-    // 3. Chart Data Aggregation (Revenue Trend Analysis)
-    let dateGroup = "%Y-%m-%d"; 
-    if (filter === 'yearly')      dateGroup = "%Y";
-    else if (filter === 'monthly') dateGroup = "%Y-%m";
-    else if (filter === 'weekly')  dateGroup = "Week %U"; // Better label for weekly
-
-    const chartDataPromise = Order.aggregate([
-      { $match: baseMatch },
-      { $group: {
-          _id:     { $dateToString: { format: dateGroup, date: "$createdAt" } },
-          revenue: { 
-            $sum: {
-              $cond: [
-                { $or: [
-                  { $eq: ["$orderStatus", "delivered"] },
-                  { $and: [
-                    { $eq: ["$paymentStatus", "paid"] },
-                    { $not: [{ $in: ["$orderStatus", ["cancelled", "returned", "return_requested", "return_rejected"]] }] }
-                  ]}
-                ]},
-                "$totalAmount",
-                0
-              ]
-            }
-          },
-          count:   { $sum: 1 }
-      }},
-      { $sort: { "_id": 1 } },
-      { $limit: 12 }
-    ]);
-
-    // 4. Top 10 Best Sellers (Filtered)
     const topProductsPromise = Order.aggregate([
       { $match: baseMatch },
       { $unwind: "$items" },
-      { $match: { "items.status": { $nin: ['cancelled', 'returned', 'return_requested'] } } },
+      { $match: { "items.status": "delivered" } },
       { $group: {
           _id:   "$items.productId",
           name:  { $first: "$items.productName" },
@@ -154,7 +98,7 @@ export const adminDashboard = async (req, res) => {
     const topCategoriesPromise = Order.aggregate([
       { $match: baseMatch },
       { $unwind: "$items" },
-      { $match: { "items.status": { $nin: ['cancelled', 'returned', 'return_requested'] } } },
+      { $match: { "items.status": "delivered" } },
       { $lookup: {
           from: "products",
           localField: "items.productId",
@@ -181,7 +125,7 @@ export const adminDashboard = async (req, res) => {
     const topBrandsPromise = Order.aggregate([
       { $match: baseMatch },
       { $unwind: "$items" },
-      { $match: { "items.status": { $nin: ['cancelled', 'returned', 'return_requested'] } } },
+      { $match: { "items.status": "delivered" } },
       { $lookup: {
           from: "products",
           localField: "items.productId",
@@ -203,38 +147,30 @@ export const adminDashboard = async (req, res) => {
       .populate('userId', 'firstName lastName email')
       .lean();
 
-    const [kpis, statusCountsRaw, totalCustomers, chartData, topProducts, topCategories, topBrands, recentOrders] = await Promise.all([
-      kpiPromise,
+    const [ordersForKpi, statusCountsRaw, totalCustomers, topProducts, topCategories, topBrands, recentOrders] = await Promise.all([
+      ordersForKpiPromise,
       statusCountsPromise,
       userCountPromise,
-      chartDataPromise,
       topProductsPromise,
       topCategoriesPromise,
       topBrandsPromise,
-      recentOrdersPromise
+      recentOrdersPromise,
     ]);
 
-    const kpi = kpis[0] || { totalRevenue: 0, totalOrders: 0 };
+    const kpi = summarizeKpisFromOrders(ordersForKpi);
+    const chartData = buildChartSeriesFromOrders(ordersForKpi).slice(-12);
     const statusCounts = {};
     statusCountsRaw.forEach(s => statusCounts[s._id] = s.count || 0);
 
-    // Grouping logic for dashboard KPIs
-    const groupedCounts = {
-      completed: statusCounts['delivered'] || 0,
-      closed: statusCounts['cancelled'] || 0,
-      reverse: (statusCounts['returned'] || 0) + (statusCounts['return_requested'] || 0),
-      pending: 0
-    };
+    const groupedCounts = buildDashboardGroupedCounts(ordersForKpi);
 
-    // All other active statuses are "pending" from admin's perspective
-    const nonPending = ['delivered', 'cancelled', 'returned', 'return_requested', 'expired'];
-    Object.keys(statusCounts).forEach(s => {
-      if (!nonPending.includes(s)) {
-        groupedCounts.pending += statusCounts[s];
-      }
-    });
+    const recentOrdersEnriched = recentOrders.map((o) => ({
+      ...o,
+      dashboardBucket: classifyOrderBucket(o),
+    }));
 
-    const aov = kpi.totalOrders > 0 ? (kpi.totalRevenue / kpi.totalOrders) : 0;
+    const deliveredOrderCount = kpi.deliveredOrders || groupedCounts.completed || 0;
+    const aov = deliveredOrderCount > 0 ? (kpi.totalRevenue / deliveredOrderCount) : 0;
 
     res.render("admin/auth/dashboard", {
       title: "Admin Dashboard",
@@ -248,7 +184,7 @@ export const adminDashboard = async (req, res) => {
       topProducts,
       topCategories,
       topBrands,
-      recentOrders,
+      recentOrders: recentOrdersEnriched,
       currentFilter: filter
     });
 
@@ -268,21 +204,20 @@ export const logoutAdmin = (req, res) => {
 
 export const downloadPDF = async (req, res) => {
   try {
-    const filter = req.query.filter || 'monthly';
+    const filter = req.query.filter || "monthly";
     const match = getDashboardMatch(filter);
-    const orders = await Order.find(match).populate('userId', 'firstName lastName').sort({ createdAt: -1 }).limit(10).lean();
-    
-    const data = orders.map(o => ({
-      orderId: o.orderId,
-      customer: `${o.userId?.firstName || ''} ${o.userId?.lastName || ''}`,
-      date: new Date(o.createdAt).toLocaleDateString('en-IN'),
-      status: o.orderStatus,
-      paymentMethod: o.paymentMethod,
-      products: o.items.map(i => `${i.productName} - ${i.quantity} qty`).join('\n'),
-      revenue: o.totalAmount
-    }));
-
-    await reportService.generatePDFReport(res, data, 'ElectroHub_Dashboard_Report', 'Dashboard Recent Transactions');
+    const orders = await Order.find(match)
+      .populate("userId", "firstName lastName email")
+      .sort({ createdAt: -1 })
+      .lean();
+    const dateRange = resolveDateRange({ filterType: filter });
+    const payload = buildSalesReportPayload(orders, {
+      dateRange,
+      generatedBy: req.session.admin?.email || "Admin",
+    });
+    payload.meta.title = "Dashboard Sales Report";
+    const stamp = new Date().toISOString().split("T")[0];
+    generateSalesPDFReport(res, payload, `ElectroHub_Dashboard_Report_${stamp}`);
   } catch (err) {
     console.error("Dashboard PDF error:", err);
     res.status(500).send("Failed to generate PDF");
@@ -291,21 +226,20 @@ export const downloadPDF = async (req, res) => {
 
 export const downloadExcel = async (req, res) => {
   try {
-    const filter = req.query.filter || 'monthly';
+    const filter = req.query.filter || "monthly";
     const match = getDashboardMatch(filter);
-    const orders = await Order.find(match).populate('userId', 'firstName lastName').sort({ createdAt: -1 }).limit(10).lean();
-    
-    const data = orders.map(o => ({
-      orderId: o.orderId,
-      customer: `${o.userId?.firstName || ''} ${o.userId?.lastName || ''}`,
-      date: new Date(o.createdAt).toLocaleDateString('en-IN'),
-      status: o.orderStatus,
-      paymentMethod: o.paymentMethod,
-      products: o.items.map(i => `${i.productName} - ${i.quantity} qty`).join('\n'),
-      revenue: o.totalAmount
-    }));
-
-    await reportService.generateExcelReport(res, data, 'ElectroHub_Dashboard_Report');
+    const orders = await Order.find(match)
+      .populate("userId", "firstName lastName email")
+      .sort({ createdAt: -1 })
+      .lean();
+    const dateRange = resolveDateRange({ filterType: filter });
+    const payload = buildSalesReportPayload(orders, {
+      dateRange,
+      generatedBy: req.session.admin?.email || "Admin",
+    });
+    payload.meta.title = "Dashboard Sales Report";
+    const stamp = new Date().toISOString().split("T")[0];
+    await generateSalesExcelReport(res, payload, `ElectroHub_Dashboard_Report_${stamp}`);
   } catch (err) {
     console.error("Dashboard Excel error:", err);
     res.status(500).send("Failed to generate Excel");

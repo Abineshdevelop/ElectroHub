@@ -41,9 +41,9 @@
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
         <!-- Total Revenue -->
         <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 transition hover:shadow-md text-center md:text-left">
-          <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Total Revenue</p>
-          <h2 class="text-xl font-bold text-gray-900">₹<%= kpi.totalRevenue.toLocaleString('en-IN') %></h2>
-          <div class="mt-3 text-[10px] font-bold text-gray-400 italic">AOV: ₹<%= Math.round(aov).toLocaleString('en-IN') %></div>
+          <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Net Revenue</p>
+          <h2 class="text-xl font-bold text-green-700">₹<%= kpi.totalRevenue.toLocaleString('en-IN') %></h2>
+          <div class="mt-3 text-[10px] font-bold text-gray-400 italic">Delivered items only · AOV: ₹<%= Math.round(aov).toLocaleString('en-IN') %></div>
         </div>
 
         <!-- Completed (Delivered) -->
@@ -189,17 +189,37 @@
                       <th class="px-6 py-3 uppercase">Customer</th>
                       <th class="px-6 py-3 uppercase">Date</th>
                       <th class="px-6 py-3 uppercase">Status</th>
-                      <th class="px-6 py-3 uppercase text-right">Revenue</th>
+                      <th class="px-6 py-3 uppercase text-right">Net Revenue</th>
                   </tr>
               </thead>
               <tbody class="divide-y">
-                  <% recentOrders.forEach(o => { %>
+                  <% recentOrders.forEach(o => {
+                    let gross = 0, refund = Math.round(o.refundAmount||0);
+                    (o.items||[]).forEach(it => {
+                      const amt = Math.round(it.finalAmount ?? it.lineTotal ?? (it.unitPrice*it.quantity) ?? 0);
+                      if (it.status === 'delivered') gross += amt;
+                    });
+                    if (!refund) {
+                      (o.items||[]).forEach(it => {
+                        if (['returned','return_requested'].includes(it.status)) refund += Math.round(it.finalAmount ?? it.lineTotal ?? 0);
+                      });
+                    }
+                    const net = Math.max(0, gross - Math.min(refund, gross));
+                  %>
                   <tr class="hover:bg-gray-50 transition">
                       <td class="px-6 py-4 font-bold text-gray-900"><%= o.orderId %></td>
                       <td class="px-6 py-4 text-gray-600 italic font-medium"><%= o.userId?.firstName %> <%= o.userId?.lastName %></td>
                       <td class="px-6 py-4 text-gray-500 font-mono"><%= new Date(o.createdAt).toLocaleDateString('en-IN') %></td>
-                      <td class="px-6 py-4"><span class="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-tighter <%= o.orderStatus==='delivered'?'bg-green-100 text-green-700':'bg-blue-100 text-blue-700' %>"><%= o.orderStatus %></span></td>
-                      <td class="px-6 py-4 text-right font-bold">₹<%= o.totalAmount.toLocaleString('en-IN') %></td>
+                      <% const bucketStyles = {
+                        delivered: ['bg-green-100 text-green-700', 'Delivered'],
+                        pending: ['bg-amber-100 text-amber-700', 'Pending'],
+                        cancelled: ['bg-gray-100 text-gray-600', 'Cancelled'],
+                        returned: ['bg-red-100 text-red-700', 'Returned'],
+                      };
+                      const [bucketCls, bucketLabel] = bucketStyles[o.dashboardBucket] || ['bg-blue-100 text-blue-700', (o.orderStatus||'').replace(/_/g,' ')];
+                      %>
+                      <td class="px-6 py-4"><span class="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-tighter <%= bucketCls %>"><%= bucketLabel %></span></td>
+                      <td class="px-6 py-4 text-right font-bold text-green-700">₹<%= net.toLocaleString('en-IN') %></td>
                   </tr>
                   <% }) %>
                   <% if (recentOrders.length === 0) { %><tr><td colspan="5" class="px-6 py-10 text-center text-gray-400 italic">No orders found.</td></tr><% } %>

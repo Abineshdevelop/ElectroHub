@@ -181,10 +181,7 @@
       </button>
     </div>
   </div>
-
-  <%- include('../partials/layout-scripts') %>
-
-  <script>
+<script>
     function showToast(msg, type = 'success') {
       const icons = { success:'bi-check-circle-fill', error:'bi-x-circle-fill', info:'bi-info-circle-fill', warn:'bi-exclamation-triangle-fill' };
       const t = document.createElement('div');
@@ -289,5 +286,6 @@
       if (e.target === this) this.classList.remove('show');
     });
   </script>
+  <%- include('../partials/footer') %>
 </body>
 </html>

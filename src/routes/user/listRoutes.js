@@ -4,7 +4,7 @@ import { isUserLoggedIn } from "../../middlewares/userMiddleware.js"
 
 const router = express.Router()
 
-router.get("/user/list/max-price", getMaxPrice)
+router.get("/list/max-price", getMaxPrice)
 router.get("/list", getProductListingPage)
 router.post('/wishlist/toggle', isUserLoggedIn, toggleWishlist);
 

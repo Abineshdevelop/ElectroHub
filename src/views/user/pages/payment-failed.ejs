@@ -71,10 +71,20 @@
                 <% } %>
               </div>
               <div class="flex-1 min-w-0">
-                <p class="font-semibold text-gray-800 truncate text-sm"><%= item.productName || 'Product' %></p>
-                <% if (item.variantAttributes && Object.keys(item.variantAttributes).length > 0) { %>
+                <p class="font-semibold text-gray-800 truncate text-sm">
+                  <% if (item.productId && item.productId.brandName) { %>
+                    <span class="text-[9px] font-bold text-red-500 uppercase tracking-widest block mb-0.5"><%= item.productId.brandName %></span>
+                  <% } %>
+                  <%= item.productName || 'Product' %>
+                </p>
+                <% 
+                  const attributes = (item.variantAttributes && Object.keys(item.variantAttributes).length > 0)
+                    ? item.variantAttributes
+                    : (item.variantId && item.variantId.options ? item.variantId.options : null);
+                %>
+                <% if (attributes) { %>
                   <p class="text-xs text-gray-400 mt-0.5">
-                    <%= Object.entries(item.variantAttributes).map(([k,v]) => `${k}: ${v}`).join(' · ') %>
+                    <%= Object.entries(attributes).map(([k,v]) => `${k}: ${v}`).join(' · ') %>
                   </p>
                 <% } %>
                 <p class="text-xs text-gray-400 mt-0.5">Qty: <%= item.quantity %></p>
@@ -114,7 +124,6 @@
     </p>
 
   </main>
-
-  <%- include('../partials/layout-scripts') %>
+  <%- include('../partials/footer') %>
 </body>
 </html>

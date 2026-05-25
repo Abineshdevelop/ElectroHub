@@ -78,5 +78,22 @@ export const uploadBanner = multer({
   limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
 });
 
+// ══════════════════════════════════════════════════════════════
+//  CATEGORY upload  →  src/public/uploads/category/
+// ══════════════════════════════════════════════════════════════
+const categoryPath = path.join(__dirname, "../public/uploads/category");
+ensureDir(categoryPath);
+
+const categoryStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, categoryPath),
+  filename:    (req, file, cb) => cb(null, uniqueFilename(file)),
+});
+
+export const uploadCategory = multer({
+  storage:    categoryStorage,
+  fileFilter,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
+});
+
 // ── default export is profile upload
 export default upload;

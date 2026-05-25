@@ -160,22 +160,22 @@
               <div class="space-y-4">
                 <% orders.forEach(order=> {
                   const sMap = {
-                  confirmed: { label:'Confirmed', dot:'bg-blue-500', cls:'bg-blue-100 text-blue-700' },
-                  shipped: { label:'Shipped', dot:'bg-purple-500', cls:'bg-purple-100 text-purple-700' },
-                  delivered: { label:'Delivered', dot:'bg-green-500', cls:'bg-green-100 text-green-700' },
-                  cancelled: { label:'Cancelled', dot:'bg-red-500', cls:'bg-red-100 text-red-600' },
-                  partially_cancelled: { label:'Partial Cancel', dot:'bg-orange-500', cls:'bg-orange-100 text-orange-700' },
-                  returned: { label:'Returned', dot:'bg-gray-400', cls:'bg-gray-100 text-gray-600' },
-                  pending: { label:'Pending', dot:'bg-orange-500', cls:'bg-orange-100 text-orange-700' },
-                  return_rejected: { label:'Return Rejected', dot:'bg-red-500', cls:'bg-red-100 text-red-600' },
+                  confirmed: { label:'Confirmed', dot:'bg-blue-600', cls:'bg-blue-600' },
+                  shipped: { label:'Shipped', dot:'bg-indigo-600', cls:'bg-indigo-600' },
+                  delivered: { label:'Delivered', dot:'bg-green-600', cls:'bg-green-600' },
+                  cancelled: { label:'Cancelled', dot:'bg-red-600', cls:'bg-red-600' },
+                  partially_cancelled: { label:'Partial Cancel', dot:'bg-orange-600', cls:'bg-orange-600' },
+                  returned: { label:'Returned', dot:'bg-gray-600', cls:'bg-gray-600' },
+                  pending: { label:'Pending', dot:'bg-gray-400', cls:'bg-gray-600' },
+                  return_rejected: { label:'Return Rejected', dot:'bg-red-600', cls:'bg-red-600' },
                   };
                   const itemStatusMap = {
-                  confirmed: { label:'Confirmed', cls:'bg-blue-100 text-blue-700' },
-                  shipped: { label:'Shipped', cls:'bg-purple-100 text-purple-700' },
-                  delivered: { label:'Delivered', cls:'bg-green-100 text-green-700' },
-                  cancelled: { label:'Cancelled', cls:'bg-red-100 text-red-600' },
-                  returned: { label:'Returned', cls:'bg-gray-100 text-gray-600' },
-                  return_rejected: { label:'Return Rejected', cls:'bg-red-100 text-red-600' },
+                  confirmed: { label:'Confirmed', cls:'bg-blue-600' },
+                  shipped: { label:'Shipped', cls:'bg-indigo-600' },
+                  delivered: { label:'Delivered', cls:'bg-green-600' },
+                  cancelled: { label:'Cancelled', cls:'bg-red-600' },
+                  returned: { label:'Returned', cls:'bg-gray-600' },
+                  return_rejected: { label:'Return Rejected', cls:'bg-red-600' },
                   };
                   let s = sMap[order.orderStatus] || { label: order.orderStatus, dot:'bg-gray-400', cls:'bg-gray-100 text-gray-600' };
                   if (order.paymentStatus === 'failed') {
@@ -212,12 +212,6 @@
                         </div>
                       </div>
                       <div class="flex items-center gap-3">
-                        <div class="flex items-center gap-1.5">
-                          <span class="w-2 h-2 rounded-full <%= s.dot %>"></span>
-                          <span class="text-sm font-semibold text-gray-700">
-                            <%= s.label %>
-                          </span>
-                        </div>
                         <a href="/user/orders/<%= order._id %>"
                           class="bg-gray-900 hover:bg-gray-700 text-white text-xs font-semibold px-5 py-2 rounded-xl transition-colors">
                           View Details
@@ -245,10 +239,18 @@
                           <!-- Product info -->
                           <div class="flex-1 min-w-0">
                             <p class="font-semibold text-sm text-gray-800 truncate">
+                              <% if (item.productId && item.productId.brandName) { %>
+                                <span class="text-[9px] font-bold text-red-500 uppercase tracking-widest block mb-0.5"><%= item.productId.brandName %></span>
+                              <% } %>
                               <%= item.productName %>
                             </p>
                             <p class="text-xs text-gray-400 mt-0.5">
-                              <%= item.variantAttributes ? Object.values(item.variantAttributes).join(' · ') : '' %>
+                              <% 
+                                const attributes = (item.variantAttributes && Object.keys(item.variantAttributes).length > 0)
+                                  ? item.variantAttributes
+                                  : (item.variantId && item.variantId.options ? item.variantId.options : null);
+                              %>
+                              <%= attributes ? Object.entries(attributes).map(([k,v]) => `${k}: ${v}`).join(' · ') : '' %>
                             </p>
                 <div class="flex items-center gap-3 mt-1">
                   <p class="text-xs text-gray-400">Qty: <span class="font-semibold text-gray-600"><%= item.quantity %></span></p>
@@ -257,7 +259,7 @@
                           </div>
                         </div>
                         <!-- Item status badge -->
-                        <span class="text-xs font-semibold px-2.5 py-1 rounded-full flex-shrink-0 <%= is.cls %>">
+                        <span class="inline-flex items-center px-2.5 py-1 rounded flex-shrink-0 text-white font-bold uppercase text-[10px] tracking-widest shadow-sm <%= is.cls %>">
                           <%= is.label %>
                         </span>
                     </div>
@@ -546,7 +548,7 @@
           }
         });
       </script>
-      <%- include('../partials/layout-scripts') %>
+  <%- include('../partials/footer') %>
 </body>
 
 </html>

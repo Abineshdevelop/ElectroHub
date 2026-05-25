@@ -1,141 +1,38 @@
-<!-- Mobile Sidebar Overlay -->
-<div id="sidebar-overlay"
-  class="fixed inset-0 bg-black/40 z-40 md:hidden transition-opacity duration-300">
-</div>
+<%
+  const page = typeof activePage !== 'undefined' ? activePage : '';
+  const name = [user?.firstName, user?.lastName].filter(Boolean).join(' ') || 'ElectroHub User';
+  const avatar = user?.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`;
+  const menu = [
+    ['dashboard', 'Dashboard', '/user/dashboard', 'bi-grid'],
+    ['profile', 'Account Details', '/user/profile', 'bi-person'],
+    ['orders', 'Order History', '/user/orders', 'bi-bag-check'],
+    ['cart', 'Shopping Cart', '/user/cart', 'bi-cart3'],
+    ['wishlist', 'Wishlist', '/user/wishlist', 'bi-heart'],
+    ['address', 'Address', '/user/address', 'bi-geo-alt'],
+    ['wallet', 'Wallet', '/user/wallet', 'bi-wallet2'],
+    ['coupons', 'Coupons', '/user/coupons', 'bi-ticket-perforated']
+  ];
 
-<!-- Mobile Sidebar -->
-<div id="mobile-sidebar"
-  class="fixed top-0 left-0 h-full w-64 bg-white z-50 shadow-2xl flex flex-col md:hidden">
+  const linkClass = (key) => page === key
+    ? 'bg-red-50 text-red-600'
+    : 'text-gray-600 hover:bg-gray-100 hover:text-red-600';
+%>
 
-  <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-    <span class="font-bold text-lg"><span class="text-red-600">⚡</span> ElectroHub</span>
-    <button onclick="closeSidebar()"
-      class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition">
-      <i class="bi bi-x-lg text-gray-600"></i>
-    </button>
-  </div>
-
-  <div class="flex items-center gap-3 px-5 py-4 border-b border-gray-100 bg-gray-50">
-    <% if (user?.profileImage) { %>
-      <img src="<%= user.profileImage %>"
-        class="rounded-full w-11 h-11 shrink-0 object-cover" alt="Profile">
-    <% } else { %>
-      <img src="https://ui-avatars.com/api/?name=<%= user?.firstName %>+<%= user?.lastName %>&background=random"
-        class="rounded-full w-11 h-11 shrink-0" alt="Profile">
-    <% } %>
-    <div>
-      <p class="font-bold text-sm text-gray-900 leading-tight"><%= user?.firstName %> <%= user?.lastName %></p>
-      <p class="text-xs text-gray-400"><%= user?.email || '' %></p>
-    </div>
-  </div>
-
-  <nav class="flex flex-col gap-0.5 px-3 py-4 flex-1 overflow-y-auto">
-    <a href="/user/dashboard" onclick="closeSidebar()"
-      class="flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm
-      <%= activePage === 'dashboard' ? 'bg-red-50 text-red-600' : 'text-gray-600 hover:bg-gray-50 hover:text-red-600 transition-all duration-200' %>">
-      <i class="bi bi-grid text-base"></i> Dashboard
-    </a>
-    <a href="/user/profile" onclick="closeSidebar()"
-      class="flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm
-      <%= activePage === 'profile' ? 'bg-red-50 text-red-600' : 'text-gray-600 hover:bg-gray-50 hover:text-red-600 transition-all duration-200' %>">
-      <i class="bi bi-person text-base"></i> Account Details
-    </a>
-    <a href="/user/orders" onclick="closeSidebar()"
-      class="flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm
-      <%= activePage === 'orders' ? 'bg-red-50 text-red-600' : 'text-gray-600 hover:bg-gray-50 hover:text-red-600 transition-all duration-200' %>">
-      <i class="bi bi-bag-check text-base"></i> Order History
-    </a>
-    <a href="/user/cart" onclick="closeSidebar()"
-      class="flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm
-      <%= activePage === 'cart' ? 'bg-red-50 text-red-600' : 'text-gray-600 hover:bg-gray-50 hover:text-red-600 transition-all duration-200' %>">
-      <i class="bi bi-cart3 text-base"></i> Shopping Cart
-    </a>
-    <a href="/user/wishlist" onclick="closeSidebar()"
-      class="flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm
-      <%= activePage === 'wishlist' ? 'bg-red-50 text-red-600' : 'text-gray-600 hover:bg-gray-50 hover:text-red-600 transition-all duration-200' %>">
-      <i class="bi bi-heart text-base"></i> Wishlist
-    </a>
-    <a href="/user/address" onclick="closeSidebar()"
-      class="flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm
-      <%= activePage === 'address' ? 'bg-red-50 text-red-600' : 'text-gray-600 hover:bg-gray-50 hover:text-red-600 transition-all duration-200' %>">
-      <i class="bi bi-geo-alt text-base"></i> Address
-    </a>
-    <a href="/user/wallet" onclick="closeSidebar()"
-      class="flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm
-      <%= activePage === 'wallet' ? 'bg-red-50 text-red-600' : 'text-gray-600 hover:bg-gray-50 hover:text-red-600 transition-all duration-200' %>">
-      <i class="bi bi-wallet2 text-base"></i> Wallet
-    </a>
-    <a href="/user/coupons" onclick="closeSidebar()"
-      class="flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm
-      <%= activePage === 'coupons' ? 'bg-red-50 text-red-600' : 'text-gray-600 hover:bg-gray-50 hover:text-red-600 transition-all duration-200' %>">
-      <i class="bi bi-ticket-perforated text-base"></i> Coupons
-    </a>
-  </nav>
-
-  <div class="px-3 pb-5 border-t border-gray-100 pt-3">
-    <a href="/user/logout" onclick="closeSidebar()"
-      class="flex items-center gap-3 px-4 py-3 rounded-xl text-red-500 hover:bg-red-50 transition">
-      <i class="bi bi-power"></i> Logout
-    </a>
-  </div>
-</div>
-
-<!-- Desktop Sidebar -->
 <aside class="hidden md:flex flex-col w-56 lg:w-60 shrink-0 bg-gray-50 border-r border-gray-100 p-6 sidebar-desktop">
   <div class="text-center mb-8">
     <div class="inline-block p-1 bg-white rounded-full shadow mb-3">
-      <% if (user?.profileImage) { %>
-        <img src="<%= user.profileImage %>"
-          class="rounded-full w-16 h-16 object-cover" alt="Profile">
-      <% } else { %>
-        <img src="https://ui-avatars.com/api/?name=<%= user?.firstName %>+<%= user?.lastName %>&background=random"
-          class="rounded-full w-16 h-16" alt="Profile">
-      <% } %>
+      <img src="<%= avatar %>" class="rounded-full w-16 h-16 object-cover" alt="Profile">
     </div>
-    <h6 class="font-bold text-gray-900 text-sm"><%= user?.firstName %> <%= user?.lastName %></h6>
+    <h6 class="font-bold text-gray-900 text-sm"><%= name %></h6>
   </div>
 
   <nav class="flex flex-col gap-1 flex-1">
-    <a href="/user/dashboard"
-      class="flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm
-      <%= activePage === 'dashboard' ? 'bg-red-50 text-red-600' : 'text-gray-600 hover:bg-gray-100 hover:text-red-600 transition-all duration-200' %>">
-      <i class="bi bi-grid text-base"></i> Dashboard
-    </a>
-    <a href="/user/profile"
-      class="flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm
-      <%= activePage === 'profile' ? 'bg-red-50 text-red-600' : 'text-gray-600 hover:bg-gray-100 hover:text-red-600 transition-all duration-200' %>">
-      <i class="bi bi-person text-base"></i> Account Details
-    </a>
-    <a href="/user/orders"
-      class="flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm
-      <%= activePage === 'orders' ? 'bg-red-50 text-red-600' : 'text-gray-600 hover:bg-gray-100 hover:text-red-600 transition-all duration-200' %>">
-      <i class="bi bi-bag-check text-base"></i> Order History
-    </a>
-    <a href="/user/cart"
-      class="flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm
-      <%= activePage === 'cart' ? 'bg-red-50 text-red-600' : 'text-gray-600 hover:bg-gray-100 hover:text-red-600 transition-all duration-200' %>">
-      <i class="bi bi-cart3 text-base"></i> Shopping Cart
-    </a>
-    <a href="/user/wishlist"
-      class="flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm
-      <%= activePage === 'wishlist' ? 'bg-red-50 text-red-600' : 'text-gray-600 hover:bg-gray-100 hover:text-red-600 transition-all duration-200' %>">
-      <i class="bi bi-heart text-base"></i> Wishlist
-    </a>
-    <a href="/user/address"
-      class="flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm
-      <%= activePage === 'address' ? 'bg-red-50 text-red-600' : 'text-gray-600 hover:bg-gray-100 hover:text-red-600 transition-all duration-200' %>">
-      <i class="bi bi-geo-alt text-base"></i> Address
-    </a>
-    <a href="/user/wallet"
-      class="flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm
-      <%= activePage === 'wallet' ? 'bg-red-50 text-red-600' : 'text-gray-600 hover:bg-gray-100 hover:text-red-600 transition-all duration-200' %>">
-      <i class="bi bi-wallet2 text-base"></i> Wallet
-    </a>
-    <a href="/user/coupons"
-      class="flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm
-      <%= activePage === 'coupons' ? 'bg-red-50 text-red-600' : 'text-gray-600 hover:bg-gray-100 hover:text-red-600 transition-all duration-200' %>">
-      <i class="bi bi-ticket-perforated text-base"></i> Coupons
-    </a>
+    <% menu.forEach(([key, label, href, icon]) => { %>
+      <a href="<%= href %>"
+        class="flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm transition-all <%= linkClass(key) %>">
+        <i class="bi <%= icon %> text-base"></i> <%= label %>
+      </a>
+    <% }) %>
   </nav>
 
   <div class="mt-6 pt-4 border-t border-gray-200">

@@ -4,12 +4,11 @@ import * as customersController from "../../controllers/admin/customersControlle
 import { isAdminLoggedIn, isAdminLoggedOut } from "../../middlewares/adminAuth.js";
 import { getCategories, createCategory, getCategoryById, updateCategory, toggleCategoryStatus, deleteCategory } from "../../controllers/admin/categoriescontroller.js";
 import { getProducts, getProductById, createProduct, updateProduct, deleteProduct, toggleProductsStauts, toggleVariantStatus } from '../../controllers/admin/productsController.js';
-import { uploadProduct } from '../../middlewares/uploads.js';
+import { uploadCategory, uploadBanner, uploadProduct } from '../../middlewares/uploads.js';
 import { getCoupons, getCouponById, createCoupon, editCoupon, deleteCoupon, toggleCoupon } from '../../controllers/admin/couponController.js';
 import { getOffersPage,getOfferById, searchProducts, searchCategories, createOffer, editOffer, toggleOffer, deleteOffer } from "../../controllers/admin/offersController.js";
 import { getBannersPage, getBannerById, createBanner, editBanner,  toggleBanner, deleteBanner} from "../../controllers/admin/bannerController.js";
-import { uploadBanner } from "../../middlewares/uploads.js";
-import { getOrders, getOrderDetail, updateOrderStatus, deleteOrder, updateItemStatus, approveReturn, rejectReturn } from '../../controllers/admin/orderController.js'
+import { getOrders, getOrderDetail, deleteOrder, updateItemStatus, approveReturn, rejectReturn } from '../../controllers/admin/orderController.js'
 import * as salesController from "../../controllers/admin/salesReportController.js";
 
 const router = express.Router();
@@ -31,9 +30,9 @@ router.patch ("/customers/:id/unblock", isAdminLoggedIn, customersController.unb
 router.delete("/customers/:id/delete",  isAdminLoggedIn, customersController.deleteUser);
 
 router.get   ("/category",            isAdminLoggedIn, getCategories);
-router.post  ("/category/create",     isAdminLoggedIn, createCategory);
+router.post  ("/category/create",     isAdminLoggedIn, uploadCategory.single('image'), createCategory);
 router.get   ("/category/:id",        isAdminLoggedIn, getCategoryById);
-router.put   ("/category/:id/edit",   isAdminLoggedIn, updateCategory);
+router.put   ("/category/:id/edit",   isAdminLoggedIn, uploadCategory.single('image'), updateCategory);
 router.patch ("/category/:id/toggle", isAdminLoggedIn, toggleCategoryStatus);
 router.delete("/category/:id/delete", isAdminLoggedIn, deleteCategory);
 
@@ -70,7 +69,6 @@ router.delete('/banners/:id/delete', isAdminLoggedIn, deleteBanner);
 
 router.get   ('/orders',             isAdminLoggedIn, getOrders);
 router.get   ('/orders/:id',         isAdminLoggedIn, getOrderDetail);
-router.patch ('/orders/:id/status',  isAdminLoggedIn, updateOrderStatus);
 router.patch ('/orders/:id/return/approve', isAdminLoggedIn, approveReturn);
 router.patch ('/orders/:id/return/reject',  isAdminLoggedIn, rejectReturn);
 router.delete('/orders/:id/delete',  isAdminLoggedIn, deleteOrder);
@@ -78,4 +76,3 @@ router.patch('/orders/:id/items/:itemId/status', isAdminLoggedIn, updateItemStat
 
 
 export default router;
-

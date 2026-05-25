@@ -122,10 +122,7 @@
             <% } %>
         </main>
     </div>
-
-    <%- include('../partials/layout-scripts') %>
-    
-    <script>
+<script>
         async function copyCouponCode(code, btn) {
             try {
                 await navigator.clipboard.writeText(code);
@@ -138,5 +135,6 @@
             }
         }
     </script>
+  <%- include('../partials/footer') %>
 </body>
 </html>

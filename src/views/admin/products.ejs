@@ -34,32 +34,53 @@
     .copy-banner { animation: slideDown 0.25s ease; }
     @keyframes slideDown { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:translateY(0); } }
 
-    #productTableBody tr td,
-    #productTableBody tr th { overflow: hidden; }
-    .col-expand  { width: 40px;  min-width: 40px;  max-width: 40px; }
-    .col-product { width: 230px; min-width: 230px; }
-    .col-cat     { width: 110px; min-width: 110px; max-width: 110px; }
-    .col-price   { width: 100px; min-width: 100px; max-width: 100px; }
-    .col-stock   { width: 90px;  min-width: 90px;  max-width: 90px; }
-    .col-status  { width: 90px;  min-width: 90px;  max-width: 90px; }
-    .col-actions { width: 210px; min-width: 210px; max-width: 210px; }
+    .products-table-wrap { overflow-x: auto; }
+    .products-table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: auto;
+    }
+    .products-table thead th {
+      vertical-align: middle;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #6b7280;
+      background: #f9fafb;
+      border-bottom: 1px solid #e5e7eb;
+      white-space: nowrap;
+    }
+    .products-table tbody tr.product-row {
+      border-bottom: 1px solid #e5e7eb;
+      transition: background-color 0.15s;
+    }
+    .products-table tbody tr.product-row:hover { background: #f9fafb; }
+    .products-table tbody tr.product-row:last-of-type { border-bottom: 1px solid #e5e7eb; }
+    .products-table td,
+    .products-table th { vertical-align: middle; padding-top: 12px; padding-bottom: 12px; }
+    .products-table .col-expand { width: 44px; text-align: center; }
+    .products-table .col-product { min-width: 200px; width: 28%; }
+    .products-table .col-cat { min-width: 100px; width: 14%; }
+    .products-table .col-price { min-width: 90px; width: 11%; white-space: nowrap; }
+    .products-table .col-stock { min-width: 80px; width: 10%; white-space: nowrap; }
+    .products-table .col-status { min-width: 88px; width: 10%; }
+    .products-table .col-actions { min-width: 240px; width: 17%; }
+    .products-table td.col-cat,
+    .products-table td.col-product .product-name-cell { overflow: hidden; text-overflow: ellipsis; }
+    .products-table td.col-actions { overflow: visible; white-space: nowrap; }
+    .products-table .expand-btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 28px; height: 28px; border-radius: 6px; color: #9ca3af;
+      transition: color 0.15s, background 0.15s;
+    }
+    .products-table tr.product-row:hover .expand-btn { color: #4b5563; background: #f3f4f6; }
+    .products-table tr.product-row.open .expand-btn { color: #2563eb; background: #eff6ff; }
 
-    .action-btns { display: inline-flex; align-items: center; white-space: nowrap; width: 100%; }
-    .action-btns .sep { color: #d1d5db; user-select: none; padding: 0 5px; flex-shrink: 0; }
-    .action-btns button { white-space: nowrap; background: none; border: none; padding: 0; cursor: pointer; font-size: 0.875rem; font-weight: 500; flex-shrink: 0; }
-
-    .toggle-btn-wrap { display: inline-block; width: 52px; flex-shrink: 0; text-align: left; }
-    .toggle-btn-wrap button { width: 100%; text-align: left; }
-
-    .variant-toggle-btn-wrap { display: inline-flex; align-items: center; width: 62px; flex-shrink: 0; }
-    .variant-toggle-btn-wrap button { white-space: nowrap; background: none; border: none; padding: 0; cursor: pointer; font-size: 0.75rem; font-weight: 500; width: 100%; text-align: left; }
-
-    /* Variant status badge — inline styles so Tailwind CDN scan is not needed */
-    .vt-badge-active  { display:inline-flex; align-items:center; padding:4px 10px; border-radius:9999px; font-size:0.75rem; font-weight:500; background:#dcfce7; color:#15803d; }
-    .vt-badge-blocked { display:inline-flex; align-items:center; padding:4px 10px; border-radius:9999px; font-size:0.75rem; font-weight:500; background:#fee2e2; color:#b91c1c; }
-    .vt-dot-active    { width:6px; height:6px; border-radius:50%; background:#22c55e; margin-right:6px; display:inline-block; flex-shrink:0; }
-    .vt-dot-blocked   { width:6px; height:6px; border-radius:50%; background:#ef4444; margin-right:6px; display:inline-block; flex-shrink:0; }
+    .variant-status-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .variant-toggle-btn-wrap { display: inline-flex; align-items: center; flex-shrink: 0; }
   </style>
+  <%- include('./layout/admin-ui') %>
 </head>
 <body class="bg-gray-100">
 
@@ -110,32 +131,33 @@
       <!-- Category Tabs -->
       <div class="flex items-center gap-2 mb-5 flex-wrap">
         <button data-cat="" onclick="filterByCategory(this,'')"
-          class="cat-tab px-4 py-2 rounded text-sm font-medium transition border <%= !_activeCat ? 'bg-gray-900 text-white border-gray-900' : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50' %>">
+          class="admin-filter-tab cat-tab <%= !_activeCat ? 'active' : '' %>">
           All Products
         </button>
         <% categories.forEach(cat => { %>
           <button data-cat="<%= cat._id %>" onclick="filterByCategory(this,'<%= cat._id %>')"
-            class="cat-tab px-4 py-2 rounded text-sm font-medium transition border <%= _activeCat===String(cat._id) ? 'bg-gray-900 text-white border-gray-900' : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50' %>">
+            class="admin-filter-tab cat-tab <%= _activeCat===String(cat._id) ? 'active' : '' %>">
             <%= cat.categoryName %>
           </button>
         <% }) %>
       </div>
 
       <!-- Table -->
-      <div class="bg-white rounded shadow overflow-hidden mb-5">
-        <table class="w-full text-sm table-fixed">
+      <div class="bg-white rounded-lg shadow overflow-hidden mb-5 border border-gray-200">
+        <div class="products-table-wrap">
+        <table class="products-table text-sm">
           <thead>
-            <tr class="bg-gray-50 border-b border-gray-200">
-              <th class="col-expand px-3 py-3.5 text-center"><i class="bi bi-chevron-expand text-gray-300 text-xs"></i></th>
-              <th class="col-product text-left px-4 py-3.5 font-semibold text-gray-600">Product</th>
-              <th class="col-cat text-left px-4 py-3.5 font-semibold text-gray-600">Category</th>
-              <th class="col-price text-left px-4 py-3.5 font-semibold text-gray-600">Price From</th>
-              <th class="col-stock text-left px-4 py-3.5 font-semibold text-gray-600">Stock</th>
-              <th class="col-status text-left px-4 py-3.5 font-semibold text-gray-600">Status</th>
-              <th class="col-actions text-left px-4 py-3.5 font-semibold text-gray-600">Actions</th>
+            <tr>
+              <th class="col-expand px-3"></th>
+              <th class="col-product text-left px-4">Product</th>
+              <th class="col-cat text-left px-4">Category</th>
+              <th class="col-price text-left px-4">Price From</th>
+              <th class="col-stock text-left px-4">Stock</th>
+              <th class="col-status text-left px-4">Status</th>
+              <th class="col-actions text-left px-4">Actions</th>
             </tr>
           </thead>
-          <tbody id="productTableBody" class="divide-y divide-gray-100">
+          <tbody id="productTableBody">
             <% if (products.length === 0) { %>
               <tr><td colspan="7" class="px-5 py-12 text-center text-gray-400">
                 <i class="bi bi-box text-3xl block mb-2"></i>No products found.
@@ -147,15 +169,15 @@
                 const totalStock = prod.variants?.length ? prod.variants.reduce((s,v)=>s+(v.stock||0),0) : 0;
                 const mainImage  = prod.variants?.[0]?.images?.[0] || null;
               %>
-              <tr class="hover:bg-gray-50 transition cursor-pointer"
+              <tr class="product-row cursor-pointer"
                 data-product-id="<%= prod._id %>"
                 onclick="toggleVariants('<%= prod._id %>')">
-                <td class="col-expand px-3 py-3.5 text-center">
-                  <i id="arrow_<%= prod._id %>" class="bi bi-chevron-right arrow-icon text-gray-400 text-xs"></i>
+                <td class="col-expand px-3">
+                  <span class="expand-btn" aria-hidden="true"><i id="arrow_<%= prod._id %>" class="bi bi-chevron-right arrow-icon text-sm"></i></span>
                 </td>
-                <td class="col-product px-4 py-3.5">
-                  <div class="flex items-center gap-3">
-                    <div class="w-11 h-11 rounded-lg border border-gray-100 bg-gray-50 flex items-center justify-center overflow-hidden shrink-0">
+                <td class="col-product px-4">
+                  <div class="flex items-center gap-3 min-w-0">
+                    <div class="w-11 h-11 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center overflow-hidden shrink-0">
                       <% if (mainImage) { %>
                         <img src="<%= mainImage %>" alt="" class="w-full h-full object-cover"
                           onerror="this.parentNode.innerHTML='<i class=\'bi bi-image text-gray-300 text-lg\'></i>'"/>
@@ -163,49 +185,45 @@
                         <i class="bi bi-image text-gray-300 text-lg"></i>
                       <% } %>
                     </div>
-                    <div class="min-w-0">
-                      <p class="font-medium text-gray-800 truncate"><%= prod.productName %></p>
-                      <p class="text-xs text-gray-400 truncate"><%= prod.brandName || '' %></p>
+                    <div class="min-w-0 product-name-cell">
+                      <p class="font-semibold text-gray-900 truncate leading-snug"><%= prod.productName %></p>
+                      <% if (prod.brandName) { %><p class="text-xs text-gray-500 truncate mt-0.5"><%= prod.brandName %></p><% } %>
                     </div>
                   </div>
                 </td>
-                <td class="col-cat px-4 py-3.5 text-gray-600 truncate"><%= prod.category?.categoryName || '—' %></td>
-                <td class="col-price px-4 py-3.5 font-medium text-gray-800">₹<%= minPrice.toLocaleString('en-IN') %></td>
-                <td class="col-stock px-4 py-3.5 text-gray-700"><%= totalStock %> units</td>
-                <td class="col-status px-4 py-3.5" data-status-cell>
+                <td class="col-cat px-4 text-gray-600"><span class="block truncate"><%= prod.category?.categoryName || '—' %></span></td>
+                <td class="col-price px-4 font-semibold text-gray-900 tabular-nums">₹<%= minPrice.toLocaleString('en-IN') %></td>
+                <td class="col-stock px-4 text-gray-600 tabular-nums"><%= totalStock %> <span class="text-gray-400">units</span></td>
+                <td class="col-status px-4" data-status-cell>
                   <% if (prod.isActive) { %>
-                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
-                      <span class="w-1.5 h-1.5 rounded-full bg-green-500 mr-1.5"></span>Active
-                    </span>
+                    <span class="status-pill status-pill-active">Active</span>
                   <% } else { %>
-                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">
-                      <span class="w-1.5 h-1.5 rounded-full bg-red-500 mr-1.5"></span>Inactive
-                    </span>
+                    <span class="status-pill status-pill-inactive">Inactive</span>
                   <% } %>
                 </td>
-                <td class="col-actions px-4 py-3.5" onclick="event.stopPropagation()" data-action-cell>
+                <td class="col-actions px-4" onclick="event.stopPropagation()" data-action-cell>
                   <div class="action-btns">
                     <button onclick="openViewModal('<%= prod._id %>')" class="text-blue-600 hover:text-blue-800">View</button>
                     <span class="sep">|</span>
                     <button onclick="openForm('edit','<%= prod._id %>')" class="text-blue-600 hover:text-blue-800">Edit</button>
                     <span class="sep">|</span>
-                    <span class="toggle-btn-wrap" id="toggleWrap_<%= prod._id %>">
+                    <span id="toggleWrap_<%= prod._id %>">
                       <% if (prod.isActive) { %>
-                        <button class="text-yellow-600 hover:text-yellow-800"
+                        <button type="button" class="admin-btn-block"
                           onclick="openProductConfirm('toggle','<%= prod._id %>',true,'<%= prod.productName %>')">Block</button>
                       <% } else { %>
-                        <button class="text-green-600 hover:text-green-800"
+                        <button type="button" class="admin-btn-unblock"
                           onclick="openProductConfirm('toggle','<%= prod._id %>',false,'<%= prod.productName %>')">Unblock</button>
                       <% } %>
                     </span>
                     <span class="sep">|</span>
-                    <button onclick="openDeleteConfirm('<%= prod._id %>','<%= prod.productName %>')" class="text-red-500 hover:text-red-700">Delete</button>
+                    <button onclick="openDeleteConfirm('<%= prod._id %>','<%= prod.productName %>')" class="admin-btn-delete">Delete</button>
                   </div>
                 </td>
               </tr>
 
               <!-- Variant detail row -->
-              <tr id="variantRow_<%= prod._id %>" class="variant-details-row bg-slate-50">
+              <tr id="variantRow_<%= prod._id %>" class="variant-details-row bg-gray-50/80 border-b border-gray-200">
                 <td colspan="7" class="px-6 py-5">
                   <div class="flex items-center gap-2 mb-4">
                     <i class="bi bi-layout-three-columns text-gray-500 text-sm"></i>
@@ -243,18 +261,17 @@
                                   <p class="font-semibold <%= (vt.stock||0)>0?'text-green-700':'text-red-600' %>"><%= vt.stock||0 %> units</p>
                                 </div>
                               </div>
-                              <div class="flex items-center gap-3">
-                                <span id="variantStatusBadge_<%= vt._id %>" class="<%= (vt.isActive !== false) ? 'vt-badge-active' : 'vt-badge-blocked' %>">
-                                  <span class="<%= (vt.isActive !== false) ? 'vt-dot-active' : 'vt-dot-blocked' %>"></span>
-                                  <%= (vt.isActive !== false) ? 'Active' : 'Blocked' %>
+                              <div class="variant-status-row">
+                                <span id="variantStatusBadge_<%= vt._id %>" class="<%= (vt.isActive !== false) ? 'vt-badge-active' : 'vt-badge-inactive' %>">
+                                  <%= (vt.isActive !== false) ? 'Active' : 'Inactive' %>
                                 </span>
                                 <span id="variantToggleBtn_<%= vt._id %>" class="variant-toggle-btn-wrap">
                                   <% if (vt.isActive !== false) { %>
-                                    <button onclick="openVariantConfirm('<%= prod._id %>','<%= vt._id %>',true)"
-                                      class="text-yellow-600 hover:text-yellow-800 transition">Block</button>
+                                    <button type="button" onclick="event.stopPropagation(); openVariantConfirm('<%= prod._id %>','<%= vt._id %>',true)"
+                                      class="vt-btn-block">Block</button>
                                   <% } else { %>
-                                    <button onclick="openVariantConfirm('<%= prod._id %>','<%= vt._id %>',false)"
-                                      class="text-green-600 hover:text-green-800 transition">Unblock</button>
+                                    <button type="button" onclick="event.stopPropagation(); openVariantConfirm('<%= prod._id %>','<%= vt._id %>',false)"
+                                      class="vt-btn-unblock">Unblock</button>
                                   <% } %>
                                 </span>
                               </div>
@@ -271,6 +288,7 @@
             <% }) %>
           </tbody>
         </table>
+        </div>
       </div>
 
       <!-- Pagination -->
@@ -480,11 +498,29 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
 <script>
-// ── helper: build variant badge HTML using pre-defined CSS classes (no Tailwind scan needed) ──
-function vtBadgeHtml(isActive) {
+// ── helper: update variant badge on the outer span (avoid nested badge classes) ──
+function productStatusHtml(isActive) {
   return isActive
-    ? `<span class="vt-badge-active"><span class="vt-dot-active"></span>Active</span>`
-    : `<span class="vt-badge-blocked"><span class="vt-dot-blocked"></span>Blocked</span>`;
+    ? '<span class="status-pill status-pill-active">Active</span>'
+    : '<span class="status-pill status-pill-inactive">Inactive</span>';
+}
+
+function setVariantBadge(el, isActive) {
+  if (!el) return;
+  el.className = isActive ? 'vt-badge-active' : 'vt-badge-inactive';
+  el.textContent = isActive ? 'Active' : 'Inactive';
+}
+
+function variantToggleBtnHtml(productId, variantId, isActive) {
+  return isActive
+    ? `<button type="button" onclick="event.stopPropagation(); openVariantConfirm('${productId}','${variantId}',true)" class="admin-btn-block vt-btn-block">Block</button>`
+    : `<button type="button" onclick="event.stopPropagation(); openVariantConfirm('${productId}','${variantId}',false)" class="admin-btn-unblock vt-btn-unblock">Unblock</button>`;
+}
+
+function productToggleBtnHtml(productId, isActive, name) {
+  return isActive
+    ? `<button type="button" class="admin-btn-block" onclick="openProductConfirm('toggle','${productId}',true,'${name}')">Block</button>`
+    : `<button type="button" class="admin-btn-unblock" onclick="openProductConfirm('toggle','${productId}',false,'${name}')">Unblock</button>`;
 }
 
 let _editingId      = null;
@@ -516,11 +552,17 @@ let _variantIsActive    = null;
 function toggleVariants(productId) {
   const row   = document.getElementById(`variantRow_${productId}`);
   const arrow = document.getElementById(`arrow_${productId}`);
+  const prodRow = document.querySelector(`tr.product-row[data-product-id="${productId}"]`);
   if (!row) return;
   const isOpen = row.classList.contains('open');
   document.querySelectorAll('.variant-details-row.open').forEach(r => r.classList.remove('open'));
   document.querySelectorAll('.arrow-icon.open').forEach(a => a.classList.remove('open'));
-  if (!isOpen) { row.classList.add('open'); arrow.classList.add('open'); }
+  document.querySelectorAll('tr.product-row.open').forEach(r => r.classList.remove('open'));
+  if (!isOpen) {
+    row.classList.add('open');
+    arrow?.classList.add('open');
+    prodRow?.classList.add('open');
+  }
 }
 
 const searchInput       = document.getElementById('searchInput');
@@ -618,8 +660,7 @@ function clearSearch() { searchInput.value = ''; searchSuggestions.classList.add
 function filterByCategory(el, catId) {
   _activeCat = catId;
   document.querySelectorAll('.cat-tab').forEach(btn => {
-    const active = btn.dataset.cat === catId;
-    btn.className = `cat-tab px-4 py-2 rounded text-sm font-medium transition border ${active ? 'bg-gray-900 text-white border-gray-900' : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'}`;
+    btn.classList.toggle('active', btn.dataset.cat === catId);
   });
   fetchProducts(1);
 }
@@ -637,9 +678,7 @@ function renderTable(products) {
     const thumbHtml  = mainImage
       ? `<img src="${escHtml(mainImage)}" class="w-full h-full object-cover" onerror="this.parentNode.innerHTML='<i class=\\'bi bi-image text-gray-300 text-lg\\'></i>'"/>`
       : `<i class="bi bi-image text-gray-300 text-lg"></i>`;
-    const statusBadge = prod.isActive
-      ? `<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700"><span class="w-1.5 h-1.5 rounded-full bg-green-500 mr-1.5"></span>Active</span>`
-      : `<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700"><span class="w-1.5 h-1.5 rounded-full bg-red-500 mr-1.5"></span>Inactive</span>`;
+    const statusBadge = productStatusHtml(prod.isActive);
 
     const variantCards = (prod.variants || []).map(vt => {
       const isVtActive = vt.isActive !== false;
@@ -649,9 +688,7 @@ function renderTable(products) {
         `<div class="w-14 h-14 rounded-lg border-2 overflow-hidden bg-gray-50 ${ii === 0 ? 'border-gray-800' : 'border-gray-200'}">
           <img src="${escHtml(img)}" class="w-full h-full object-cover" onerror="this.parentNode.style.background='#f3f4f6';this.style.display='none'"/>
         </div>`).join('');
-      const vtToggleBtn = isVtActive
-        ? `<button onclick="openVariantConfirm('${prod._id}','${vt._id}',true)" class="text-xs font-medium text-yellow-600 hover:text-yellow-800 transition">Block</button>`
-        : `<button onclick="openVariantConfirm('${prod._id}','${vt._id}',false)" class="text-xs font-medium text-green-600 hover:text-green-800 transition">Unblock</button>`;
+      const vtToggleBtn = variantToggleBtnHtml(prod._id, vt._id, isVtActive);
       return `
         <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm" id="variantCard_${vt._id}">
           <div class="flex gap-4 items-start">
@@ -662,8 +699,8 @@ function renderTable(products) {
                 <div><p class="text-xs text-gray-400 mb-0.5">Price</p><p class="font-semibold text-gray-800">₹${Number(vt.price || 0).toLocaleString('en-IN')}</p></div>
                 <div><p class="text-xs text-gray-400 mb-0.5">Stock</p><p class="font-semibold ${(vt.stock || 0) > 0 ? 'text-green-700' : 'text-red-600'}">${vt.stock || 0} units</p></div>
               </div>
-              <div class="flex items-center gap-3">
-                <span id="variantStatusBadge_${vt._id}">${vtBadgeHtml(isVtActive)}</span>
+              <div class="variant-status-row">
+                <span id="variantStatusBadge_${vt._id}" class="${isVtActive ? 'vt-badge-active' : 'vt-badge-inactive'}">${isVtActive ? 'Active' : 'Inactive'}</span>
                 <span id="variantToggleBtn_${vt._id}" class="variant-toggle-btn-wrap">${vtToggleBtn}</span>
               </div>
             </div>
@@ -672,37 +709,36 @@ function renderTable(products) {
     }).join('');
 
     const vc = (prod.variants || []).length;
+    const brandLine = prod.brandName
+      ? `<p class="text-xs text-gray-500 truncate mt-0.5">${escHtml(prod.brandName)}</p>` : '';
     return `
-      <tr class="hover:bg-gray-50 transition cursor-pointer" data-product-id="${prod._id}" onclick="toggleVariants('${prod._id}')">
-        <td class="col-expand px-3 py-3.5 text-center"><i id="arrow_${prod._id}" class="bi bi-chevron-right arrow-icon text-gray-400 text-xs"></i></td>
-        <td class="col-product px-4 py-3.5">
-          <div class="flex items-center gap-3">
-            <div class="w-11 h-11 rounded-lg border border-gray-100 bg-gray-50 flex items-center justify-center overflow-hidden shrink-0">${thumbHtml}</div>
-            <div class="min-w-0"><p class="font-medium text-gray-800 truncate">${escHtml(prod.productName)}</p><p class="text-xs text-gray-400 truncate">${escHtml(prod.brandName || '')}</p></div>
+      <tr class="product-row cursor-pointer" data-product-id="${prod._id}" onclick="toggleVariants('${prod._id}')">
+        <td class="col-expand px-3"><span class="expand-btn" aria-hidden="true"><i id="arrow_${prod._id}" class="bi bi-chevron-right arrow-icon text-sm"></i></span></td>
+        <td class="col-product px-4">
+          <div class="flex items-center gap-3 min-w-0">
+            <div class="w-11 h-11 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center overflow-hidden shrink-0">${thumbHtml}</div>
+            <div class="min-w-0 product-name-cell"><p class="font-semibold text-gray-900 truncate leading-snug">${escHtml(prod.productName)}</p>${brandLine}</div>
           </div>
         </td>
-        <td class="col-cat px-4 py-3.5 text-gray-600 text-sm truncate">${escHtml(prod.category?.categoryName || '—')}</td>
-        <td class="col-price px-4 py-3.5 font-medium text-gray-800">₹${minPrice.toLocaleString('en-IN')}</td>
-        <td class="col-stock px-4 py-3.5 text-gray-700">${totalStock} units</td>
-        <td class="col-status px-4 py-3.5" data-status-cell>${statusBadge}</td>
-        <td class="col-actions px-4 py-3.5" onclick="event.stopPropagation()" data-action-cell>
+        <td class="col-cat px-4 text-gray-600"><span class="block truncate">${escHtml(prod.category?.categoryName || '—')}</span></td>
+        <td class="col-price px-4 font-semibold text-gray-900 tabular-nums">₹${minPrice.toLocaleString('en-IN')}</td>
+        <td class="col-stock px-4 text-gray-600 tabular-nums">${totalStock} <span class="text-gray-400">units</span></td>
+        <td class="col-status px-4" data-status-cell>${statusBadge}</td>
+        <td class="col-actions px-4" onclick="event.stopPropagation()" data-action-cell>
           <div class="action-btns">
             <button onclick="openViewModal('${prod._id}')" class="text-blue-600 hover:text-blue-800">View</button>
             <span class="sep">|</span>
             <button onclick="openForm('edit','${prod._id}')" class="text-blue-600 hover:text-blue-800">Edit</button>
             <span class="sep">|</span>
-            <span class="toggle-btn-wrap" id="toggleWrap_${prod._id}">
-              ${prod.isActive
-                ? `<button class="text-yellow-600 hover:text-yellow-800" onclick="openProductConfirm('toggle','${prod._id}',true,'${escHtml(prod.productName)}')">Block</button>`
-                : `<button class="text-green-600 hover:text-green-800" onclick="openProductConfirm('toggle','${prod._id}',false,'${escHtml(prod.productName)}')">Unblock</button>`
-              }
+            <span id="toggleWrap_${prod._id}">
+              ${productToggleBtnHtml(prod._id, prod.isActive, escHtml(prod.productName))}
             </span>
             <span class="sep">|</span>
-            <button onclick="openDeleteConfirm('${prod._id}','${escHtml(prod.productName)}')" class="text-red-500 hover:text-red-700">Delete</button>
+            <button onclick="openDeleteConfirm('${prod._id}','${escHtml(prod.productName)}')" class="admin-btn-delete">Delete</button>
           </div>
         </td>
       </tr>
-      <tr id="variantRow_${prod._id}" class="variant-details-row bg-slate-50">
+      <tr id="variantRow_${prod._id}" class="variant-details-row bg-gray-50/80 border-b border-gray-200">
         <td colspan="7" class="px-6 py-5">
           <div class="flex items-center gap-2 mb-4">
             <i class="bi bi-layout-three-columns text-gray-500 text-sm"></i>
@@ -767,16 +803,11 @@ async function toggleVariant(productId, variantId, isCurrentlyActive) {
     if (!data.success) { showToast(data.message || 'Failed.', 'error'); return; }
     const newActive = data.isActive;
 
-    const badgeWrap = document.getElementById(`variantStatusBadge_${variantId}`);
-    if (badgeWrap) {
-      badgeWrap.innerHTML = vtBadgeHtml(newActive);
-    }
+    setVariantBadge(document.getElementById(`variantStatusBadge_${variantId}`), newActive);
 
     const btnWrap = document.getElementById(`variantToggleBtn_${variantId}`);
     if (btnWrap) {
-      btnWrap.innerHTML = newActive
-        ? `<button onclick="openVariantConfirm('${productId}','${variantId}',true)" class="text-xs font-medium text-yellow-600 hover:text-yellow-800 transition">Block</button>`
-        : `<button onclick="openVariantConfirm('${productId}','${variantId}',false)" class="text-xs font-medium text-green-600 hover:text-green-800 transition">Unblock</button>`;
+      btnWrap.innerHTML = variantToggleBtnHtml(productId, variantId, newActive);
     }
     showToast(newActive ? 'Variant unblocked.' : 'Variant blocked.', newActive ? 'success' : 'warning');
   } catch { showToast('Network error.', 'error'); }
@@ -843,15 +874,11 @@ document.getElementById('confirmActionBtn').addEventListener('click', async () =
       if (row) {
         const statusCell = row.querySelector('[data-status-cell]');
         if (statusCell) {
-          statusCell.innerHTML = data.isActive
-            ? `<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700"><span class="w-1.5 h-1.5 rounded-full bg-green-500 mr-1.5"></span>Active</span>`
-            : `<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700"><span class="w-1.5 h-1.5 rounded-full bg-red-500 mr-1.5"></span>Inactive</span>`;
+          statusCell.innerHTML = productStatusHtml(data.isActive);
         }
         const wrap = document.getElementById(`toggleWrap_${pid}`);
         if (wrap) {
-          wrap.innerHTML = data.isActive
-            ? `<button class="text-yellow-600 hover:text-yellow-800" onclick="openProductConfirm('toggle','${pid}',true,'${escHtml(data.productName || '')}')">Block</button>`
-            : `<button class="text-green-600 hover:text-green-800" onclick="openProductConfirm('toggle','${pid}',false,'${escHtml(data.productName || '')}')">Unblock</button>`;
+          wrap.innerHTML = productToggleBtnHtml(pid, data.isActive, escHtml(data.productName || ''));
         }
       }
       showToast(data.isActive ? 'Product unblocked.' : 'Product blocked.', data.isActive ? 'success' : 'warning');
@@ -1327,9 +1354,7 @@ function openViewModal(id) {
       const p = data.product;
       document.getElementById('viewModalTitle').textContent = p.productName;
       document.getElementById('viewEditBtn').onclick = () => { closeViewModal(); openForm('edit', p._id); };
-      const statusBadge = p.isActive
-        ? `<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700"><span class="w-1.5 h-1.5 rounded-full bg-green-500 mr-1.5"></span>Active</span>`
-        : `<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700"><span class="w-1.5 h-1.5 rounded-full bg-red-500 mr-1.5"></span>Inactive</span>`;
+      const statusBadge = productStatusHtml(p.isActive);
       let html = `
         <div class="grid grid-cols-2 gap-4 pb-3 border-b border-gray-100">
           <div><p class="text-xs text-gray-400 uppercase tracking-wide mb-1">Brand</p><p class="font-semibold text-gray-800">${escHtml(p.brandName || '—')}</p></div>

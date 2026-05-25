@@ -202,8 +202,8 @@ export const getRelatedProducts = async (req, res) => {
     });
 
     const normalised = products.map(p => {
-      const pid = String(p._id);
-      const cid = String(p.categoryId);
+      const pid = String(p._id);//productid
+      const cid = String(p.categoryId);//categoryid
 
       const applicableOffer = productOfferMap.get(pid) || categoryOfferMap.get(cid) || null;
       const offerPct        = applicableOffer ? Number(applicableOffer.offerPrecentage) : 0;
@@ -270,8 +270,7 @@ export const getProductDetailPage = async (req, res, next) => {
       .collection("products")
       .findOne({
         _id:       new mongoose.Types.ObjectId(id),
-        isDeleted: { $ne: true },
-        isActive:  { $ne: false },
+        isDeleted: { $ne: true }
       });
 
     if (!product) return res.redirect("/user/list");
@@ -333,10 +332,29 @@ export const getProductDetailPage = async (req, res, next) => {
         : originalPrice;
     });
 
-    let defaultVariant = variants[0] || null;
+    const activeVariants = variants.filter((v) => v.isActive !== false);
+    const isProductBlocked = product.isActive === false;
+    const allVariantsBlocked = variants.length > 0 && activeVariants.length === 0;
+    const isUnavailable = isProductBlocked || allVariantsBlocked || variants.length === 0;
+
+    let unavailableMessage = "This product is currently unavailable.";
+    if (isProductBlocked) {
+      unavailableMessage =
+        "This product is no longer available for purchase. Please browse similar items in our store.";
+    } else if (allVariantsBlocked) {
+      unavailableMessage =
+        "All variants of this product are currently unavailable. Please check back later or explore alternatives.";
+    } else if (variants.length === 0) {
+      unavailableMessage = "No variants are available for this product at the moment.";
+    }
+
+    let defaultVariant = activeVariants[0] || variants[0] || null;
     if (variantQuery) {
-      const found = variants.find(v => v._id === variantQuery);
+      const found = variants.find((v) => v._id === variantQuery);
       if (found) defaultVariant = found;
+    }
+    if (defaultVariant?.isActive === false && activeVariants.length > 0) {
+      defaultVariant = activeVariants[0];
     }
 
     const reviewDocs = await mongoose.connection
@@ -432,6 +450,8 @@ export const getProductDetailPage = async (req, res, next) => {
       activePage:    "list",
       cartVariantIds,
       isWishlisted,
+      isUnavailable,
+      unavailableMessage,
     });
 
   } catch (err) {

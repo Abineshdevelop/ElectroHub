@@ -19,7 +19,7 @@ const calculateCouponDiscount = (coupon, subtotal) => {
   if (coupon.discountType === "percentage") {
     discount = (subtotal * coupon.discountValue) / 100;
     if (coupon.maxDiscountAmount) {
-      discount = Math.min(discount, coupon.maxDiscountAmount);
+      discount = Math.min(discount, coupon.maxDiscountAmount);//min value of discount
     }
   } else {
     discount = Math.min(coupon.discountValue, subtotal);
@@ -35,11 +35,13 @@ export const getCheckoutPage = async (req, res) => {
       return res.redirect("/user/cart");
     }
     const cartItems = await getCartItems(cart);
-    const unavailable = [];
+    const unavailable = [];//check any item is unavaiable that is added in cart
 
     for (const i of cartItems) {
       // check is active and quantity
-      if (!i.product?.isActive) {
+      if (!i.product?.isActive || i.product?.isDeleted) {
+        unavailable.push(i);
+      } else if (i.variant?.isDeleted || i.variant?.isActive === false) {
         unavailable.push(i);
       } else if (i.variant.stock < i.quantity) {
         unavailable.push(i);
@@ -185,21 +187,50 @@ export const applyCoupon = async (req, res) => {
       return res.json({ success: false, message: "Invalid or expired coupon" });
     }
 
+    const alreadyUsed = coupon.usedBy.some(
+      (id) => id.toString() === userId.toString(),
+    );
+
+    if (alreadyUsed) {
+      return res.json({
+        success: false,
+        warning: true,
+        message: "You have already used this coupon",
+      });
+    }
+
     const cart = await Cart.findOne({ userId });
     if (!cart) {
       return res.json({ success: false, message: "Cart not found" });
     }
 
-    //coupon fetch from above
-    const alreadyUsed = coupon.usedBy.some((id)=>id.toString()==userId.toString())
-
-    console.log("Already used",alreadyUsed)
-    if(alreadyUsed){
-      return res.json({success:false ,message: "Coupon Already used"})
+    if (coupon.usageLimit > 0 && coupon.usageCount >= coupon.usageLimit) {
+      return res.json({ success: false, message: "Coupon usage limit reached" });
     }
 
     const cartItems = await getCartItems(cart);
-    const subtotal = cartItems.reduce((sum, i) => sum + i.lineTotal, 0);
+    let subtotal = 0;
+
+    // Check product/category eligibility
+    const hasCategoryRestriction = coupon.eligibleCategories && coupon.eligibleCategories.length > 0;
+    const hasProductRestriction = coupon.eligibleProducts && coupon.eligibleProducts.length > 0;
+
+    cartItems.forEach(item => {
+      let eligible = true;
+      if (hasCategoryRestriction) {
+        eligible = coupon.eligibleCategories.some(cId => cId.toString() === item.product.categoryId.toString());
+      }
+      if (hasProductRestriction && eligible) {
+        eligible = coupon.eligibleProducts.some(pId => pId.toString() === item.productId.toString());
+      }
+      if (eligible) {
+        subtotal += item.lineTotal;
+      }
+    });
+
+    if (subtotal === 0) {
+      return res.json({ success: false, message: "Coupon is not applicable for the items in your cart" });
+    }
 
     if (coupon.minPurchaseAmount && subtotal < coupon.minPurchaseAmount) {
       return res.json({
@@ -214,11 +245,14 @@ export const applyCoupon = async (req, res) => {
     req.session.couponId = coupon._id;
     req.session.couponDiscount = discount;
 
+    // Calculate total cart value to show accurate new total
+    const cartTotal = cartItems.reduce((sum, i) => sum + i.lineTotal, 0);
+
     return res.json({
       success: true,
       message: `Coupon applied! You saved ₹${discount}`,
       discount,
-      newTotal: subtotal - discount,
+      newTotal: cartTotal - discount,
     });
   } catch (err) {
     console.error("applyCoupon error:", err);
@@ -286,7 +320,7 @@ export const placeOrder = async (req, res) => {
     const cartItems = await getCartItems(cart);
 
     for (const item of cartItems) {
-      if (!item.product?.isActive) {
+      if (!item.product?.isActive || item.product?.isDeleted) { //in array
         return res.json({
           success: false,
           message: `"${item.product?.name}" is no longer available`,
@@ -302,6 +336,7 @@ export const placeOrder = async (req, res) => {
     const subtotal = cartItems.reduce((sum, i) => sum + i.lineTotal, 0);
 
     let couponDiscount = 0;
+    let couponSnapshot = null;
     if (req.session.appliedCoupon) {
       const coupon = await Coupon.findOne({
         code: req.session.appliedCoupon,
@@ -310,21 +345,52 @@ export const placeOrder = async (req, res) => {
       });
 
       const isInvalid = !coupon || coupon.endDate < new Date();
-      const belowMinimum =
-        coupon && coupon.minPurchaseAmount && subtotal < coupon.minPurchaseAmount;
+      //whether the coupon is valid or not
+      //which item is eligible for coupon
+      //caculate totalsub for only eligible items
+      let eligibleSubtotal = 0;
+      if (coupon) {
+        const hasCategoryRestriction = coupon.eligibleCategories && coupon.eligibleCategories.length > 0;
+        const hasProductRestriction = coupon.eligibleProducts && coupon.eligibleProducts.length > 0;
 
-      if (isInvalid || belowMinimum) {
+        cartItems.forEach(item => {
+          let eligible = true;
+          if (hasCategoryRestriction) {
+            eligible = coupon.eligibleCategories.some(cId => cId.toString() === item.product.categoryId.toString());
+          }
+          if (hasProductRestriction && eligible) {
+            eligible = coupon.eligibleProducts.some(pId => pId.toString() === item.productId.toString());
+          }
+          if (eligible) {
+            eligibleSubtotal += item.lineTotal;
+          }
+        });
+      }
+
+      const belowMinimum = coupon && coupon.minPurchaseAmount && eligibleSubtotal < coupon.minPurchaseAmount;
+
+      const limitReached = coupon && coupon.usageLimit > 0 && coupon.usageCount >= coupon.usageLimit;
+
+      if (isInvalid || belowMinimum || limitReached) {
         delete req.session.appliedCoupon;
         delete req.session.couponId;
         delete req.session.couponDiscount;
-        return res.json({ success: false, message: "Applied coupon is no longer valid" });
+        return res.json({ success: false, message: "Applied coupon is no longer valid or eligible for your cart" });
       }
 
-      couponDiscount = calculateCouponDiscount(coupon, subtotal);
+      couponDiscount = calculateCouponDiscount(coupon, eligibleSubtotal);
+
+      couponSnapshot = {
+        code: coupon.code,
+        discountType: coupon.discountType,
+        discountValue: coupon.discountValue,
+        minPurchaseAmount: coupon.minPurchaseAmount,
+        maxDiscountAmount: coupon.maxDiscountAmount,
+      };
     }
 
     const total = Math.max(subtotal - couponDiscount, 0);
-    const orderItems = buildOrderItems(cartItems, subtotal, couponDiscount);
+    const orderItems = buildOrderItems(cartItems, subtotal, couponDiscount); //subtotal = total amount sum
 
     if (paymentMethod === "cod") {
       const stockResult = await deductStock(cartItems);
@@ -338,10 +404,13 @@ export const placeOrder = async (req, res) => {
         shippingAddress: formatAddress(selectedAddress),
         couponCode: req.session.appliedCoupon || null,
         couponId:   req.session.couponId   || null,
+        couponSnapshot,
         subtotal,
         discount:      couponDiscount,
+        couponDiscount,
         shipping:      0,
         totalAmount:   total,
+        paidAmount:    total,
         paymentMethod: "cod",
         paymentStatus: "pending",
         orderStatus:   "confirmed",
@@ -388,10 +457,13 @@ export const placeOrder = async (req, res) => {
         shippingAddress: formatAddress(selectedAddress),
         couponCode: req.session.appliedCoupon || null,
         couponId:   req.session.couponId   || null,
+        couponSnapshot,
         subtotal,
         discount:      couponDiscount,
+        couponDiscount,
         shipping:      0,
         totalAmount:   total,
+        paidAmount:    total,
         paymentMethod: "wallet",
         paymentStatus: "paid",
         orderStatus:   "confirmed",
@@ -443,10 +515,13 @@ export const placeOrder = async (req, res) => {
       shippingAddress: formatAddress(selectedAddress),
       couponCode: req.session.appliedCoupon || null,
       couponId:   req.session.couponId   || null,
+      couponSnapshot,
       subtotal,
       discount:        couponDiscount,
+      couponDiscount,
       shipping:        0,
       totalAmount:     total,
+      paidAmount:      total,
       paymentMethod:   "razorpay",
       paymentStatus:   "pending",
       orderStatus:     "pending",
@@ -489,6 +564,7 @@ export const verifyPayment = async (req, res) => {
       return res.json({ success: false, message: "Payment data is missing" });
     }
 
+    //recreate the signature 
     const expected = crypto//using hmac algorithem
       .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
       .update(`${razorpayOrderId}|${razorpayPaymentId}`)
@@ -699,7 +775,8 @@ export const renderPaymentSuccess = async (req, res) => {
 
     if (orderId) {
       order = await Order.findById(orderId)
-        .populate("items.productId", "name images")
+        .populate("items.productId")
+        .populate("items.variantId")
         .lean();
       if (order) amount = order.totalAmount;
     }
@@ -725,7 +802,8 @@ export const renderPaymentFailed = async (req, res) => {
 
     if (orderId) {
       order = await Order.findById(orderId)
-        .populate("items.productId", "name images")
+        .populate("items.productId")
+        .populate("items.variantId")
         .lean();
     }
 
@@ -776,12 +854,12 @@ async function getCartItems(cart) {
 
   for (const cartItem of cart.items) {
     const product = await Product.findById(cartItem.productId)
-      .select("productName images isActive categoryId")
+      .select("productName images isActive isDeleted categoryId")
       .lean();
       console.log(product)
 
     const variant = await Variant.findById(cartItem.variantId)
-      .select("price stock attributes images options isDeleted")
+      .select("price stock images options isActive isDeleted")
       .lean();
 
     if (!product || !variant) continue;
@@ -811,7 +889,12 @@ async function getCartItems(cart) {
 async function checkStock(items) {
   for (const item of items) {
     const variant = await Variant.findById(item.variantId);
-    if (!variant || variant.stock < item.quantity) {
+    if (
+      !variant ||
+      variant.isDeleted ||
+      variant.isActive === false ||
+      variant.stock < item.quantity
+    ) {
       return { ok: false, name: item.product?.name || "Unknown" };
     }
   }
@@ -824,7 +907,7 @@ async function deductStock(items) {//all or nothing if stock dousnot have deduct
     const updated = await Variant.findOneAndUpdate(
       { _id: item.variantId, stock: { $gte: item.quantity } },
       { $inc: { stock: -item.quantity } },
-      { new: true },
+      { returnDocument: "after" },
     );
     if (!updated) {
       for (const done of deducted) {
@@ -864,21 +947,31 @@ function buildOrderItems(cartItems, subtotal, totalCouponDiscount) {
       variantId: item.variantId,
       productName: item.product.name,
       productImage: item.image || "",
-      variantAttributes: item.variant.attributes,
+      variantAttributes: item.variant.options,
       quantity: item.quantity,
       unitPrice: item.unitPrice,
+      originalPrice: item.originalPrice || item.unitPrice,
       lineTotal: item.lineTotal,
       couponDiscount: couponShare,
+      discountShare: couponShare,
       finalAmount: item.lineTotal - couponShare,
+      finalPrice: item.lineTotal - couponShare,
+      paidAmount: item.lineTotal - couponShare,
       status: "pending",
     };
   });
+
+  //This code fixes tiny rounding errors
+  //while splitting coupon discount among products.
 
   const distributed = orderItems.reduce((s, i) => s + i.couponDiscount, 0);
   const diff = totalCouponDiscount - distributed;
   if (diff !== 0 && orderItems.length > 0) {
     orderItems[orderItems.length - 1].couponDiscount += diff;
+    orderItems[orderItems.length - 1].discountShare += diff;
     orderItems[orderItems.length - 1].finalAmount -= diff;
+    orderItems[orderItems.length - 1].finalPrice -= diff;
+    orderItems[orderItems.length - 1].paidAmount -= diff;
   }
 
   return orderItems;

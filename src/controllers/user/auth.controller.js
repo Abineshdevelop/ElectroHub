@@ -195,7 +195,7 @@ export async function verifyOtp(req, res, next) {
     
         return res.status(400).json({
           success: false,
-          code: "LOCKED",          // ✅ send LOCKED not WRONG_OTP when 0 left
+          code: "LOCKED",     //disable button locaked when wrong otp
           attemptsLeft: 0
         });
       }
@@ -205,7 +205,7 @@ export async function verifyOtp(req, res, next) {
       return res.status(400).json({
         success: false,
         code: "WRONG_OTP",
-        attemptsLeft                // ✅ this will be 3,2,1 — never 0
+        attemptsLeft           
       });
     }
 
@@ -417,9 +417,6 @@ export async function logoutUser(req, res) {
   });
 }
 
-export async function loadHomePage(req, res) {
-  res.render("user/home", { user: req.session.user });
-}
 
 export async function loadForgotPassword(req, res) {
   res.render("user/auth/forgot-password");

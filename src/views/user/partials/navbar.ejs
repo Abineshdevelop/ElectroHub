@@ -1,406 +1,484 @@
-<!-- Mobile Sidebar Overlay -->
+<%
+  const isLoggedIn = typeof user !== 'undefined' && user;
+  const userName = isLoggedIn ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : 'Guest User';
+  const navCategories = typeof categories !== 'undefined' ? categories : [];
+%>
+
 <div id="sidebar-overlay" class="fixed inset-0 bg-black/40 z-40 md:hidden"></div>
 
-<!-- Mobile Sidebar -->
 <div id="mobile-sidebar" class="fixed top-0 left-0 h-full w-64 bg-white z-50 shadow-2xl flex flex-col md:hidden">
   <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-    <span class="font-bold text-lg"><span class="text-red-600">⚡</span> ElectroHub</span>
-    <button onclick="closeSidebar()" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition">
+    <span class="font-bold text-lg">ElectroHub</span>
+    <button onclick="closeSidebar()" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100">
       <i class="bi bi-x-lg text-gray-600"></i>
     </button>
   </div>
-  <% if (typeof user !== 'undefined' && user) { %>
+
   <div class="flex items-center gap-3 px-5 py-4 border-b border-gray-100 bg-gray-50">
-    <img src="https://ui-avatars.com/api/?name=<%= user.firstName %>+<%= user.lastName %>&background=random"
-      class="rounded-full w-11 h-11 shrink-0" alt="Profile">
-    <div>
-      <p class="font-bold text-sm text-gray-900 leading-tight"><%= user.firstName %> <%= user.lastName %></p>
-      <p class="text-xs text-gray-400"><%= user.email || '' %></p>
-    </div>
+    <% if (isLoggedIn) { %>
+      <img src="<%= user.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}&background=random` %>"
+        class="rounded-full w-11 h-11 shrink-0 object-cover" alt="Profile">
+      <div>
+        <p class="font-bold text-sm text-gray-900 leading-tight"><%= userName %></p>
+        <p class="text-xs text-gray-400"><%= user.email || '' %></p>
+      </div>
+    <% } else { %>
+      <div class="w-11 h-11 rounded-full bg-gray-200 flex items-center justify-center">
+        <i class="bi bi-person text-gray-400 text-xl"></i>
+      </div>
+      <div>
+        <p class="font-bold text-sm text-gray-900 leading-tight">Guest User</p>
+        <a href="/user/login" class="text-xs text-red-600 font-medium hover:underline">Login to account</a>
+      </div>
+    <% } %>
   </div>
-  <% } else { %>
-  <div class="flex items-center gap-3 px-5 py-4 border-b border-gray-100 bg-gray-50">
-    <div class="w-11 h-11 rounded-full bg-gray-200 flex items-center justify-center shrink-0">
-      <i class="bi bi-person text-gray-400 text-xl"></i>
+
+  <nav class="flex flex-col gap-1 px-3 py-4 flex-1 overflow-y-auto">
+    <a href="/user/home" class="mobile-nav-link"><i class="bi bi-house"></i> Home</a>
+    <a href="/user/list" class="mobile-nav-link"><i class="bi bi-shop"></i> Shop</a>
+    <button onclick="toggleMobileCategories()" class="mobile-nav-link text-left justify-between">
+      <span><i class="bi bi-grid"></i> Categories</span>
+      <i id="mobile-category-arrow" class="bi bi-chevron-down text-xs"></i>
+    </button>
+    <div id="mobile-category-list" class="hidden pl-4">
+      <a href="/user/list" class="mobile-nav-link"><i class="bi bi-grid text-xs"></i> All Products</a>
+      <% navCategories.forEach((category) => { %>
+        <a href="/user/list?category=<%= category._id %>" class="mobile-nav-link">
+          <i class="bi bi-tag text-xs"></i> <%= category.categoryName %>
+        </a>
+      <% }) %>
     </div>
-    <div>
-      <p class="font-bold text-sm text-gray-900 leading-tight">Guest User</p>
-      <a href="/user/login" class="text-xs text-red-600 font-medium hover:underline">Login to account</a>
-    </div>
-  </div>
-  <% } %>
-  <nav class="flex flex-col gap-0.5 px-3 py-4 flex-1 overflow-y-auto">
-    <a href="/user/home"      class="flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm text-gray-600 hover:bg-gray-50 hover:text-red-600 transition-all">
-      <i class="bi bi-house text-base"></i> Home
-    </a>
-    <a href="/user/list"      class="flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm text-gray-600 hover:bg-gray-50 hover:text-red-600 transition-all">
-      <i class="bi bi-shop text-base"></i> Shop
-    </a>
-    <% if (typeof user !== 'undefined' && user) { %>
-    <a href="/user/dashboard" class="flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm text-gray-600 hover:bg-gray-50 hover:text-red-600 transition-all">
-      <i class="bi bi-grid text-base"></i> Dashboard
-    </a>
-    <a href="/user/profile"   class="flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm text-gray-600 hover:bg-gray-50 hover:text-red-600 transition-all">
-      <i class="bi bi-person text-base"></i> Account Details
-    </a>
-    <a href="/user/orders"    class="flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm text-gray-600 hover:bg-gray-50 hover:text-red-600 transition-all">
-      <i class="bi bi-bag-check text-base"></i> Order History
-    </a>
-    <a href="/user/cart"      class="flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm text-gray-600 hover:bg-gray-50 hover:text-red-600 transition-all">
-      <i class="bi bi-cart3 text-base"></i> Shopping Cart
-    </a>
-    <a href="/user/wishlist"  class="flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm text-gray-600 hover:bg-gray-50 hover:text-red-600 transition-all">
-      <i class="bi bi-heart text-base"></i> Wishlist
-    </a>
-    <a href="/user/address"   class="flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm text-gray-600 hover:bg-gray-50 hover:text-red-600 transition-all">
-      <i class="bi bi-geo-alt text-base"></i> Address
-    </a>
-    <a href="/user/wallet"    class="flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm text-gray-600 hover:bg-gray-50 hover:text-red-600 transition-all">
-      <i class="bi bi-wallet2 text-base"></i> Wallet
-    </a>
-    <a href="/user/coupons"   class="flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm text-gray-600 hover:bg-gray-50 hover:text-red-600 transition-all">
-      <i class="bi bi-ticket-perforated text-base"></i> Coupons
-    </a>
+
+    <% if (isLoggedIn) { %>
+      <a href="/user/dashboard" class="mobile-nav-link"><i class="bi bi-speedometer2"></i> Dashboard</a>
+      <a href="/user/orders" class="mobile-nav-link"><i class="bi bi-bag-check"></i> Orders</a>
+      <a href="/user/cart" class="mobile-nav-link"><i class="bi bi-cart3"></i> Cart</a>
+      <a href="/user/wishlist" class="mobile-nav-link"><i class="bi bi-heart"></i> Wishlist</a>
+      <a href="/user/address" class="mobile-nav-link"><i class="bi bi-geo-alt"></i> Address</a>
+      <a href="/user/wallet" class="mobile-nav-link"><i class="bi bi-wallet2"></i> Wallet</a>
+      <a href="/user/coupons" class="mobile-nav-link"><i class="bi bi-ticket-perforated"></i> Coupons</a>
     <% } %>
   </nav>
-  <% if (typeof user !== 'undefined' && user) { %>
-  <div class="px-3 pb-5 border-t border-gray-100 pt-3">
-    <a href="/user/logout" class="flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm text-red-500 hover:bg-red-50 transition-all">
-      <i class="bi bi-power text-base"></i> Logout
-    </a>
+
+  <div class="px-3 py-3 border-t border-gray-100">
+    <% if (isLoggedIn) { %>
+      <a href="/user/logout" class="mobile-nav-link text-red-500 hover:bg-red-50"><i class="bi bi-power"></i> Logout</a>
+    <% } else { %>
+      <a href="/user/login" class="mobile-nav-link text-red-500 hover:bg-red-50"><i class="bi bi-box-arrow-in-right"></i> Login</a>
+    <% } %>
   </div>
-  <% } else { %>
-  <div class="px-3 pb-5 border-t border-gray-100 pt-3">
-    <a href="/user/login" class="flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm text-red-500 hover:bg-red-50 transition-all">
-      <i class="bi bi-box-arrow-in-right text-base"></i> Login
-    </a>
-  </div>
-  <% } %>
 </div>
 
 <style>
-  .nav-underline { position: relative; }
-  .nav-underline::after {
-    content: ''; position: absolute; width: 0; height: 2px;
-    bottom: -2px; left: 0; background: #dc2626; transition: width .3s ease;
-  }
-  .nav-underline:hover::after { width: 100%; }
-
-  .dropdown-anim { animation: fadeInDown .18s cubic-bezier(.165,.84,.44,1); }
-  @keyframes fadeInDown {
-    from { opacity: 0; transform: translateY(8px) scale(.97); }
-    to   { opacity: 1; transform: translateY(0) scale(1); }
-  }
-
-  #mobile-sidebar { transition: transform .3s cubic-bezier(.4,0,.2,1); transform: translateX(-100%); }
+  html { scroll-padding-top: 80px; overflow-y: scroll; }
+  #mobile-sidebar { transform: translateX(-100%); transition: transform .25s ease; }
   #mobile-sidebar.open { transform: translateX(0); }
-  #sidebar-overlay { transition: opacity .3s ease; opacity: 0; pointer-events: none; }
-  #sidebar-overlay.open { opacity: 1; pointer-events: all; }
-  #mobile-cat-list { max-height: 0; overflow: hidden; transition: max-height .3s ease; }
-  #mobile-cat-list.open { max-height: 500px; }
-
-  #profile-menu, #three-dot-menu, #cat-mega-menu {
-    position: fixed !important;
-    z-index: 99999 !important;
-  }
-
-  #cat-mega-menu {
-    display: flex;
-    min-width: 520px;
-    background: #fff;
-    border-radius: 20px;
-    box-shadow: 0 20px 60px rgba(0,0,0,.13);
-    overflow: hidden;
-  }
-  #cat-mega-menu.hidden { display: none !important; }
-
-  .mega-cats {
-    width: 180px; flex-shrink: 0; background: #fafafa;
-    border-right: 1px solid #f3f4f6; padding: 8px 0;
-    overflow-y: auto; max-height: 400px;
-  }
-  .mega-cat-item {
-    display: flex; align-items: center; justify-content: space-between;
-    gap: 8px; padding: 10px 14px; cursor: pointer;
-    font-size: 13px; font-weight: 600; color: #374151;
-    transition: background .12s, color .12s;
-    border-left: 3px solid transparent;
-  }
-  .mega-cat-item:hover, .mega-cat-item.active {
-    background: #fef2f2; color: #dc2626; border-left-color: #dc2626;
-  }
-  .mega-cat-item i { font-size: 13px; }
-
-  .mega-products { flex: 1; padding: 12px; overflow-y: auto; max-height: 400px; }
-  .mega-products-title {
-    font-size: 10px; font-weight: 700; color: #9ca3af;
-    text-transform: uppercase; letter-spacing: .08em; padding: 0 4px 8px;
-  }
-  .mega-prod-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-  .mega-prod-card {
-    display: flex; align-items: center; gap: 8px; padding: 8px;
-    border-radius: 12px; cursor: pointer; transition: background .12s;
-    text-decoration: none; border: 1px solid #f3f4f6;
-  }
-  .mega-prod-card:hover { background: #fef2f2; border-color: #fecaca; }
-  .mega-prod-img {
-    width: 40px; height: 40px; border-radius: 8px; object-fit: contain;
-    background: #f9fafb; border: 1px solid #f0f0f0; flex-shrink: 0; padding: 3px;
-  }
-  .mega-prod-noimg {
-    width: 40px; height: 40px; border-radius: 8px; background: #f3f4f6;
-    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-  }
-  .mega-prod-name { font-size: 11px; font-weight: 600; color: #1f2937; line-height: 1.3; }
-  .mega-prod-price { font-size: 10px; font-weight: 700; color: #dc2626; margin-top: 2px; }
-  .mega-loading { display: flex; align-items: center; justify-content: center; height: 100px; color: #9ca3af; font-size: 13px; gap: 8px; }
-  .mega-empty   { display: flex; align-items: center; justify-content: center; height: 100px; color: #9ca3af; font-size: 13px; }
-  .mega-view-all {
-    margin-top: 10px; padding: 8px; text-align: center;
-    font-size: 12px; font-weight: 700; color: #dc2626;
-    border: 1.5px dashed #fecaca; border-radius: 10px;
-    cursor: pointer; transition: background .12s; text-decoration: none; display: block;
-  }
-  .mega-view-all:hover { background: #fef2f2; }
-
-  .nav-badge {
-    position: absolute; top: -5px; right: -5px;
-    min-width: 18px; height: 18px;
-    background: #dc2626; color: #fff;
-    font-size: 10px; font-weight: 700; line-height: 18px;
-    border-radius: 99px; text-align: center; padding: 0 4px;
-    border: 2px solid #fff; pointer-events: none; display: none;
-  }
-  @keyframes badgePop {
-    0%   { transform: scale(1); }
-    50%  { transform: scale(1.45); }
-    100% { transform: scale(1); }
-  }
-  .badge-pop { animation: badgePop .25s ease; }
-
+  #sidebar-overlay { opacity: 0; pointer-events: none; transition: opacity .25s ease; }
+  #sidebar-overlay.open { opacity: 1; pointer-events: auto; }
   .search-wrap { position: relative; }
-  .sugg-box {
-    position: absolute; top: calc(100% + 6px); left: 0; right: 0;
-    background: #fff; border: 1.5px solid #e5e7eb; border-radius: 16px;
-    box-shadow: 0 12px 32px rgba(0,0,0,.12);
-    z-index: 99999; overflow: hidden; max-height: 480px; overflow-y: auto;
-  }
-  .sugg-section-label {
-    padding: 8px 14px 4px; font-size: 10px; font-weight: 700;
-    color: #9ca3af; text-transform: uppercase; letter-spacing: .07em;
-    background: #fafafa; border-bottom: 1px solid #f3f4f6;
-  }
-  .sugg-cat-item {
-    display: flex; align-items: center; gap: 10px;
-    padding: 9px 14px; cursor: pointer; transition: background .12s; text-decoration: none;
-  }
-  .sugg-cat-item:hover { background: #fef2f2; }
-  .sugg-cat-icon {
-    width: 32px; height: 32px; border-radius: 8px; background: #fee2e2;
-    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-  }
-  .sugg-cat-name  { font-size: 13px; font-weight: 600; color: #1f2937; }
-  .sugg-cat-count { font-size: 11px; color: #9ca3af; margin-top: 1px; }
-  .sugg-item {
-    display: flex; align-items: center; gap: 10px;
-    padding: 10px 14px; cursor: pointer; transition: background .12s; text-decoration: none;
-  }
-  .sugg-item:hover, .sugg-item.active { background: #fef2f2; }
-  .sugg-thumb {
-    width: 44px; height: 44px; border-radius: 8px; object-fit: contain;
-    background: #f9fafb; border: 1px solid #f0f0f0; flex-shrink: 0; padding: 3px;
-  }
-  .sugg-noimg {
-    width: 44px; height: 44px; border-radius: 8px; background: #f3f4f6;
-    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-  }
-  .sugg-name    { font-size: 13px; font-weight: 600; color: #1f2937; line-height: 1.3; }
-  .sugg-meta    { font-size: 11px; color: #9ca3af; margin-top: 1px; }
-  .sugg-variant { font-size: 10px; margin-top: 2px; display: flex; flex-wrap: wrap; gap: 3px; }
-  .sugg-vchip   { background: #ede9fe; color: #6d28d9; border-radius: 4px; padding: 1px 5px; font-size: 9px; font-weight: 700; }
-  .sugg-price   { font-size: 12px; font-weight: 700; color: #dc2626; margin-left: auto; flex-shrink: 0; }
-  .sugg-spinner { display: flex; align-items: center; justify-content: center; padding: 20px; gap: 8px; color: #9ca3af; font-size: 13px; }
-  .sugg-empty   { padding: 20px; text-align: center; font-size: 13px; color: #9ca3af; }
-  .sugg-footer  {
-    padding: 10px 14px; border-top: 1px solid #f3f4f6;
-    font-size: 12px; font-weight: 600; color: #dc2626;
-    cursor: pointer; text-align: center; background: #fff;
-  }
-  .sugg-footer:hover { background: #fef2f2; }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .spin { animation: spin .7s linear infinite; display: inline-block; }
+  .search-suggestions { display: none; position: absolute; top: calc(100% + 6px); left: 0; right: 0; z-index: 9999; background: white; border: 1px solid #e5e7eb; border-radius: .9rem; box-shadow: 0 12px 30px rgba(0,0,0,.12); overflow: hidden; }
+  .search-suggestions a, .search-suggestions div { display: block; padding: .7rem .9rem; font-size: .83rem; color: #374151; }
+  .search-suggestions a:hover { background: #fef2f2; color: #dc2626; }
+  .mobile-nav-link { display: flex; align-items: center; gap: .75rem; width: 100%; padding: .75rem 1rem; border-radius: .75rem; font-size: .875rem; font-weight: 500; color: #4b5563; }
+  .mobile-nav-link:hover { background: #f9fafb; color: #dc2626; }
+  .nav-link { padding: .5rem .75rem; border-radius: .75rem; transition: color .15s ease, background .15s ease; }
+  .nav-link:hover { color: #dc2626; background: #fef2f2; }
+  .nav-badge { position: absolute; top: -5px; right: -5px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 99px; background: #dc2626; color: white; border: 2px solid white; font-size: 10px; font-weight: 700; line-height: 16px; text-align: center; display: none; }
+  #profile-menu, #mobile-menu { position: fixed; z-index: 9999; }
 </style>
 
-<!-- ===== NAVBAR ===== -->
 <nav class="sticky top-0 bg-white/95 backdrop-blur border-b border-gray-100 shadow-sm" style="z-index:100">
   <div class="max-w-screen-2xl mx-auto px-4 flex items-center h-16 gap-3">
+    <button onclick="openSidebar()"
+      class="md:hidden w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 text-gray-600 hover:bg-red-600 hover:text-white">
+      <i class="bi bi-list text-xl"></i>
+    </button>
 
-    <!-- Left -->
-    <div class="flex items-center gap-3">
-      <button onclick="openSidebar()"
-        class="md:hidden w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 text-gray-600 hover:bg-red-600 hover:text-white transition-all">
-        <i class="bi bi-list text-xl"></i>
-      </button>
-      <a href="/user/home" class="text-xl font-bold whitespace-nowrap">
-        <span class="text-red-600">⚡</span> ElectroHub
-      </a>
-    </div>
+    <a href="/user/home" class="text-xl font-bold whitespace-nowrap">
+      ElectroHub
+    </a>
 
-    <!-- Center nav -->
     <ul class="hidden md:flex items-center gap-1 text-sm font-medium text-gray-600 mx-auto">
-      <li>
-        <a href="/user/home" class="nav-underline px-3 py-2 hover:text-red-600 transition-colors inline-block">Home</a>
-      </li>
-      <li>
-        <a href="/user/list" class="nav-underline px-3 py-2 hover:text-red-600 transition-colors inline-block">Shop</a>
-      </li>
-      <li class="relative">
-        <a href="/user/list" id="cat-btn"
-          class="nav-underline px-3 py-2 hover:text-red-600 transition-colors flex items-center gap-1"
-          onmouseenter="openMegaMenu()">
-          Categories
-          <i id="cat-arrow-desktop" class="bi bi-chevron-down text-xs transition-transform duration-200"></i>
+      <li><a href="/user/home" class="nav-link">Home</a></li>
+      <li><a href="/user/list" class="nav-link">Shop</a></li>
+      <li class="relative group">
+        <a href="/user/list" class="nav-link flex items-center gap-1">
+          Categories <i class="bi bi-chevron-down text-xs"></i>
         </a>
-        <div id="cat-mega-menu" class="dropdown-anim hidden" onmouseenter="cancelMegaClose()" onmouseleave="scheduleMegaClose()">
-          <div class="mega-cats" id="mega-cat-list">
-            <div class="mega-loading"><i class="bi bi-arrow-repeat spin"></i></div>
-          </div>
-          <div class="mega-products" id="mega-prod-panel">
-            <div class="mega-empty">Hover a category</div>
-          </div>
+        <div class="hidden group-hover:block absolute left-0 top-full w-52 bg-white border border-gray-100 rounded-xl shadow-xl p-2">
+          <a href="/user/list" class="block px-3 py-2 rounded-lg text-sm hover:bg-red-50 hover:text-red-600">All Products</a>
+          <% navCategories.forEach((category) => { %>
+            <a href="/user/list?category=<%= category._id %>"
+              class="block px-3 py-2 rounded-lg text-sm hover:bg-red-50 hover:text-red-600">
+              <%= category.categoryName %>
+            </a>
+          <% }) %>
         </div>
       </li>
-      <li>
-        <a href="#" class="nav-underline px-3 py-2 hover:text-red-600 transition-colors inline-block">New Arrivals</a>
-      </li>
-      <li>
-        <a href="/user/coupons" class="nav-underline px-3 py-2 hover:text-red-600 transition-colors inline-block">Coupons</a>
-      </li>
+      <li><a href="/user/home#new-arrivals" class="nav-link">New Arrivals</a></li>
+      <li><a href="/user/coupons" class="nav-link">Coupons</a></li>
     </ul>
 
-    <!-- Right -->
     <div class="flex items-center gap-2 ml-auto">
-
-      <!-- Desktop search -->
       <div class="hidden md:block search-wrap">
-        <form class="flex items-center" onsubmit="navSearch(event,'desktop')">
-          <input id="nav-search-desktop" type="text" placeholder="Find your next gadget..."
-            autocomplete="off"
-            class="w-44 lg:w-64 px-4 py-2 text-sm border border-gray-200 rounded-l-full
-                   focus:outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100 transition">
-          <button type="submit"
-            class="px-4 py-2 bg-gray-900 text-white rounded-r-full hover:bg-red-600 transition-colors">
+        <form class="flex items-center" onsubmit="navSearch(event, 'desktop')">
+          <input id="nav-search-desktop" type="text" placeholder="Find your next gadget..." autocomplete="off"
+            class="w-44 lg:w-64 px-4 py-2 text-sm border border-gray-200 rounded-l-full focus:outline-none focus:border-red-400">
+          <button type="submit" class="px-4 py-2 bg-gray-900 text-white rounded-r-full hover:bg-red-600">
             <i class="bi bi-search text-sm"></i>
           </button>
         </form>
-        <div id="sugg-desktop" class="sugg-box" style="display:none"></div>
+        <div id="search-suggestions-desktop" class="search-suggestions"></div>
       </div>
 
-      <% if (typeof user !== 'undefined' && user) { %>
-      <!-- Wishlist -->
-      <a href="/user/wishlist" title="Wishlist"
-        class="relative w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 text-gray-600
-               hover:bg-red-600 hover:text-white hover:shadow-lg hover:shadow-red-200 hover:scale-110 transition-all">
-        <i class="bi bi-heart text-base"></i>
-        <span class="nav-badge" id="wishlist-badge"></span>
-      </a>
-
-      <!-- Cart -->
-      <a href="/user/cart" title="Cart"
-        class="relative w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 text-gray-600
-               hover:bg-gray-900 hover:text-white hover:shadow-lg hover:shadow-gray-300 hover:scale-110 transition-all">
-        <i class="bi bi-bag text-base"></i>
-        <span class="nav-badge" id="cart-badge"></span>
-      </a>
-
-      <!-- Profile dropdown -->
-      <div class="relative">
-        <button id="profile-btn" title="Profile"
-          class="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 text-gray-600
-                 hover:bg-blue-600 hover:text-white hover:shadow-lg hover:shadow-blue-200 hover:scale-110
-                 transition-all focus:outline-none">
-          <i class="bi bi-person text-base"></i>
+      <% if (isLoggedIn) { %>
+        <a href="/user/wishlist" title="Wishlist" class="relative nav-icon">
+          <i class="bi bi-heart"></i>
+          <span id="wishlist-badge" class="nav-badge"></span>
+        </a>
+        <a href="/user/cart" title="Cart" class="relative nav-icon">
+          <i class="bi bi-bag"></i>
+          <span id="cart-badge" class="nav-badge"></span>
+        </a>
+        <button id="profile-btn" title="Profile" class="nav-icon">
+          <i class="bi bi-person"></i>
         </button>
-        <div id="profile-menu" class="dropdown-anim hidden w-56 bg-white rounded-2xl shadow-2xl py-2">
-          <div class="px-4 py-2 border-b border-gray-100 mb-1">
-            <p class="text-[10px] uppercase font-bold text-gray-400 tracking-widest">Welcome</p>
-            <p class="font-bold text-gray-900 text-sm"><%= user.firstName %> <%= user.lastName %></p>
-          </div>
-          <a href="/user/dashboard"
-            class="flex items-center gap-2 px-4 py-2.5 rounded-xl hover:bg-red-50 hover:text-red-600 hover:translate-x-1 transition-all font-medium text-sm text-gray-700">
-            <i class="bi bi-speedometer2"></i> User Dashboard
-          </a>
-          <a href="/user/orders"
-            class="flex items-center gap-2 px-4 py-2.5 rounded-xl hover:bg-red-50 hover:text-red-600 hover:translate-x-1 transition-all font-medium text-sm text-gray-700">
-            <i class="bi bi-box-seam"></i> My Orders
-          </a>
-          <hr class="my-1 border-gray-100">
-          <a href="/user/logout"
-            class="flex items-center gap-2 px-4 py-2.5 rounded-xl hover:bg-red-50 hover:translate-x-1 transition-all font-medium text-sm text-red-600">
-            <i class="bi bi-box-arrow-right"></i> Logout
-          </a>
+        <div id="profile-menu" class="hidden w-52 bg-white rounded-xl shadow-xl border border-gray-100 p-2">
+          <p class="px-3 py-2 text-xs text-gray-400">Hi, <%= user.firstName %></p>
+          <a href="/user/dashboard" class="block px-3 py-2 rounded-lg text-sm hover:bg-red-50 hover:text-red-600">Dashboard</a>
+          <a href="/user/orders" class="block px-3 py-2 rounded-lg text-sm hover:bg-red-50 hover:text-red-600">My Orders</a>
+          <a href="/user/logout" class="block px-3 py-2 rounded-lg text-sm text-red-600 hover:bg-red-50">Logout</a>
         </div>
-      </div>
       <% } else { %>
-      <a href="/user/login" class="bg-red-600 text-white border border-transparent hover:bg-black px-5 py-2.5 rounded-full text-sm font-semibold transition-colors duration-200 shadow-sm cursor-pointer whitespace-nowrap inline-flex items-center gap-2">Login / Sign Up</a>
+        <a href="/user/login" class="bg-red-600 text-white hover:bg-black px-5 py-2.5 rounded-full text-sm font-semibold">Login / Sign Up</a>
       <% } %>
 
-      <!-- Three-dot (mobile only) -->
-      <div class="relative md:hidden">
-        <button id="three-dot-btn"
-          class="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 text-gray-600
-                 hover:bg-red-600 hover:text-white transition-all focus:outline-none">
-          <i class="bi bi-three-dots-vertical text-base"></i>
-        </button>
-        <div id="three-dot-menu" class="dropdown-anim hidden w-52 bg-white rounded-2xl shadow-2xl py-2">
-          <p class="px-4 pt-1 pb-1 text-[10px] uppercase font-bold text-gray-400 tracking-widest">Menu</p>
-          <a href="/user/home"
-            class="flex items-center gap-2 px-4 py-2.5 rounded-xl hover:bg-red-50 hover:text-red-600 hover:translate-x-1 transition-all font-medium text-sm text-gray-700">
-            <i class="bi bi-house"></i> Home
-          </a>
-          <a href="/user/list"
-            class="flex items-center gap-2 px-4 py-2.5 rounded-xl hover:bg-red-50 hover:text-red-600 hover:translate-x-1 transition-all font-medium text-sm text-gray-700">
-            <i class="bi bi-shop"></i> Shop
-          </a>
-          <div>
-            <button onclick="toggleMobileCat()"
-              class="w-full flex items-center justify-between px-4 py-2.5 rounded-xl hover:bg-red-50 hover:text-red-600 transition-all font-medium text-sm text-gray-700">
-              <span class="flex items-center gap-2"><i class="bi bi-grid"></i> Categories</span>
-              <i id="cat-arrow-mobile" class="bi bi-chevron-down text-xs transition-transform duration-200"></i>
-            </button>
-            <div id="mobile-cat-list" class="pl-4">
-              <a href="/user/list"
-                class="flex items-center gap-2 px-4 py-2 rounded-xl hover:bg-red-50 hover:text-red-600 transition-all text-sm text-gray-600 font-medium">
-                <i class="bi bi-grid text-xs"></i> All Products
-              </a>
-              <% if(typeof categories !== 'undefined'){ categories.forEach(c=>{ %>
-              <a href="/user/list?category=<%= c._id %>"
-                class="flex items-center gap-2 px-4 py-2 rounded-xl hover:bg-red-50 hover:text-red-600 transition-all text-sm text-gray-600 font-medium">
-                <i class="bi bi-tag text-xs"></i> <%= c.categoryName %>
-              </a>
-              <% }) } %>
-            </div>
-          </div>
-        </div>
+      <button id="mobile-menu-btn" class="md:hidden nav-icon">
+        <i class="bi bi-three-dots-vertical"></i>
+      </button>
+      <div id="mobile-menu" class="hidden w-48 bg-white rounded-xl shadow-xl border border-gray-100 p-2">
+        <a href="/user/home" class="block px-3 py-2 rounded-lg text-sm hover:bg-red-50 hover:text-red-600">Home</a>
+        <a href="/user/list" class="block px-3 py-2 rounded-lg text-sm hover:bg-red-50 hover:text-red-600">Shop</a>
+        <a href="/user/coupons" class="block px-3 py-2 rounded-lg text-sm hover:bg-red-50 hover:text-red-600">Coupons</a>
       </div>
-
     </div>
   </div>
 
-  <!-- Mobile search -->
   <div class="md:hidden border-t border-gray-100 px-4 py-2">
     <div class="search-wrap">
-      <form class="flex items-center" onsubmit="navSearch(event,'mobile')">
-        <input id="nav-search-mobile" type="text" placeholder="Find your next gadget..."
-          autocomplete="off"
-          class="w-full px-4 py-2 text-sm border border-gray-200 rounded-l-full
-                 focus:outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100 transition">
-        <button type="submit"
-          class="px-4 py-2 bg-gray-900 text-white rounded-r-full hover:bg-red-600 transition-colors">
+      <form class="flex items-center" onsubmit="navSearch(event, 'mobile')">
+        <input id="nav-search-mobile" type="text" placeholder="Find your next gadget..." autocomplete="off"
+          class="w-full px-4 py-2 text-sm border border-gray-200 rounded-l-full focus:outline-none focus:border-red-400">
+        <button type="submit" class="px-4 py-2 bg-gray-900 text-white rounded-r-full hover:bg-red-600">
           <i class="bi bi-search text-sm"></i>
         </button>
       </form>
-      <div id="sugg-mobile" class="sugg-box" style="display:none"></div>
+      <div id="search-suggestions-mobile" class="search-suggestions"></div>
     </div>
   </div>
 </nav>
+
+<style>
+  .nav-icon { width: 2.5rem; height: 2.5rem; display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; background: #f3f4f6; color: #4b5563; transition: all .15s ease; }
+  .nav-icon:hover { background: #dc2626; color: white; }
+  @media (min-width: 768px) {
+    #mobile-menu-btn { display: none !important; }
+  }
+</style>
+
+<script>
+  var searchTimer;
+
+  function openSidebar() {
+    var mobileSidebar = document.getElementById('mobile-sidebar');
+    var sidebarOverlay = document.getElementById('sidebar-overlay');
+    if (mobileSidebar) {
+      mobileSidebar.classList.add('open');
+    }
+    if (sidebarOverlay) {
+      sidebarOverlay.classList.add('open');
+    }
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeSidebar() {
+    var mobileSidebar = document.getElementById('mobile-sidebar');
+    var sidebarOverlay = document.getElementById('sidebar-overlay');
+    if (mobileSidebar) {
+      mobileSidebar.classList.remove('open');
+    }
+    if (sidebarOverlay) {
+      sidebarOverlay.classList.remove('open');
+    }
+    document.body.style.overflow = '';
+  }
+
+  function toggleMobileCategories() {
+    var categoryList = document.getElementById('mobile-category-list');
+    var categoryArrow = document.getElementById('mobile-category-arrow');
+    
+    if (categoryList) {
+      categoryList.classList.toggle('hidden');
+    }
+    if (categoryArrow) {
+      categoryArrow.classList.toggle('rotate-180');
+    }
+  }
+
+  function toggleMenu(buttonId, menuId) {
+    var button = document.getElementById(buttonId);
+    var menu = document.getElementById(menuId);
+    
+    if (!button || !menu) {
+      return;
+    }
+
+    button.addEventListener('click', function(event) {
+      event.stopPropagation();
+      menu.classList.toggle('hidden');
+      var rect = button.getBoundingClientRect();
+      menu.style.top = (rect.bottom + 6) + 'px';
+      menu.style.right = (window.innerWidth - rect.right) + 'px';
+    });
+
+    menu.addEventListener('click', function(event) {
+      event.stopPropagation();
+    });
+  }
+
+  function navSearch(event, type) {
+    event.preventDefault();
+    var inputId = '';
+    if (type === 'desktop') {
+      inputId = 'nav-search-desktop';
+    } else {
+      inputId = 'nav-search-mobile';
+    }
+    
+    var input = document.getElementById(inputId);
+    if (!input) {
+      return;
+    }
+    
+    var query = input.value.trim();
+    if (query === '') {
+      return;
+    }
+
+    if (typeof STATE !== 'undefined' && typeof applyFilters === 'function') {
+      STATE.search = query;
+      var pageSearch = document.getElementById('sInput');
+      if (pageSearch) {
+        pageSearch.value = query;
+      }
+      applyFilters();
+    } else {
+      window.location.href = '/user/list?search=' + encodeURIComponent(query);
+    }
+  }
+
+  function setupSearchSuggestions(type) {
+    var inputId = '';
+    if (type === 'desktop') {
+      inputId = 'nav-search-desktop';
+    } else {
+      inputId = 'nav-search-mobile';
+    }
+    
+    var input = document.getElementById(inputId);
+    var box = document.getElementById('search-suggestions-' + type);
+    
+    if (!input || !box) {
+      return;
+    }
+
+    input.addEventListener('input', function() {
+      clearTimeout(searchTimer);
+      var query = input.value.trim();
+      
+      if (query.length < 2) {
+        hideSearchSuggestions();
+        return;
+      }
+      
+      searchTimer = setTimeout(function() {
+        loadSearchSuggestions(query, type);
+      }, 250);
+    });
+
+    input.addEventListener('click', function(event) {
+      event.stopPropagation();
+    });
+    box.addEventListener('click', function(event) {
+      event.stopPropagation();
+    });
+  }
+
+  async function loadSearchSuggestions(query, type) {
+    var box = document.getElementById('search-suggestions-' + type);
+    if (!box) {
+      return;
+    }
+
+    try {
+      var res = await fetch('/user/search-suggestions?q=' + encodeURIComponent(query), {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+      });
+      var data = await res.json();
+      var categories = data.categories || [];
+      var products = data.products || data.variants || [];
+
+      var html = '';
+      
+      var topCategories = categories.slice(0, 3);
+      for (var i = 0; i < topCategories.length; i++) {
+        var category = topCategories[i];
+        html += '<a href="/user/list?category=' + category._id + '"><i class="bi bi-tag mr-2 text-red-500"></i>' + escapeText(category.categoryName) + '</a>';
+      }
+      
+      var topProducts = products.slice(0, 5);
+      for (var j = 0; j < topProducts.length; j++) {
+        var product = topProducts[j];
+        html += '<a href="/user/product/' + product._id + '"><i class="bi bi-bag mr-2 text-red-500"></i>' + escapeText(product.productName) + '</a>';
+      }
+
+      if (html === '') {
+        box.innerHTML = '<div>No results found</div>';
+      } else {
+        box.innerHTML = html;
+      }
+      
+      box.style.display = 'block';
+    } catch (error) {
+      hideSearchSuggestions();
+    }
+  }
+
+  function hideSearchSuggestions() {
+    var desktopBox = document.getElementById('search-suggestions-desktop');
+    if (desktopBox) {
+      desktopBox.style.display = 'none';
+    }
+    
+    var mobileBox = document.getElementById('search-suggestions-mobile');
+    if (mobileBox) {
+      mobileBox.style.display = 'none';
+    }
+  }
+
+  function escapeText(value) {
+    var strValue = String(value || '');
+    var result = '';
+    for (var i = 0; i < strValue.length; i++) {
+      var char = strValue[i];
+      if (char === '&') {
+        result += '&amp;';
+      } else if (char === '<') {
+        result += '&lt;';
+      } else if (char === '>') {
+        result += '&gt;';
+      } else if (char === '"') {
+        result += '&quot;';
+      } else if (char === "'") {
+        result += '&#39;';
+      } else {
+        result += char;
+      }
+    }
+    return result;
+  }
+
+  async function loadNavCounts() {
+    try {
+      var res = await fetch('/user/nav-counts', { 
+        headers: { 'X-Requested-With': 'XMLHttpRequest' } 
+      });
+      if (!res.ok) {
+        return;
+      }
+      var data = await res.json();
+      var cartCount = data.cartCount || 0;
+      var wishlistCount = data.wishlistCount || 0;
+      
+      setNavBadge('cart-badge', cartCount);
+      setNavBadge('wishlist-badge', wishlistCount);
+    } catch (error) {
+      // Do nothing on error
+    }
+  }
+
+  function setNavBadge(id, count) {
+    var badge = document.getElementById(id);
+    if (!badge) {
+      return;
+    }
+    
+    if (count > 99) {
+      badge.textContent = '99+';
+    } else {
+      badge.textContent = count;
+    }
+    
+    if (count > 0) {
+      badge.style.display = 'block';
+    } else {
+      badge.style.display = 'none';
+    }
+  }
+
+  window.updateNavBadge = function(type, change) {
+    var id = '';
+    if (type === 'cart') {
+      id = 'cart-badge';
+    } else {
+      id = 'wishlist-badge';
+    }
+    
+    var badge = document.getElementById(id);
+    var currentText = '0';
+    if (badge && badge.textContent) {
+      currentText = badge.textContent;
+    }
+    
+    var current = parseInt(currentText, 10);
+    if (isNaN(current)) {
+      current = 0;
+    }
+    
+    var newCount = current + change;
+    if (newCount < 0) {
+      newCount = 0;
+    }
+    
+    setNavBadge(id, newCount);
+  };
+
+  document.addEventListener('DOMContentLoaded', function() {
+    var overlay = document.getElementById('sidebar-overlay');
+    if (overlay) {
+      overlay.addEventListener('click', closeSidebar);
+    }
+    
+    toggleMenu('profile-btn', 'profile-menu');
+    toggleMenu('mobile-menu-btn', 'mobile-menu');
+    
+    setupSearchSuggestions('desktop');
+    setupSearchSuggestions('mobile');
+    
+    loadNavCounts();
+  });
+
+  document.addEventListener('click', function() {
+    var profileMenu = document.getElementById('profile-menu');
+    if (profileMenu) {
+      profileMenu.classList.add('hidden');
+    }
+    
+    var mobileMenu = document.getElementById('mobile-menu');
+    if (mobileMenu) {
+      mobileMenu.classList.add('hidden');
+    }
+    
+    hideSearchSuggestions();
+  });
+</script>

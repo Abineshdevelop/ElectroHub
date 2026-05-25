@@ -8,135 +8,214 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
-      @media print {
-          header, aside, form, .gap-2, .no-print { display: none !important; }
-          main { width: 100% !important; padding: 0 !important; }
-          .shadow-sm, .border { border: 1px solid #eee !important; box-shadow: none !important; }
-          .bg-gray-50 { background-color: #fff !important; }
-          canvas { max-height: 300px !important; }
-      }
+    @media print {
+      header, aside, form, .no-print { display: none !important; }
+      main { width: 100% !important; padding: 0 !important; }
+    }
   </style>
 </head>
-
 <body class="bg-gray-100 font-sans text-gray-800">
 
   <%- include('../layout/header') %>
 
   <div class="flex">
-
     <%- include('../layout/sidebar', { activePage: 'sales-report' }) %>
 
-    <!-- MAIN CONTENT -->
     <main class="flex-1 p-8 overflow-x-hidden">
+      <%
+        const qs = new URLSearchParams(query || {}).toString();
+        const rangeLabel = dateRange ? `${dateRange.label}` : 'Last 30 Days';
+        const fromLabel = dateRange ? dateRange.from.toLocaleDateString('en-GB') : '';
+        const toLabel = dateRange ? dateRange.to.toLocaleDateString('en-GB') : '';
+      %>
 
-      <div class="flex items-center justify-between mb-8">
+      <div class="flex flex-wrap items-start justify-between gap-4 mb-6">
         <div>
           <h1 class="text-2xl font-bold text-gray-900 tracking-tight">Sales & Revenue Report</h1>
-          <p class="text-gray-500 text-sm mt-1 italic">Detailed business growth analysis.</p>
+          <p class="text-gray-500 text-sm mt-1">Net revenue counts <strong>delivered items only</strong>; returns and refunds are deducted.</p>
+          <p class="text-xs text-gray-400 mt-1 font-mono">Period: <%= rangeLabel %> · <%= fromLabel %> – <%= toLabel %></p>
         </div>
-        <div class="flex gap-2 no-print">
-            <a href="/admin/sales-report/download/pdf?<%= new URLSearchParams(query).toString() %>" class="bg-white border hover:bg-gray-50 text-xs font-bold px-4 py-2 rounded shadow-sm flex items-center gap-2 transition">
-                <i class="bi bi-file-earmark-pdf text-red-500"></i> PDF Report
-            </a>
-            <a href="/admin/sales-report/download/excel?<%= new URLSearchParams(query).toString() %>" class="bg-white border hover:bg-gray-50 text-xs font-bold px-4 py-2 rounded shadow-sm flex items-center gap-2 transition">
-              <i class="bi bi-file-earmark-spreadsheet text-green-600"></i> Excel (.xlsx)
-            </a>
+        <div class="flex flex-wrap gap-2 no-print">
+          <a href="/admin/sales-report/download/pdf?<%= qs %>" class="bg-white border hover:bg-gray-50 text-xs font-bold px-4 py-2.5 rounded-lg shadow-sm flex items-center gap-2 transition">
+            <i class="bi bi-file-earmark-pdf text-red-500"></i> Export PDF
+          </a>
+          <a href="/admin/sales-report/download/excel?<%= qs %>" class="bg-white border hover:bg-gray-50 text-xs font-bold px-4 py-2.5 rounded-lg shadow-sm flex items-center gap-2 transition">
+            <i class="bi bi-file-earmark-spreadsheet text-green-600"></i> Export Excel
+          </a>
         </div>
       </div>
 
       <!-- Filters -->
-      <div class="bg-white p-6 rounded shadow-sm mb-8 border no-print">
-          <form action="/admin/sales-report" method="GET" class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-              <div class="space-y-1">
-                  <label class="text-[10px] font-bold text-gray-400 uppercase">Period Filter</label>
-                  <select name="filterType" class="w-full bg-gray-50 border rounded px-3 py-2 text-sm focus:outline-none">
-                      <option value="daily"   <%= query.filterType==='daily'?'selected':'' %>>Today</option>
-                      <option value="weekly"  <%= query.filterType==='weekly'?'selected':'' %>>Last 7 Days</option>
-                      <option value="monthly" <%= (query.filterType==='monthly'||!query.filterType)?'selected':'' %>>Last 30 Days</option>
-                      <option value="yearly"  <%= query.filterType==='yearly'?'selected':'' %>>This Year</option>
-                  </select>
-              </div>
-              <div class="space-y-1">
-                  <label class="text-[10px] font-bold text-gray-400 uppercase">Start Date</label>
-                  <input type="date" name="startDate" value="<%= query.startDate %>" class="w-full bg-gray-50 border rounded px-3 py-2 text-sm">
-              </div>
-              <div class="space-y-1">
-                  <label class="text-[10px] font-bold text-gray-400 uppercase">End Date</label>
-                  <input type="date" name="endDate" value="<%= query.endDate %>" class="w-full bg-gray-50 border rounded px-3 py-2 text-sm">
-              </div>
-              <button type="submit" class="bg-gray-800 text-white px-4 py-2.5 rounded font-bold text-xs hover:bg-black transition">
-                  <i class="bi bi-funnel mr-1"></i> Apply Filter
-              </button>
-          </form>
+      <div class="bg-white p-6 rounded-lg shadow-sm mb-6 border no-print">
+        <form id="salesReportFilterForm" action="/admin/sales-report" method="GET" novalidate class="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+          <div class="space-y-1 md:col-span-2">
+            <label class="text-[10px] font-bold text-gray-400 uppercase">Period Filter</label>
+            <select name="filterType" id="filterType" class="w-full bg-gray-50 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300">
+              <option value="daily" <%= query.filterType==='daily'?'selected':'' %>>Today</option>
+              <option value="weekly" <%= query.filterType==='weekly'?'selected':'' %>>Last 7 Days</option>
+              <option value="monthly" <%= (query.filterType==='monthly'||!query.filterType)?'selected':'' %>>Last 30 Days</option>
+              <option value="calendar_month" <%= query.filterType==='calendar_month'?'selected':'' %>>This Month (Calendar)</option>
+              <option value="yearly" <%= query.filterType==='yearly'?'selected':'' %>>This Year</option>
+              <option value="custom" <%= (query.startDate&&query.endDate)?'selected':'' %>>Custom Date Range</option>
+            </select>
+          </div>
+          <div class="space-y-1">
+            <label class="text-[10px] font-bold text-gray-400 uppercase">Start Date</label>
+            <input type="date" name="startDate" value="<%= query.startDate || '' %>" class="w-full bg-gray-50 border rounded-lg px-3 py-2 text-sm">
+          </div>
+          <div class="space-y-1">
+            <label class="text-[10px] font-bold text-gray-400 uppercase">End Date</label>
+            <input type="date" name="endDate" value="<%= query.endDate || '' %>" class="w-full bg-gray-50 border rounded-lg px-3 py-2 text-sm">
+          </div>
+          <button type="submit" class="bg-gray-800 text-white px-4 py-2.5 rounded-lg font-bold text-xs hover:bg-black transition">
+            <i class="bi bi-funnel mr-1"></i> Apply Filter
+          </button>
+        </form>
+        <p id="salesReportFilterHint" class="text-[10px] text-amber-600 mt-3 hidden"></p>
       </div>
 
       <!-- KPIs -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div class="bg-white p-6 rounded shadow-sm border border-gray-100 flex items-center gap-4">
-              <div class="w-12 h-12 bg-blue-50 text-blue-600 flex items-center justify-center text-xl rounded shadow-inner"><i class="bi bi-wallet2"></i></div>
-              <div><p class="text-[10px] font-bold text-gray-400 uppercase">Total Revenue</p><h2 class="text-2xl font-black text-gray-900">₹<%= kpi.totalRevenue.toLocaleString('en-IN') %></h2></div>
-          </div>
-          <div class="bg-white p-6 rounded shadow-sm border border-gray-100 flex items-center gap-4">
-              <div class="w-12 h-12 bg-purple-50 text-purple-600 flex items-center justify-center text-xl rounded shadow-inner"><i class="bi bi-cart-check"></i></div>
-              <div><p class="text-[10px] font-bold text-gray-400 uppercase">Total Orders</p><h2 class="text-2xl font-black text-gray-900"><%= kpi.totalOrders %></h2></div>
-          </div>
-          <div class="bg-white p-6 rounded shadow-sm border border-gray-100 flex items-center gap-4">
-              <div class="w-12 h-12 bg-red-50 text-red-500 flex items-center justify-center text-xl rounded shadow-inner"><i class="bi bi-tags"></i></div>
-              <div><p class="text-[10px] font-bold text-gray-400 uppercase">Total Discount</p><h2 class="text-2xl font-black text-red-500">₹<%= (kpi.totalDiscount || 0).toLocaleString('en-IN') %></h2></div>
-          </div>
+      <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 mb-6">
+        <div class="bg-white p-4 rounded-lg border shadow-sm">
+          <p class="text-[10px] font-bold text-gray-400 uppercase">Net Revenue</p>
+          <h2 class="text-lg font-black text-green-700">₹<%= (kpi.totalRevenue||0).toLocaleString('en-IN') %></h2>
+        </div>
+        <div class="bg-white p-4 rounded-lg border shadow-sm">
+          <p class="text-[10px] font-bold text-gray-400 uppercase">Gross (Delivered)</p>
+          <h2 class="text-lg font-black text-gray-900">₹<%= (kpi.grossRevenue||0).toLocaleString('en-IN') %></h2>
+        </div>
+        <div class="bg-white p-4 rounded-lg border shadow-sm">
+          <p class="text-[10px] font-bold text-gray-400 uppercase">Refunds</p>
+          <h2 class="text-lg font-black text-orange-600">₹<%= (kpi.refundAmount||0).toLocaleString('en-IN') %></h2>
+        </div>
+        <div class="bg-white p-4 rounded-lg border shadow-sm">
+          <p class="text-[10px] font-bold text-gray-400 uppercase">Discounts</p>
+          <h2 class="text-lg font-black text-red-500">₹<%= (kpi.totalDiscount||0).toLocaleString('en-IN') %></h2>
+        </div>
+        <div class="bg-white p-4 rounded-lg border shadow-sm">
+          <p class="text-[10px] font-bold text-gray-400 uppercase">Total Orders</p>
+          <h2 class="text-lg font-black text-gray-900"><%= kpi.totalOrders||0 %></h2>
+        </div>
+        <div class="bg-white p-4 rounded-lg border shadow-sm">
+          <p class="text-[10px] font-bold text-gray-400 uppercase">Delivered</p>
+          <h2 class="text-lg font-black text-green-600"><%= kpi.deliveredOrders||0 %></h2>
+        </div>
+        <div class="bg-white p-4 rounded-lg border shadow-sm">
+          <p class="text-[10px] font-bold text-gray-400 uppercase">Cancelled</p>
+          <h2 class="text-lg font-black text-red-600"><%= kpi.cancelledOrders||0 %></h2>
+        </div>
+        <div class="bg-white p-4 rounded-lg border shadow-sm">
+          <p class="text-[10px] font-bold text-gray-400 uppercase">Returned</p>
+          <h2 class="text-lg font-black text-orange-600"><%= kpi.returnedOrders||0 %></h2>
+        </div>
       </div>
 
-      <!-- Chart and Categories -->
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-          <div class="lg:col-span-2 bg-white p-6 rounded border shadow-sm">
-             <h3 class="font-bold text-gray-900 uppercase text-[10px] mb-6">Revenue Trend (Daily)</h3>
-             <div class="h-64"><canvas id="salesTrendChart"></canvas></div>
+      <!-- Chart and analytics -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+        <div class="lg:col-span-2 bg-white p-6 rounded-lg border shadow-sm">
+          <h3 class="font-bold text-gray-900 uppercase text-[10px] mb-4 tracking-wider">Net Revenue Trend (Delivered Items)</h3>
+          <div class="h-64"><canvas id="salesTrendChart"></canvas></div>
+        </div>
+        <div class="bg-white p-6 rounded-lg border shadow-sm space-y-6">
+          <div>
+            <h3 class="font-bold text-gray-900 uppercase text-[10px] mb-4 tracking-wider">Top Categories</h3>
+            <div class="space-y-3">
+              <% topCategories.forEach((cat) => { const max = topCategories[0]?.revenue || topCategories[0]?.count || 1; const pct = Math.round(((cat.revenue || cat.count) / max) * 100); %>
+              <div class="text-xs">
+                <div class="flex justify-between mb-1"><span class="font-semibold text-gray-700 truncate"><%= cat._id || 'Unknown' %></span><span class="font-bold text-gray-900">₹<%= (cat.revenue||0).toLocaleString('en-IN') %></span></div>
+                <div class="h-1.5 bg-gray-100 rounded-full"><div class="h-full bg-blue-500 rounded-full" style="width:<%= pct %>%"></div></div>
+              </div>
+              <% }) %>
+              <% if (topCategories.length === 0) { %><p class="text-center text-gray-400 text-xs py-6 italic">No delivered sales in this period.</p><% } %>
+            </div>
           </div>
-          <div class="bg-white p-6 rounded border shadow-sm">
-             <h3 class="font-bold text-gray-900 uppercase text-[10px] mb-6">Top Categories Share</h3>
-             <div class="space-y-4">
-                  <% topCategories.forEach((cat, idx) => { 
-                      const max = topCategories[0]?.count || 1;
-                      const pct = Math.round((cat.count / max) * 100);
-                  %>
-                  <div class="text-xs">
-                      <div class="flex justify-between mb-1"><span class="font-bold text-gray-600"><%= cat._id || 'Unknown' %></span><span class="font-bold"><%= cat.count %> SOLD</span></div>
-                      <div class="h-1.5 bg-gray-50 rounded-full border"><div class="h-full bg-blue-500" style="width: <%= pct %>%"></div></div>
-                  </div>
-                  <% }) %>
-                  <% if (topCategories.length === 0) { %><p class="text-center text-gray-400 text-xs py-10 italic">No data.</p><% } %>
-             </div>
+          <div>
+            <h3 class="font-bold text-gray-900 uppercase text-[10px] mb-3 tracking-wider">Best Sellers</h3>
+            <ul class="space-y-2 text-xs">
+              <% topProducts.forEach((p, i) => { %>
+              <li class="flex justify-between gap-2"><span class="text-gray-500 font-bold">#<%= i+1 %></span><span class="flex-1 truncate font-medium text-gray-800"><%= p.name %></span><span class="font-bold text-green-700">₹<%= (p.revenue||0).toLocaleString('en-IN') %></span></li>
+              <% }) %>
+            </ul>
           </div>
+        </div>
       </div>
 
-      <!-- Table -->
-      <div class="bg-white rounded border shadow-sm overflow-hidden">
-          <div class="px-6 py-4 border-b bg-gray-50"><h3 class="text-xs font-bold uppercase text-gray-600 tracking-wider">Detailed Order Transaction Log</h3></div>
-          <table class="w-full text-left text-xs">
-              <thead class="bg-white text-gray-400 font-bold border-b">
-                  <tr>
-                      <th class="px-6 py-3 uppercase">Order ID</th>
-                      <th class="px-6 py-3 uppercase">Customer</th>
-                      <th class="px-6 py-3 uppercase">Date</th>
-                      <th class="px-6 py-3 uppercase">Status</th>
-                      <th class="px-6 py-3 uppercase text-right">Revenue</th>
-                  </tr>
-              </thead>
-              <tbody class="divide-y">
-                  <% orders.forEach(o => { %>
-                  <tr class="hover:bg-gray-50 transition">
-                      <td class="px-6 py-4 font-bold text-gray-900"><%= o.orderId %></td>
-                      <td class="px-6 py-4 text-gray-600 italic font-medium"><%= o.userId?.firstName %> <%= o.userId?.lastName %></td>
-                      <td class="px-6 py-4 text-gray-500 font-mono"><%= new Date(o.createdAt).toISOString().split('T')[0] %></td>
-                      <td class="px-6 py-4"><span class="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-tighter <%= o.orderStatus==='delivered'?'bg-green-100 text-green-700':'bg-blue-100 text-blue-700' %>"><%= o.orderStatus %></span></td>
-                      <td class="px-6 py-4 text-right font-bold">₹<%= o.totalAmount.toLocaleString('en-IN') %></td>
-                  </tr>
-                  <% }) %>
-                  <% if (orders.length === 0) { %><tr><td colspan="5" class="px-6 py-10 text-center text-gray-400 italic">No orders found for this period.</td></tr><% } %>
-              </tbody>
+      <!-- Orders table -->
+      <div class="bg-white rounded-lg border shadow-sm overflow-hidden">
+        <div class="px-6 py-4 border-b bg-gray-50 flex justify-between items-center">
+          <h3 class="text-xs font-bold uppercase text-gray-600 tracking-wider">Detailed Order Log</h3>
+          <span class="text-[10px] text-gray-400"><%= orders.length %> orders</span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs min-w-[900px]">
+            <thead class="bg-gray-50 text-gray-500 font-bold border-b border-gray-200">
+              <tr>
+                <th class="px-4 py-3 uppercase">Order ID</th>
+                <th class="px-4 py-3 uppercase">Customer</th>
+                <th class="px-4 py-3 uppercase">Date</th>
+                <th class="px-4 py-3 uppercase">Status</th>
+                <th class="px-4 py-3 uppercase">Payment</th>
+                <th class="px-4 py-3 uppercase text-right">Gross</th>
+                <th class="px-4 py-3 uppercase text-right">Refund</th>
+                <th class="px-4 py-3 uppercase text-right">Net Revenue</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+              <% orders.forEach(o => {
+                const items = o.items || [];
+                let gross = 0, refund = Math.round(o.refundAmount||0);
+                items.forEach(it => {
+                  const amt = Math.round(it.finalAmount ?? it.lineTotal ?? (it.unitPrice*it.quantity) ?? 0);
+                  if (it.status === 'delivered') gross += amt;
+                });
+                if (!refund) {
+                  items.forEach(it => {
+                    if (['returned','return_requested'].includes(it.status)) {
+                      refund += Math.round(it.finalAmount ?? it.lineTotal ?? 0);
+                    }
+                  });
+                }
+                const net = Math.max(0, gross - Math.min(refund, gross));
+                const statusCls = {
+                  delivered: 'bg-green-100 text-green-700',
+                  cancelled: 'bg-red-100 text-red-700',
+                  returned: 'bg-orange-100 text-orange-700',
+                  return_requested: 'bg-orange-100 text-orange-700',
+                  partially_cancelled: 'bg-orange-100 text-orange-700',
+                  pending: 'bg-gray-100 text-gray-600',
+                  confirmed: 'bg-blue-100 text-blue-700',
+                  shipped: 'bg-blue-100 text-blue-700',
+                };
+                const badgeCls = statusCls[o.orderStatus] || 'bg-gray-100 text-gray-600';
+              %>
+              <tr class="hover:bg-gray-50">
+                <td class="px-4 py-3 font-bold text-gray-900 whitespace-nowrap"><%= o.orderId %></td>
+                <td class="px-4 py-3 text-gray-600"><%= o.userId?.firstName %> <%= o.userId?.lastName %></td>
+                <td class="px-4 py-3 text-gray-500 font-mono whitespace-nowrap"><%= new Date(o.createdAt).toLocaleDateString('en-GB') %></td>
+                <td class="px-4 py-3"><span class="px-2 py-0.5 rounded-full text-[10px] font-semibold <%= badgeCls %>"><%= o.orderStatus.replace(/_/g,' ') %></span></td>
+                <td class="px-4 py-3 text-gray-500 uppercase text-[10px]"><%= o.paymentMethod %> · <%= o.paymentStatus %></td>
+                <td class="px-4 py-3 text-right text-gray-600 tabular-nums">₹<%= gross.toLocaleString('en-IN') %></td>
+                <td class="px-4 py-3 text-right text-orange-600 tabular-nums"><%= refund > 0 ? '₹'+refund.toLocaleString('en-IN') : '—' %></td>
+                <td class="px-4 py-3 text-right font-bold text-green-700 tabular-nums">₹<%= net.toLocaleString('en-IN') %></td>
+              </tr>
+              <% }) %>
+              <% if (orders.length === 0) { %>
+              <tr><td colspan="8" class="px-6 py-12 text-center text-gray-400 italic">No orders in this period.</td></tr>
+              <% } %>
+            </tbody>
+            <% if (orders.length > 0) { %>
+            <tfoot class="bg-gray-50 border-t font-bold text-xs">
+              <tr>
+                <td colspan="5" class="px-4 py-3 text-right uppercase text-gray-500">Totals</td>
+                <td class="px-4 py-3 text-right tabular-nums">₹<%= (kpi.grossRevenue||0).toLocaleString('en-IN') %></td>
+                <td class="px-4 py-3 text-right text-orange-600 tabular-nums">₹<%= (kpi.refundAmount||0).toLocaleString('en-IN') %></td>
+                <td class="px-4 py-3 text-right text-green-700 tabular-nums">₹<%= (kpi.totalRevenue||0).toLocaleString('en-IN') %></td>
+              </tr>
+            </tfoot>
+            <% } %>
           </table>
+        </div>
       </div>
-
     </main>
   </div>
 
@@ -144,13 +223,66 @@
     const trendCtx = document.getElementById('salesTrendChart').getContext('2d');
     const trendData = <%- JSON.stringify(chartData) %>;
     new Chart(trendCtx, {
-      type: 'bar',
+      type: 'line',
       data: {
         labels: trendData.map(d => d._id),
-        datasets: [{ label: 'Revenue', data: trendData.map(d => d.revenue), backgroundColor: '#2563eb', borderRadius: 4 }]
+        datasets: [{
+          label: 'Net Revenue',
+          data: trendData.map(d => d.revenue),
+          borderColor: '#16a34a',
+          backgroundColor: 'rgba(22,163,74,0.12)',
+          fill: true,
+          tension: 0.3,
+          pointRadius: 3,
+        }]
       },
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { grid: { color: '#f3f4f6' }, ticks: { font: { size: 9 } } }, x: { grid: { display: false }, ticks: { font: { size: 9 } } } } }
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: { grid: { color: '#f3f4f6' }, ticks: { font: { size: 9 }, callback: v => '₹' + v.toLocaleString('en-IN') } },
+          x: { grid: { display: false }, ticks: { font: { size: 9 }, maxRotation: 45 } }
+        }
+      }
     });
+
+    const filterForm = document.getElementById('salesReportFilterForm');
+    const filterHint = document.getElementById('salesReportFilterHint');
+    const filterTypeEl = document.getElementById('filterType');
+    const startInput = filterForm?.querySelector('[name="startDate"]');
+    const endInput = filterForm?.querySelector('[name="endDate"]');
+
+    function showFilterHint(msg) {
+      if (!filterHint) return;
+      filterHint.textContent = msg;
+      filterHint.classList.toggle('hidden', !msg);
+    }
+
+    filterForm?.addEventListener('submit', function(e) {
+      const start = startInput?.value || '';
+      const end = endInput?.value || '';
+      const filterType = filterTypeEl?.value || 'monthly';
+
+      if (start && end && start > end) {
+        e.preventDefault();
+        showFilterHint('End date must be after start date.');
+        endInput?.focus();
+        return;
+      }
+
+      if (filterType === 'custom' && (!start || !end)) {
+        e.preventDefault();
+        showFilterHint('Please select both start and end dates for a custom range.');
+        (start ? endInput : startInput)?.focus();
+        return;
+      }
+
+      showFilterHint('');
+    });
+
+    [startInput, endInput, filterTypeEl].forEach(el => {
+      el?.addEventListener('change', () => showFilterHint(''));
     });
   </script>
 </body>

@@ -35,9 +35,9 @@
 
     .pcard{background:#fff;border:1px solid #f0f0f0;border-radius:20px;overflow:hidden;transition:all .3s ease;position:relative;box-shadow:0 2px 12px rgba(0,0,0,.04);display:flex;flex-direction:column}
     .pcard:hover{border-color:#fca5a5;transform:translateY(-4px);box-shadow:0 16px 32px rgba(220,38,38,.11)}
-    .img-wrap{width:100%;aspect-ratio:4/3;position:relative;background:#f9fafb;border-bottom:1px solid #f3f4f6;overflow:hidden;flex-shrink:0}
-    .img-wrap img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .35s ease}
-    .pcard:hover .img-wrap img{transform:scale(1.07)}
+    .img-wrap{width:100%;aspect-ratio:4/3;position:relative;background:#fff;border-bottom:1px solid #f3f4f6;overflow:hidden;flex-shrink:0;padding:20px}
+    .img-wrap img{width:100%;height:100%;object-fit:contain;display:block;transition:transform .35s ease}
+    .pcard:hover .img-wrap img{transform:none}
     .no-img{width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#d1d5db;font-size:11px;gap:5px}
     .badge-disc{position:absolute;top:11px;left:11px;z-index:4;background:#dc2626;color:#fff;font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;pointer-events:none}
     .remove-btn{position:absolute;top:11px;right:11px;z-index:4;width:33px;height:33px;border-radius:50%;background:rgba(255,255,255,.93);border:1.5px solid #e5e7eb;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;box-shadow:0 2px 8px rgba(0,0,0,.09)}
@@ -232,10 +232,7 @@
 
     </main>
   </div>
-
-  <%- include('../partials/layout-scripts') %>
-
-  <script>
+<script>
   function toast(msg, type='info') {
     const icons = {success:'bi-check-circle-fill',error:'bi-x-circle-fill',info:'bi-info-circle-fill'};
     const cls   = {success:'t-ok',error:'t-err',info:'t-inf'};
@@ -311,7 +308,6 @@
       // live update navbar badges
       if (window.updateNavBadge) {
         window.updateNavBadge('cart',     +1);
-        window.updateNavBadge('wishlist', -1);
       }
 
     } catch {
@@ -352,5 +348,6 @@
     }
   }
   </script>
+  <%- include('../partials/footer') %>
 </body>
 </html>

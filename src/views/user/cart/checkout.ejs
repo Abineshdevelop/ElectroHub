@@ -620,10 +620,7 @@
       </a>
     </div>
   </div>
-
-  <%- include('../partials/layout-scripts') %>
-
-  <script>
+<script>
     // ── TOAST ──────────────────────────────────────────────────────────
     function showToast(msg, type = 'success') {
       const icons = { success:'bi-check-circle-fill', error:'bi-x-circle-fill', info:'bi-info-circle-fill', warn:'bi-exclamation-triangle-fill' };
@@ -666,8 +663,21 @@
       return ok;
     }
     document.querySelectorAll('.input-style').forEach(input => {
-      input.addEventListener('blur',  () => { if (input.value.trim()) validateField(input); });
-      input.addEventListener('input', () => { if (input.classList.contains('invalid')) validateField(input); });
+      const runLiveValidation = () => {
+        const val = input.value.trim();
+        const errEl = getErrEl(input);
+        const hasVisibleError = input.classList.contains('invalid') ||
+          (errEl && errEl.classList.contains('show'));
+        if (!val && !hasVisibleError) {
+          clearErr(input);
+          return;
+        }
+        if (val || hasVisibleError || input.classList.contains('valid')) {
+          validateField(input);
+        }
+      };
+      input.addEventListener('blur', runLiveValidation);
+      input.addEventListener('input', runLiveValidation);
       if (input.name==='firstName'||input.name==='lastName')
         input.addEventListener('keypress', e => { if (/\d/.test(e.key)) e.preventDefault(); });
     });
@@ -943,7 +953,7 @@
           document.getElementById('btn-total').textContent       = fmt(r.newTotal);
           showToast(r.message, 'success');
         } else {
-          showToast(r.message || 'Invalid coupon', 'error');
+          showToast(r.message || 'Invalid coupon', r.warning ? 'warn' : 'error');
           btn.textContent = couponApplied ? 'Remove' : 'Apply';
         }
       } catch(e) {
@@ -1111,5 +1121,6 @@
       if (el) el.addEventListener('click', function(e) { if (e.target === this) this.classList.remove('show'); });
     });
   </script>
+  <%- include('../partials/footer') %>
 </body>
 </html>

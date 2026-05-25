@@ -6,6 +6,7 @@ import upload from "../../middlewares/uploads.js";
 import addressController from "../../controllers/user/address.controller.js"
 import passport from "passport";
 import { getSearchSuggestions, getNavCategories, getNavCategoryProducts, getNavCounts } from "../../controllers/user/searchController.js";
+import { loadHomePage } from "../../controllers/user/homeController.js";
 
 const router = Router();
 
@@ -19,7 +20,7 @@ router.post("/resend-forgot-otp", userController.resendForgotOtp);
 router.get('/login', isLoggedOut, userController.loadLogin);
 router.post("/login", isLoggedOut, userController.loginUser);
 router.get("/logout", userController.logoutUser);
-router.get("/home", userController.loadHomePage)
+router.get("/home", loadHomePage)
 router.get("/auth/google",passport.authenticate("google", { scope: ["profile", "email"] }));
 
 router.get("/auth/google/callback",

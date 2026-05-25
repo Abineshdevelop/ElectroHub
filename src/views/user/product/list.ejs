@@ -279,9 +279,6 @@
     </div>
   </div>
 </main>
-
-<%- include('../partials/layout-scripts') %>
-
 <script>
 
 const STATE = {
@@ -538,6 +535,9 @@ async function handleWishlist(btn, productId, variantId) {
       btn.querySelector('i').className = `bi ${data.wishlisted ? 'bi-heart-fill' : 'bi-heart'}`;
       btn.title = data.wishlisted ? 'Remove from wishlist' : 'Add to wishlist';
       toast(data.message, data.wishlisted ? 'success' : 'error');
+      if (window.updateNavBadge) {
+        window.updateNavBadge('wishlist', data.wishlisted ? 1 : -1);
+      }
     } else {
       btn.classList.toggle('on', wasOn);
       btn.querySelector('i').className = `bi ${wasOn ? 'bi-heart-fill' : 'bi-heart'}`;
@@ -810,5 +810,6 @@ window.addEventListener('DOMContentLoaded', () => {
   fetchProducts(true);
 });
 </script>
+  <%- include('../partials/footer') %>
 </body>
 </html>

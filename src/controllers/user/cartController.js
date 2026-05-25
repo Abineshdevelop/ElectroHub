@@ -69,7 +69,7 @@ export async function getCart(req, res, next) {
 
       const variant = await Variant.findById(cartItem.variantId).lean();
 
-      if (!product || !variant || variant.isDeleted) {
+      if (!product || !variant || variant.isDeleted || variant.isActive === false) {
         //if the product or varient is nul or undevined varient is marked as is deleted true
         continue;
       }
@@ -86,7 +86,7 @@ export async function getCart(req, res, next) {
         activeOffers,
       );
 
-      const isAvailable = product.isActive && !product.isDeleted;
+      const isAvailable =product.isActive &&!product.isDeleted &&variant.isActive !== false &&!variant.isDeleted;
 
       enrichedItems.push({
         productId: product,
@@ -136,6 +136,13 @@ export async function addToCart(req, res, next) {
     const { productId, variantId, quantity = 1 } = req.body;
     const qty = Number(quantity);
 
+    if (!Number.isInteger(qty) || qty < 1 || qty > MAX_QTY) {
+      return res.status(400).json({
+        success: false,
+        message: `Quantity must be between 1 and ${MAX_QTY}`,
+      });
+    }
+
     if (!productId || !variantId) {
       return res
         .status(400)
@@ -149,7 +156,7 @@ export async function addToCart(req, res, next) {
       .select("isActive isDeleted")
       .lean();
     const variant = await Variant.findById(variantId)
-      .select("price stock isDeleted productId")
+      .select("price stock isActive isDeleted productId")
       .lean();
 
     if (!product || product.isDeleted || !product.isActive) {
@@ -158,7 +165,7 @@ export async function addToCart(req, res, next) {
         .json({ success: false, message: "Product not available" });
     }
 
-    if (!variant || variant.isDeleted) {
+    if (!variant || variant.isDeleted || variant.isActive === false) {
       return res
         .status(404)
         .json({ success: false, message: "Variant not available" });
@@ -236,17 +243,15 @@ export async function updateCart(req, res, next) {
     const { productId, variantId, quantity } = req.body;
     const qty = Number(quantity);
 
-    if (!qty || qty < 1 || qty > MAX_QTY) {
+    if (!Number.isInteger(qty) || qty < 1 || qty > MAX_QTY) {
       return res.status(400).json({
         success: false,
         message: `Quantity must be between 1 and ${MAX_QTY}`,
       });
     }
 
-    const variant = await Variant.findById(variantId)
-      .select("stock isDeleted")
-      .lean();
-    if (!variant || variant.isDeleted) {
+    const variant = await Variant.findById(variantId).select("stock isActive isDeleted").lean();
+    if (!variant || variant.isDeleted || variant.isActive === false) {
       return res
         .status(404)
         .json({ success: false, message: "Variant not available" });
@@ -272,7 +277,7 @@ export async function updateCart(req, res, next) {
         .json({ success: false, message: "Item not in cart" });
     }
 
-    if (qty > item.quantity && qty > variant.stock) {
+    if (qty > variant.stock) {
       return res.json({
         success: false,
         message: `Only ${variant.stock} units in stock`,

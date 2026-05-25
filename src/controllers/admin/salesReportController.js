@@ -1,126 +1,113 @@
 import Order from "../../model/orderModel.js";
-import User from "../../model/usermodel.js";
-import { AppError } from "../../errors/appError.js";
-import * as reportService from "../../services/reportService.js";
+import {
+  getOrderListMatch,
+  resolveDateRange,
+  buildSalesReportPayload,
+  buildChartSeriesFromOrders,
+  summarizeKpisFromOrders,
+} from "../../services/salesRevenueService.js";
+import {
+  generateSalesPDFReport,
+  generateSalesExcelReport,
+} from "../../services/salesReportExportService.js";
 
-const getMatchFilter = (query) => {
-  const { startDate, endDate, filterType = 'monthly' } = query;
-  let match = { orderStatus: { $nin: ['cancelled', 'returned', 'return_requested', 'expired'] } };
-
-  if (startDate && endDate) {
-    match.createdAt = { $gte: new Date(startDate), $lte: new Date(endDate) };
-  } else if (filterType === 'daily') {
-    const start = new Date(); start.setHours(0, 0, 0, 0);
-    match.createdAt = { $gte: start };
-  } else if (filterType === 'weekly') {
-    const start = new Date(); start.setDate(start.getDate() - 7);
-    match.createdAt = { $gte: start };
-  } else if (filterType === 'yearly') {
-    const start = new Date(new Date().getFullYear(), 0, 1);
-    match.createdAt = { $gte: start };
-  } else {
-    const start = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
-    match.createdAt = { $gte: start };
-  }
-  return match;
-};
+const deliveredItemMatch = { "items.status": "delivered" };
 
 export const getSalesReport = async (req, res) => {
   try {
     if (!req.session.admin) return res.redirect("/admin/login");
 
-    const match = getMatchFilter(req.query);
+    const dateRange = resolveDateRange(req.query);
+    const match = { ...getOrderListMatch(req.query) };
 
-    // 1. KPIs: Revenue, Orders, Discounts
-    const kpiPromise = Order.aggregate([
-      { $match: match },
-      { $group: {
-          _id:           null,
-          totalRevenue: { 
-            $sum: {
-              $cond: [
-                { $or: [
-                  { $eq: ["$orderStatus", "delivered"] },
-                  { $and: [
-                    { $eq: ["$paymentStatus", "paid"] },
-                    { $not: [{ $in: ["$orderStatus", ["cancelled", "returned", "return_requested", "return_rejected"]] }] }
-                  ]}
-                ]},
-                "$totalAmount",
-                0
-              ]
-            }
-          },
-          totalOrders:   { $sum: 1 },
-          totalDiscount: { $sum: "$discount" }
-      }}
-    ]);
+    const ordersPromise = Order.find(match)
+      .sort({ createdAt: -1 })
+      .populate("userId", "firstName lastName email")
+      .lean();
 
-    // 2. Chart Data (Revenue Trend)
-    const chartDataPromise = Order.aggregate([
-      { $match: match },
-      { $group: {
-          _id:     { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
-          revenue: { 
-            $sum: {
-              $cond: [
-                { $or: [
-                  { $eq: ["$orderStatus", "delivered"] },
-                  { $and: [
-                    { $eq: ["$paymentStatus", "paid"] },
-                    { $not: [{ $in: ["$orderStatus", ["cancelled", "returned", "return_requested", "return_rejected"]] }] }
-                  ]}
-                ]},
-                "$totalAmount",
-                0
-              ]
-            }
-          }
-      }},
-      { $sort: { "_id": 1 } }
-    ]);
-
-    // 3. Top Categories
     const topCategoriesPromise = Order.aggregate([
       { $match: match },
       { $unwind: "$items" },
-      { $match: { "items.status": { $nin: ['cancelled', 'returned', 'return_requested'] } } },
-      { $lookup: {
-          from:         "products",
-          localField:   "items.productId",
+      { $match: deliveredItemMatch },
+      {
+        $lookup: {
+          from: "products",
+          localField: "items.productId",
           foreignField: "_id",
-          as:           "product"
-      }},
+          as: "product",
+        },
+      },
       { $unwind: "$product" },
-      { $lookup: {
-          from:         "categories",
-          localField:   "product.categoryId",
+      {
+        $lookup: {
+          from: "categories",
+          localField: "product.categoryId",
           foreignField: "_id",
-          as:           "category"
-      }},
+          as: "category",
+        },
+      },
       { $unwind: "$category" },
-      { $group: {
-          _id:   "$category.categoryName",
-          count: { $sum: "$items.quantity" }
-      }},
-      { $sort: { count: -1 } },
-      { $limit: 10 }
+      {
+        $group: {
+          _id: "$category.categoryName",
+          count: { $sum: "$items.quantity" },
+          revenue: {
+            $sum: {
+              $ifNull: [
+                "$items.finalAmount",
+                { $ifNull: ["$items.lineTotal", 0] },
+              ],
+            },
+          },
+        },
+      },
+      { $sort: { revenue: -1 } },
+      { $limit: 10 },
     ]);
 
-    // 4. Order List for Table
-    const ordersPromise = Order.find(match)
-      .sort({ createdAt: -1 })
-      .populate('userId', 'firstName lastName email')
-      .lean();
+    const topProductsPromise = Order.aggregate([
+      { $match: match },
+      { $unwind: "$items" },
+      { $match: deliveredItemMatch },
+      {
+        $group: {
+          _id: "$items.productId",
+          name: { $first: "$items.productName" },
+          count: { $sum: "$items.quantity" },
+          revenue: {
+            $sum: {
+              $ifNull: [
+                "$items.finalAmount",
+                { $ifNull: ["$items.lineTotal", 0] },
+              ],
+            },
+          },
+        },
+      },
+      { $sort: { revenue: -1 } },
+      { $limit: 10 },
+    ]);
 
-    const [kpis, chartData, topCategories, orders] = await Promise.all([
-      kpiPromise,
-      chartDataPromise,
+    const [orders, topCategoriesRaw, topProductsRaw] = await Promise.all([
+      ordersPromise,
       topCategoriesPromise,
-      ordersPromise
+      topProductsPromise,
     ]);
 
-    const kpi = kpis[0] || { totalRevenue: 0, totalOrders: 0, totalDiscount: 0 };
+    const kpi = summarizeKpisFromOrders(orders);
+    const chartData = buildChartSeriesFromOrders(orders);
+
+    const topCategories = topCategoriesRaw.map((c) => ({
+      _id: c._id,
+      count: c.count,
+      revenue: Math.round(c.revenue || 0),
+    }));
+
+    const topProducts = topProductsRaw.map((p) => ({
+      name: p.name,
+      count: p.count,
+      revenue: Math.round(p.revenue || 0),
+    }));
 
     res.render("admin/auth/salesReport", {
       title: "Sales Report",
@@ -128,32 +115,83 @@ export const getSalesReport = async (req, res) => {
       kpi,
       chartData,
       topCategories,
+      topProducts,
       orders,
-      query: req.query
+      query: req.query,
+      dateRange,
     });
-
   } catch (err) {
     console.error("Sales Report error:", err);
     res.status(500).send("Failed to generate sales report");
   }
 };
 
+async function fetchReportPayload(req) {
+  const match = getOrderListMatch(req.query);
+  const orders = await Order.find(match)
+    .sort({ createdAt: -1 })
+    .populate("userId", "firstName lastName email")
+    .lean();
+
+  const dateRange = resolveDateRange(req.query);
+  const generatedBy = req.session.admin?.email || "Admin";
+
+  const payload = buildSalesReportPayload(orders, { dateRange, generatedBy, query: req.query });
+
+  const topCategoriesAgg = await Order.aggregate([
+    { $match: match },
+    { $unwind: "$items" },
+    { $match: deliveredItemMatch },
+    {
+      $lookup: {
+        from: "products",
+        localField: "items.productId",
+        foreignField: "_id",
+        as: "product",
+      },
+    },
+    { $unwind: "$product" },
+    {
+      $lookup: {
+        from: "categories",
+        localField: "product.categoryId",
+        foreignField: "_id",
+        as: "category",
+      },
+    },
+    { $unwind: "$category" },
+    {
+      $group: {
+        _id: "$category.categoryName",
+        name: { $first: "$category.categoryName" },
+        units: { $sum: "$items.quantity" },
+        revenue: {
+          $sum: {
+            $ifNull: ["$items.finalAmount", { $ifNull: ["$items.lineTotal", 0] }],
+          },
+        },
+      },
+    },
+    { $sort: { revenue: -1 } },
+    { $limit: 15 },
+  ]);
+
+  if (topCategoriesAgg.length) {
+    payload.topCategories = topCategoriesAgg.map((c) => ({
+      name: c.name || c._id,
+      units: c.units,
+      revenue: Math.round(c.revenue || 0),
+    }));
+  }
+
+  return payload;
+}
+
 export const downloadPDF = async (req, res) => {
   try {
-    const match = getMatchFilter(req.query);
-    const orders = await Order.find(match).populate('userId', 'firstName lastName').sort({ createdAt: -1 }).lean();
-    
-    const data = orders.map(o => ({
-      orderId: o.orderId,
-      customer: `${o.userId?.firstName || ''} ${o.userId?.lastName || ''}`,
-      date: new Date(o.createdAt).toLocaleDateString('en-IN'),
-      status: o.orderStatus,
-      paymentMethod: o.paymentMethod,
-      products: o.items.map(i => `${i.productName} - ${i.quantity} qty`).join('\n'),
-      revenue: o.totalAmount
-    }));
-
-    await reportService.generatePDFReport(res, data, 'ElectroHub_Sales_Report', 'Sales & Revenue Report');
+    const payload = await fetchReportPayload(req);
+    const stamp = new Date().toISOString().split("T")[0];
+    generateSalesPDFReport(res, payload, `ElectroHub_Sales_Report_${stamp}`);
   } catch (err) {
     console.error("PDF Download error:", err);
     res.status(500).send("Failed to generate PDF");
@@ -162,20 +200,9 @@ export const downloadPDF = async (req, res) => {
 
 export const downloadExcel = async (req, res) => {
   try {
-    const match = getMatchFilter(req.query);
-    const orders = await Order.find(match).populate('userId', 'firstName lastName').sort({ createdAt: -1 }).lean();
-    
-    const data = orders.map(o => ({
-      orderId: o.orderId,
-      customer: `${o.userId?.firstName || ''} ${o.userId?.lastName || ''}`,
-      date: new Date(o.createdAt).toLocaleDateString('en-IN'),
-      status: o.orderStatus,
-      paymentMethod: o.paymentMethod,
-      products: o.items.map(i => `${i.productName} - ${i.quantity} qty`).join('\n'),
-      revenue: o.totalAmount
-    }));
-
-    await reportService.generateExcelReport(res, data, 'ElectroHub_Sales_Report');
+    const payload = await fetchReportPayload(req);
+    const stamp = new Date().toISOString().split("T")[0];
+    await generateSalesExcelReport(res, payload, `ElectroHub_Sales_Report_${stamp}`);
   } catch (err) {
     console.error("Excel Download error:", err);
     res.status(500).send("Failed to generate Excel");

@@ -637,17 +637,22 @@ document.querySelectorAll('input[name="firstName"], input[name="lastName"]').for
   });
 });
 
-// ── Live validation ─────────────────────────────────────────────
+// ── Live validation — clear errors as soon as input is valid ──
 document.querySelectorAll('.input-style').forEach(input => {
-  input.addEventListener('blur', () => { if (input.value.trim()) validateInput(input); });
-  input.addEventListener('input', () => {
-    if (input.classList.contains('invalid')) validateInput(input);
-    if (input.name === 'phone'   && input.value.length === 10) validateInput(input);
-    if (input.name === 'pincode' && input.value.length === 6)  validateInput(input);
-    if ((input.name === 'firstName' || input.name === 'lastName') && input.value.trim().length >= 1) {
+  const runLiveValidation = () => {
+    const val = input.value.trim();
+    const hasVisibleError = input.classList.contains('invalid') ||
+      (getErrorEl(input) && !getErrorEl(input).classList.contains('hidden'));
+    if (!val && !hasVisibleError) {
+      clearError(input);
+      return;
+    }
+    if (val || hasVisibleError || input.classList.contains('valid')) {
       validateInput(input);
     }
-  });
+  };
+  input.addEventListener('blur', runLiveValidation);
+  input.addEventListener('input', runLiveValidation);
 });
 
 // ── Form submissions ────────────────────────────────────────────
@@ -697,8 +702,6 @@ async function removeDefault(id) {
   r.success ? location.reload() : alert("Failed");
 }
 </script>
-
-<%- include('../partials/layout-scripts') %>
-
+  <%- include('../partials/footer') %>
 </body>
 </html>

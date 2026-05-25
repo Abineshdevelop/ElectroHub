@@ -31,15 +31,22 @@
     #zoomLens { display: none; position: fixed; z-index: 9998; width: 400px; height: 400px; border-radius: 24px; border: 1px solid rgba(0, 0, 0, 0.1); background: #fff; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); overflow: hidden; pointer-events: none; backdrop-filter: blur(4px); }
     #zoomLens img { position: absolute; transition: none; }
     .vopt { padding: 7px 16px; border-radius: 9px; font-size: 12px; font-weight: 600; border: 1.5px solid #e5e7eb; color: #6b7280; background: #fff; cursor: pointer; transition: all .18s; user-select: none; display: inline-block }
-    .vopt:hover { border-color: #fca5a5; color: #dc2626 }
-    .vopt.on { background: #dc2626; color: #fff; border-color: #dc2626; box-shadow: 0 3px 10px rgba(220, 38, 38, .25) }
-    .action-btn-wrap { display: flex; gap: 12px; flex-wrap: wrap; width: 100%; max-width: 420px }
+    .vopt:hover:not(.disabled):not(.unavailable):not(.on) { border-color: #fca5a5; color: #dc2626 }
+    .vopt.on { background: #dc2626; color: #fff !important; border-color: #dc2626; box-shadow: 0 3px 10px rgba(220, 38, 38, .25) }
+    .vopt.on:hover { background: #dc2626; color: #fff !important; border-color: #dc2626 }
+    .vopt.on.unavailable { background: #dc2626; color: #fff !important; border-color: #dc2626; opacity: .85 }
+    .vopt.on.unavailable:hover { color: #fff !important; }
+    .vopt.unavailable { cursor: pointer; background: #fef2f2; color: #b91c1c; border-color: #fecaca; opacity: 1 }
+    .vopt.unavailable:hover { background: #fee2e2; color: #b91c1c; border-color: #fca5a5 }
+    .vopt.disabled { opacity: .45; cursor: not-allowed; background: #f9fafb; color: #9ca3af; border-color: #e5e7eb; text-decoration: line-through }
+    .vopt.disabled:hover { color: #9ca3af; border-color: #e5e7eb }
+    .action-btn-wrap { display: flex; gap: 0; flex-wrap: wrap; width: 100%; max-width: 420px; align-items: center }
     #btnBuy { display: inline-flex; align-items: center; justify-content: center; gap: 7px; width: 180px; height: 48px; flex-shrink: 0; border-radius: 12px; font-size: 14px; font-weight: 700; background: linear-gradient(135deg, #dc2626, #ef4444); color: #fff; border: none; cursor: pointer; box-shadow: 0 4px 14px rgba(220, 38, 38, .3); transition: all .2s; white-space: nowrap; }
     #btnBuy:hover:not(:disabled) { background: linear-gradient(135deg, #b91c1c, #dc2626); transform: translateY(-1px) }
-    #btnBuy:disabled { opacity: .45; cursor: not-allowed; transform: none }
-    #btnCart { display: inline-flex; align-items: center; justify-content: center; gap: 7px; width: 180px; height: 48px; flex-shrink: 0; border-radius: 12px; font-size: 14px; font-weight: 700; cursor: pointer; transition: background .2s, box-shadow .2s, transform .2s; border: none; white-space: nowrap; }
-    #btnCart:hover:not(:disabled) { transform: translateY(-1px) }
-    #btnCart:disabled { opacity: .45; cursor: not-allowed; transform: none }
+    #btnBuy:disabled { opacity: .55; cursor: not-allowed; transform: none; box-shadow: none }
+    #btnCart { display: inline-flex; align-items: center; justify-content: center; gap: 7px; width: 180px; height: 48px; flex-shrink: 0; border-radius: 12px; font-size: 14px; font-weight: 700; cursor: pointer; transition: background .2s, box-shadow .2s, transform .2s, border-color .2s; background: #fff; color: #dc2626; border: 2px solid #dc2626; box-shadow: none; white-space: nowrap; margin-left: 12px; }
+    #btnCart:hover:not(:disabled) { transform: translateY(-1px); background: #fff5f5 }
+    #btnCart:disabled { opacity: 1; cursor: not-allowed; transform: none; margin-left: 12px; background: #f9fafb; color: #9ca3af; border: 2px solid #e5e7eb; box-shadow: none }
     #btnWishlist { width: 42px; height: 42px; border-radius: 12px; display: flex; align-items: center; justify-content: center; border: 2px solid #e5e7eb; background: #fff; cursor: pointer; transition: all .2s; flex-shrink: 0; }
     #btnWishlist:hover { border-color: #fca5a5; background: #fff5f5; transform: scale(1.08) }
     #btnWishlist.wishlisted { border-color: #fca5a5; background: #fff5f5 }
@@ -54,9 +61,9 @@
     .review-card { background: #f9fafb; border: 1px solid #f0f0f0; border-radius: 14px; padding: 16px 18px }
     .pcard { background: #fff; border: 1px solid #f0f0f0; border-radius: 20px; overflow: hidden; transition: all .3s ease; position: relative; box-shadow: 0 2px 12px rgba(0, 0, 0, .04); display: flex; flex-direction: column; text-decoration: none; color: inherit }
     .pcard:hover { border-color: #fca5a5; transform: translateY(-4px); box-shadow: 0 16px 32px rgba(220, 38, 38, .11) }
-    .pcard-img-wrap { width: 100%; aspect-ratio: 4/3; position: relative; background: #f9fafb; border-bottom: 1px solid #f3f4f6; overflow: hidden; flex-shrink: 0 }
-    .pcard-img-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .35s ease }
-    .pcard:hover .pcard-img-wrap img { transform: scale(1.07) }
+    .pcard-img-wrap { width: 100%; aspect-ratio: 4/3; position: relative; background: #fff; border-bottom: 1px solid #f3f4f6; overflow: hidden; flex-shrink: 0; padding: 14px; display: flex; align-items: center; justify-content: center }
+    .pcard-img-wrap img { width: 100%; height: 100%; object-fit: contain; display: block; transition: transform .35s ease; image-rendering: auto }
+    .pcard:hover .pcard-img-wrap img { transform: scale(1.04) }
     .no-img { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #d1d5db; font-size: 11px; gap: 5px }
     .badge-disc { position: absolute; top: 11px; left: 11px; z-index: 4; background: #dc2626; color: #fff; font-size: 10px; font-weight: 700; padding: 3px 9px; border-radius: 20px; pointer-events: none }
     .card-wish-btn { position: absolute; top: 11px; right: 11px; z-index: 4; width: 33px; height: 33px; border-radius: 50%; background: rgba(255, 255, 255, .93); border: 1.5px solid #e5e7eb; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all .2s; box-shadow: 0 2px 8px rgba(0, 0, 0, .09) }
@@ -96,12 +103,14 @@
       const defaultOfferPct=firstVariant?.offerPct || 0; const defaultMrp=firstVariant?.mrp || 0; const
       defaultStock=firstVariant?.stock || 0; const cappedStock=Math.min(defaultStock, 10); const
       defaultImages=firstVariant?.images || []; const defaultOptions=firstVariant?.options || {}; const
-      optionValuesMap={}; variantOptions.forEach(opt=> {
+      optionValuesMap={}; const activeVariantsList=variants.filter(v=>v.isActive!==false);
+      variantOptions.forEach(opt=> {
       const key = opt.variantName;
       const valSet = new Set();
       variants.forEach(v => { if (v.options && v.options[key]) valSet.add(v.options[key]); });
       if (valSet.size > 0) optionValuesMap[key] = Array.from(valSet);
       });
+      const hasPartialVariantBlock = activeVariantsList.length > 0 && activeVariantsList.length < variants.length;
       const activeOptionKeys = Object.keys(optionValuesMap);
       const avgRating = product.avgRating || 0;
       const reviewCount = product.reviewCount || 0;
@@ -186,11 +195,14 @@
               </p>
 
               <!-- PRICE DISPLAY with offer support -->
+              <% const productUnavailable = typeof isUnavailable !== 'undefined' && isUnavailable; %>
+              <% const defaultVariantUnavailable = productUnavailable || (defaultVariant && defaultVariant.isActive === false); %>
+              <% const showInitialPrice = !defaultVariantUnavailable && defaultPrice > 0; %>
               <div class="flex flex-wrap items-center gap-3 mb-6">
                 <span class="text-3xl font-extrabold text-gray-900" id="priceDisplay">
-                  <%- defaultPrice> 0 ? '₹' + Number(defaultPrice).toLocaleString('en-IN') : '—' %>
+                  <%- showInitialPrice ? '₹' + Number(defaultPrice).toLocaleString('en-IN') : '—' %>
                 </span>
-                <% if(defaultDisc> 0 && defaultCrossed > defaultPrice){ %>
+                <% if(showInitialPrice && defaultDisc> 0 && defaultCrossed > defaultPrice){ %>
                   <span class="text-base text-gray-400 line-through" id="mrpDisplay">
                     ₹<%= Number(defaultCrossed).toLocaleString('en-IN') %>
                   </span>
@@ -203,8 +215,8 @@
                       id="discBadge"></span>
                     <% } %>
                       <span id="stockBadge" class="text-xs font-bold px-3 py-1.5 rounded-full
-            <%= cappedStock>0?'bg-green-100 text-green-700':'bg-red-100 text-red-600' %>">
-                        <%= cappedStock>0?'In Stock':'Out of Stock' %>
+            <%= (typeof isUnavailable !== 'undefined' && isUnavailable) ? 'bg-red-100 text-red-600' : (cappedStock>0?'bg-green-100 text-green-700':'bg-red-100 text-red-600') %>">
+                        <%= (typeof isUnavailable !== 'undefined' && isUnavailable) ? 'Unavailable' : (cappedStock>0?'In Stock':'Out of Stock') %>
                       </span>
               </div>
 
@@ -238,27 +250,45 @@
                       <span id="qtyVal" class="w-10 text-center font-bold text-base select-none">
                         <%= cappedStock>0?1:0 %>
                       </span>
-                      <button class="qty-btn" id="qtyUp" onclick="changeQty(1)" <%=cappedStock===0?'disabled':''
-                        %>>+</button>
+                      <button class="qty-btn" id="qtyUp" onclick="changeQty(1)"
+                        <%= (productUnavailable || cappedStock===0) ? 'disabled' : '' %>>+</button>
                     </div>
                   </div>
-                  <div class="action-btn-wrap mb-4">
-                    <button id="btnBuy" onclick="handleBuyNow()" <%=cappedStock===0?'disabled':'' %>>
+                  <div class="action-btn-wrap mb-2">
+                    <button id="btnBuy" onclick="handleBuyNow()"
+                      <%= (productUnavailable || cappedStock===0) ? 'disabled' : '' %>>
                       <i class="bi bi-lightning-charge-fill"></i> Buy Now
                     </button>
-                    <button id="btnCart" <%=cappedStock===0?'disabled':'' %>>
+                    <button id="btnCart"
+                      <%= (productUnavailable || cappedStock===0) ? 'disabled' : '' %>>
                       <i class="bi bi-cart-plus"></i> Add to Cart
                     </button>
                   </div>
-                  <% if(variants.length===0){ %>
+                  <% if (productUnavailable) { %>
+                    <p id="productUnavailableNote" class="text-xs text-red-600 font-semibold flex items-center gap-1.5 mt-1 mb-1">
+                      <i class="bi bi-slash-circle"></i>
+                      Product unavailable
+                    </p>
+                  <% } else if (hasPartialVariantBlock) { %>
+                    <p id="productUnavailableNote" class="hidden text-xs text-red-600 font-semibold flex items-center gap-1.5 mt-1 mb-1">
+                      <i class="bi bi-slash-circle"></i>
+                      <span id="variantUnavailableText">This variant is currently unavailable.</span>
+                    </p>
+                  <% } else if(variants.length===0){ %>
                     <p class="text-xs text-orange-500 font-semibold flex items-center gap-1 mt-2">
                       <i class="bi bi-exclamation-triangle"></i> No variants available for this product.
                     </p>
-                    <% } else if(cappedStock===0){ %>
+                  <% } else { %>
+                    <% if (cappedStock===0) { %>
                       <p class="text-xs text-red-500 font-semibold flex items-center gap-1 mt-2">
                         <i class="bi bi-exclamation-circle"></i> Currently out of stock. Try another option.
                       </p>
-                      <% } %>
+                    <% } %>
+                    <p id="productUnavailableNote" class="hidden text-xs text-red-600 font-semibold flex items-center gap-1.5 mt-1 mb-1">
+                      <i class="bi bi-slash-circle"></i>
+                      <span id="variantUnavailableText">This variant is currently unavailable.</span>
+                    </p>
+                  <% } %>
             </div>
           </div>
         </div>
@@ -383,12 +413,12 @@
                 <p id="relatedEnd" class="hidden text-xs text-gray-400 py-4">✓ You've seen all related products</p>
               </div>
             </div>
+            
       </main>
-
-      <%- include('../partials/layout-scripts') %>
-
-        <script>
+<script>
           const ALL_VARIANTS = <%- JSON.stringify(variants) %>;
+          const OPTION_KEYS = <%- JSON.stringify(activeOptionKeys) %>;
+          const PRODUCT_UNAVAILABLE = <%= (typeof isUnavailable !== 'undefined' && isUnavailable) ? 'true' : 'false' %>;
           const PRODUCT_ID = '<%= product._id %>';
           const DEFAULT_VARIANT_ID = '<%= defaultVariant?._id || "" %>';
           const MAX_QTY = 10;
@@ -432,19 +462,23 @@
             else { icon.className = 'bi bi-heart'; icon.style.color = '#9ca3af'; btn.classList.remove('wishlisted'); btn.title = 'Add to wishlist'; }
           }
 
+          function promptLoginForWishlist() {
+            return Swal.fire({
+              title: 'Login Required',
+              text: 'Please login to add to wishlist.',
+              icon: 'info',
+              showCancelButton: true,
+              confirmButtonText: 'Login',
+              cancelButtonText: 'Cancel',
+              confirmButtonColor: '#dc2626',
+            }).then((result) => {
+              if (result.isConfirmed) window.location.href = '/user/login';
+            });
+          }
+
           async function toggleWishlist() {
             if (!REL_IS_LOGGED_IN) {
-              Swal.fire({
-                title: 'Login Required',
-                text: 'Please login to add to wishlist.',
-                icon: 'info',
-                showCancelButton: true,
-                confirmButtonText: 'Login',
-                cancelButtonText: 'Cancel',
-                confirmButtonColor: '#dc2626'
-              }).then((result) => {
-                if (result.isConfirmed) window.location.href = '/user/login';
-              });
+              promptLoginForWishlist();
               return;
             }
             const btn = document.getElementById('btnWishlist');
@@ -462,6 +496,9 @@
                 wishlisted = data.wishlisted;
                 updateWishBtn();
                 toast(data.message, data.wishlisted ? 'success' : 'error');
+                if (window.updateNavBadge) {
+                  window.updateNavBadge('wishlist', data.wishlisted ? 1 : -1);
+                }
               } else {
                 toast(data.message || 'Could not update wishlist', 'error');
               }
@@ -539,14 +576,35 @@
             }
           }
 
+          function variantMatchesSelection(v, keys) {
+            const vKeys = Object.keys(v.options || {});
+            if (vKeys.length !== keys.length) return false;
+            return keys.every(k => String(v.options?.[k] ?? '').trim().toLowerCase() === String(selected[k] ?? '').trim().toLowerCase());
+          }
+
           function findVariant() {
             const selectedKeys = Object.keys(selected);
-            if (!selectedKeys.length) return ALL_VARIANTS[0] || null;
-            return ALL_VARIANTS.find(v => {
-              const vKeys = Object.keys(v.options || {});
-              if (vKeys.length !== selectedKeys.length) return false;
-              return selectedKeys.every(k => String(v.options?.[k] ?? '').trim().toLowerCase() === String(selected[k] ?? '').trim().toLowerCase());
-            }) || null;
+            if (!selectedKeys.length) {
+              const active = ALL_VARIANTS.filter(v => v.isActive !== false);
+              return active[0] || ALL_VARIANTS[0] || null;
+            }
+            const match = ALL_VARIANTS.find(v => variantMatchesSelection(v, selectedKeys));
+            if (match) return match;
+            const activeMatch = ALL_VARIANTS.find(v => v.isActive !== false && variantMatchesSelection(v, selectedKeys));
+            return activeMatch || null;
+          }
+
+          function isOptionValueAvailable(key, val) {
+            const trial = { ...selected, [key]: val };
+            const trialKeys = Object.keys(trial);
+            return ALL_VARIANTS.some(v => v.isActive !== false && variantMatchesSelection(v, trialKeys));
+          }
+
+          function isOptionValueBlockedOnly(key, val) {
+            const trial = { ...selected, [key]: val };
+            const trialKeys = Object.keys(trial);
+            const matches = ALL_VARIANTS.filter(v => variantMatchesSelection(v, trialKeys));
+            return matches.length > 0 && matches.every(v => v.isActive === false);
           }
 
           // ── updateUI: also updates crossed price / discount badge ──
@@ -563,7 +621,14 @@
             lowStockToasted = false;
             if (vid) currentVariantId = vid;
 
-            document.getElementById('priceDisplay').textContent = hasMatch && price > 0 ? '₹' + price.toLocaleString('en-IN') : '—';
+            const selectionComplete = OPTION_KEYS.length === 0
+              || OPTION_KEYS.every(k => selected[k] != null && String(selected[k]).trim() !== '');
+            const variantBlocked = hasMatch && v?.isActive === false;
+            const variantMissing = selectionComplete && !hasMatch;
+            const variantUnavailable = variantBlocked || variantMissing;
+            const showPrice = !PRODUCT_UNAVAILABLE && !variantUnavailable && hasMatch && price > 0;
+
+            document.getElementById('priceDisplay').textContent = showPrice ? '₹' + price.toLocaleString('en-IN') : '—';
 
             // update crossed price + discount badge
             const crossedPrice = offerPct > 0 ? originalPrice : mrp;
@@ -573,7 +638,7 @@
 
             const mrpEl = document.getElementById('mrpDisplay');
             const discEl = document.getElementById('discBadge');
-            if (disc > 0 && crossedPrice > price) {
+            if (showPrice && disc > 0 && crossedPrice > price) {
               mrpEl.textContent = '₹' + crossedPrice.toLocaleString('en-IN');
               discEl.textContent = disc + '% off';
               mrpEl.classList.remove('hidden');
@@ -584,29 +649,59 @@
             }
 
             const sb = document.getElementById('stockBadge');
-            if (!hasMatch || stock === 0) { sb.textContent = 'Out of Stock'; sb.className = 'text-xs font-bold px-3 py-1.5 rounded-full bg-red-100 text-red-600'; }
-            else { sb.textContent = 'In Stock'; sb.className = 'text-xs font-bold px-3 py-1.5 rounded-full bg-green-100 text-green-700'; }
-            const canAct = hasMatch && stock > 0;
-            document.getElementById('btnBuy').disabled = !canAct;
-            document.getElementById('btnCart').disabled = !canAct;
-            if (hasMatch && v.images?.length) refreshGallery(v.images);
-            if (hasMatch && vid && isInCart(vid)) {
+
+            if (PRODUCT_UNAVAILABLE || variantUnavailable) {
+              if (sb) { sb.textContent = 'Unavailable'; sb.className = 'text-xs font-bold px-3 py-1.5 rounded-full bg-red-100 text-red-600'; }
+            } else if (stock === 0) {
+              if (sb) { sb.textContent = 'Out of Stock'; sb.className = 'text-xs font-bold px-3 py-1.5 rounded-full bg-red-100 text-red-600'; }
+            } else if (sb) {
+              sb.textContent = 'In Stock';
+              sb.className = 'text-xs font-bold px-3 py-1.5 rounded-full bg-green-100 text-green-700';
+            }
+
+            const canAct = !PRODUCT_UNAVAILABLE && hasMatch && stock > 0 && !variantBlocked;
+            const buyBtn = document.getElementById('btnBuy');
+            const cartBtn = document.getElementById('btnCart');
+            if (buyBtn) buyBtn.disabled = !canAct;
+            if (cartBtn) cartBtn.disabled = !canAct;
+
+            const unavailableNote = document.getElementById('productUnavailableNote');
+            const unavailableText = document.getElementById('variantUnavailableText');
+            if (unavailableNote && !PRODUCT_UNAVAILABLE) {
+              if (variantUnavailable) {
+                if (unavailableText) unavailableText.textContent = 'This variant is currently unavailable.';
+                unavailableNote.classList.remove('hidden');
+              } else {
+                unavailableNote.classList.add('hidden');
+              }
+            }
+
+            const qtyVal = document.getElementById('qtyVal');
+            const qtyDown = document.getElementById('qtyDown');
+            const qtyUp = document.getElementById('qtyUp');
+            if (hasMatch && vid && isInCart(vid) && canAct) {
               const cartQty = await fetchCartQty(vid);
               if (cartQty !== null) { qty = Math.min(Math.max(1, cartQty), stock); if (qty !== cartQty && stock > 0) syncQtyToCart(vid, qty); }
               else qty = stock > 0 ? 1 : 0;
-            } else { qty = stock > 0 ? 1 : 0; }
-            document.getElementById('qtyVal').textContent = qty;
-            document.getElementById('qtyDown').disabled = qty <= 1 || !canAct;
-            document.getElementById('qtyUp').disabled = !canAct;
-            if (!hasMatch || stock === 0) {
-              const btn = document.getElementById('btnCart');
-              if (btn) { btn.innerHTML = '<i class="bi bi-cart-plus"></i> Add to Cart'; btn.style.cssText = STYLE_GHOST; btn.disabled = true; btn.onclick = null; }
+            } else { qty = stock > 0 && canAct ? 1 : 0; }
+            if (qtyVal) qtyVal.textContent = qty;
+            if (qtyDown) qtyDown.disabled = qty <= 1 || !canAct;
+            if (qtyUp) qtyUp.disabled = !canAct;
+            if (!canAct) {
+              if (cartBtn) {
+                cartBtn.innerHTML = '<i class="bi bi-cart-plus"></i> Add to Cart';
+                cartBtn.style.cssText = '';
+                cartBtn.disabled = true;
+                cartBtn.onclick = null;
+              }
             } else { updateCartBtn(); }
-            if (hasMatch) startQtySync(); else stopQtySync();
-            if (hasMatch && stock > 0 && stock <= LOW_STOCK_THRESHOLD && !lowStockToasted) {
+            if (canAct) startQtySync(); else stopQtySync();
+            if (canAct && hasMatch && stock > 0 && stock <= LOW_STOCK_THRESHOLD && !lowStockToasted) {
               lowStockToasted = true;
               setTimeout(() => toast(`Only ${stock} left in stock — hurry!`, 'warn'), 600);
             }
+
+            if (hasMatch && v.images?.length) refreshGallery(v.images);
             RELATED_STATE.page = 1;
             RELATED_STATE.exhausted = false;
             fetchRelated(true);
@@ -617,11 +712,22 @@
               const safeKey = key.replace(/\s+/g, '_');
               const lbl = document.getElementById('lbl_' + safeKey);
               if (lbl) lbl.textContent = selected[key] || '';
-              document.querySelectorAll(`[data-key="${key}"]`).forEach(btn => { btn.classList.toggle('on', btn.dataset.val === String(selected[key])); });
+              document.querySelectorAll(`[data-key="${key}"]`).forEach(btn => {
+                const val = btn.dataset.val;
+                const available = isOptionValueAvailable(key, val);
+                const blockedOnly = !available && isOptionValueBlockedOnly(key, val);
+                const isSelected = btn.dataset.val === String(selected[key]);
+                btn.classList.toggle('on', isSelected);
+                btn.classList.toggle('unavailable', blockedOnly);
+                btn.classList.toggle('disabled', !available && !blockedOnly);
+                btn.title = blockedOnly ? 'Unavailable' : '';
+                btn.style.pointerEvents = (!available && !blockedOnly) ? 'none' : '';
+              });
             });
           }
 
           function selectOption(el) {
+            if (el.classList.contains('disabled') && !el.classList.contains('unavailable')) return;
             stopQtySync();
             const key = el.dataset.key; const val = el.dataset.val; const safeKey = key.replace(/\s+/g, '_');
             selected[key] = val;
@@ -729,7 +835,8 @@
               });
               return;
             }
-            if (!currentVariant || currentVariant.stock === 0) { toast('Please select an available variant', 'error'); return; }
+            if (!currentVariant || currentVariant.isActive === false) { toast('This variant is currently unavailable', 'error'); return; }
+            if (currentVariant.stock === 0) { toast('Please select an available variant', 'error'); return; }
             
             fetch('/user/cart/add', {
               method: 'POST',
@@ -766,7 +873,8 @@
               });
               return;
             }
-            if (!currentVariant || currentVariant.stock === 0) { toast('Please select an available variant', 'error'); return; }
+            if (!currentVariant || currentVariant.isActive === false) { toast('This variant is currently unavailable', 'error'); return; }
+            if (currentVariant.stock === 0) { toast('Please select an available variant', 'error'); return; }
             fetch('/user/cart/add', {
               method: 'POST', headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ productId: PRODUCT_ID, variantId: currentVariant._id.toString(), quantity: qty })
@@ -779,6 +887,12 @@
                   localStorage.setItem('cart_qty_update', JSON.stringify({ variantId: currentVariant._id.toString(), quantity: qty, ts: Date.now() }));
                   toast('Added to cart!', 'success');
                   updateCartBtn(); startQtySync();
+                  if (window.updateNavBadge) {
+                    window.updateNavBadge('cart', 1);
+                    if (wishlisted) {
+                      window.updateNavBadge('wishlist', -1);
+                    }
+                  }
                   if (wishlisted) { wishlisted = false; updateWishBtn(); }
                 } else { toast(d.message || 'Failed to add to cart', 'error'); }
               })
@@ -818,8 +932,7 @@
 
           async function handleRelWishlist(btn, productId, variantId) {
             if (!REL_IS_LOGGED_IN) {
-              toast('Please log in to use wishlist', 'info');
-              setTimeout(() => window.location.href = '/user/login', 1200);
+              promptLoginForWishlist();
               return;
             }
             const wasOn = btn.classList.contains('on');
@@ -837,6 +950,9 @@
                 btn.querySelector('i').className = `bi ${data.wishlisted ? 'bi-heart-fill' : 'bi-heart'}`;
                 btn.title = data.wishlisted ? 'Remove from wishlist' : 'Add to wishlist';
                 toast(data.message, data.wishlisted ? 'success' : 'error');
+                if (window.updateNavBadge) {
+                  window.updateNavBadge('wishlist', data.wishlisted ? 1 : -1);
+                }
               } else {
                 btn.classList.toggle('on', wasOn);
                 btn.querySelector('i').className = `bi ${wasOn ? 'bi-heart-fill' : 'bi-heart'}`;
@@ -988,6 +1104,7 @@
 
           relatedObserver.observe(document.getElementById('relatedSentinel'));
         </script>
+  <%- include('../partials/footer') %>
 </body>
 
 </html>

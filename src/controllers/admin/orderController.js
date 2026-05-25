@@ -1,12 +1,14 @@
 import Order from "../../model/orderModel.js";
+import { deriveOrderStatusFromItems } from "../../services/salesRevenueService.js";
 import mongoose from "mongoose";
-import { creditWallet } from "../user/walletController.js";
+import { buildItemCancellationSafety, validatePartialCancellation } from "../../services/cancellationEligibilityService.js";
+import { refundItemsToWallet } from "../../services/orderRefundService.js";
 
 const FORWARD_TRANSITIONS = {
-  pending:             ['confirmed', 'shipped', 'out_for_delivery', 'delivered', 'cancelled'],
-  confirmed:           ['shipped', 'out_for_delivery', 'delivered', 'cancelled'],
-  shipped:             ['out_for_delivery', 'delivered', 'cancelled'],
-  out_for_delivery:    ['delivered', 'cancelled'],
+  pending:             ['confirmed', 'shipped', 'out_for_delivery', 'delivered'],
+  confirmed:           ['shipped', 'out_for_delivery', 'delivered'],
+  shipped:             ['out_for_delivery', 'delivered'],
+  out_for_delivery:    ['delivered'],
   delivered:           ['return_requested', 'returned'],
   return_requested:    ['returned'],
   partially_cancelled: ['cancelled'],
@@ -18,17 +20,30 @@ const FORWARD_TRANSITIONS = {
 export const getOrders = async (req, res) => {
   try {
     const { q = '', sort = 'desc', status = 'all', page = 1, ajax } = req.query;
+    console.log(status)
     const limit       = 8;
     const currentPage = Math.max(1, Number(page));
     const skip        = (currentPage - 1) * limit;
 
     const filter = {};
-    if (status !== 'all') filter.orderStatus = status;
-    if (q.trim()) {
+if (status !== 'all') {
+
+  const itemLevelStatuses = [
+    'return_requested',
+    'returned',
+    'cancelled'
+  ];
+
+  if (itemLevelStatuses.includes(status)) {
+    filter['items.status'] = status;
+  } else {
+    filter.orderStatus = status;
+  }
+} 
+   if (q.trim()) {
       filter.$or = [
         { orderId:                     { $regex: q.trim(), $options: 'i' } },
-        { 'shippingAddress.firstName': { $regex: q.trim(), $options: 'i' } },
-        { 'shippingAddress.lastName':  { $regex: q.trim(), $options: 'i' } },
+            { 'shippingAddress.lastName':  { $regex: q.trim(), $options: 'i' } },
         { 'shippingAddress.email':     { $regex: q.trim(), $options: 'i' } },
       ];
     }
@@ -67,90 +82,24 @@ export const getOrderDetail = async (req, res) => {
       return res.redirect('/admin/orders');
     }
 
-    const order = await Order.findById(id).lean();
+    const order = await Order.findById(id)
+      .populate("items.productId")
+      .populate("items.variantId")
+      .lean();
     if (!order) {
       if (ajax === '1') return res.json({ success: false, message: 'Order not found' });
       return res.redirect('/admin/orders');
     }
 
-    if (ajax === '1') return res.json({ success: true, order });
+    const itemCancellationSafety = await buildItemCancellationSafety(order);
 
-    res.render('admin/orders', { order });
+    if (ajax === '1') return res.json({ success: true, order, itemCancellationSafety });
+
+    res.render('admin/orders', { order, itemCancellationSafety });
   } catch (err) {
     console.error(err);
     if (req.query.ajax === '1') return res.status(500).json({ success: false, message: 'Server error' });
     res.redirect('/admin/orders');
-  }
-};
-
-export const updateOrderStatus = async (req, res) => {
-  try {
-    const { id }     = req.params;
-    const { status } = req.body;
-    const allowed    = ['pending','confirmed','shipped','out_for_delivery','delivered','cancelled','returned'];
-
-    if (!allowed.includes(status))
-      return res.json({ success: false, message: 'Invalid status' });
-
-    const order = await Order.findById(id);
-    if (!order) return res.json({ success: false, message: 'Order not found' });
-
-    if (status === order.orderStatus)
-      return res.json({ success: true, orderStatus: order.orderStatus, message: 'Status is already set to ' + status });
-
-    const validNext = FORWARD_TRANSITIONS[order.orderStatus] || [];
-    if (!validNext.includes(status))
-      return res.json({ success: false, message: `Cannot move status from "${order.orderStatus}" to "${status}". Only forward transitions are allowed.` });
-
-    const oldStatus   = order.orderStatus;
-    order.orderStatus = status;
-
-    // If order is delivered, mark as paid (handles COD — cash collected on delivery)
-    if (status === 'delivered' && order.paymentStatus !== 'refunded') {
-      order.paymentStatus = 'paid';
-    }
-
-    if (['cancelled', 'returned'].includes(status) && !['cancelled', 'returned'].includes(oldStatus)) {
-      // COD orders: customer never paid online, no wallet refund
-      const isCOD = order.paymentMethod === 'cod';
-      if (!isCOD && (order.paymentStatus === 'paid' || order.paymentStatus === 'refunded')) {
-        const Variant = (await import("../../model/variantModel.js")).default;
-        for (const item of order.items) {
-          if (!['cancelled', 'returned'].includes(item.status)) {
-            await Variant.findByIdAndUpdate(item.variantId, { $inc: { stock: item.quantity } });
-          }
-        }
-
-        const alreadyRefunded = order.refundAmount || 0;
-        const refundAmount    = Math.max(0, (order.totalAmount || 0) - alreadyRefunded);
-
-        if (refundAmount > 0 && order.paymentStatus === 'paid') {
-          order.refundAmount      = alreadyRefunded + refundAmount;
-          order.refundStatus      = 'processed';
-          order.refundProcessedAt = new Date();
-          order.paymentStatus     = 'refunded';
-          await creditWallet(order.userId, refundAmount, `Refund for Admin updated ${status} order #${order.orderId}`);
-        }
-      } else if (isCOD) {
-        // COD: still restore stock even though no wallet refund
-        const Variant = (await import("../../model/variantModel.js")).default;
-        for (const item of order.items) {
-          if (!['cancelled', 'returned'].includes(item.status)) {
-            await Variant.findByIdAndUpdate(item.variantId, { $inc: { stock: item.quantity } });
-          }
-        }
-      }
-    }
-
-    order.items.forEach(i => {
-      if (!['cancelled', 'returned'].includes(i.status)) i.status = status;
-    });
-
-    await order.save();
-    res.json({ success: true, orderStatus: order.orderStatus });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
   }
 };
 
@@ -172,9 +121,6 @@ export const updateItemStatus = async (req, res) => {
     const item = order.items.find(i => i._id.toString() === itemId);
     if (!item) return res.json({ success: false, message: 'Item not found' });
 
-    if (status === 'cancelled' && order.discount > 0)
-      return res.json({ success: false, message: 'Cannot cancel individual items on a coupon/offer order. Cancel the entire order instead.' });
-
     const currentItemStatus = item.status || order.orderStatus;
 
     if (status === currentItemStatus)
@@ -185,55 +131,49 @@ export const updateItemStatus = async (req, res) => {
       return res.json({ success: false, message: `Cannot move item status from "${currentItemStatus}" to "${status}". Only forward transitions are allowed.` });
 
     const oldStatus = item.status;
+
+    if (['cancelled', 'returned'].includes(status) && !['cancelled', 'returned'].includes(oldStatus)) {
+      const eligibility = await validatePartialCancellation(order, [item]);
+      if (!eligibility.allowed) {
+        return res.json({
+          success: false,
+          message: status === 'returned'
+            ? "Partial return is not allowed because coupon eligibility will be lost. The remaining order value will fall below the coupon minimum purchase requirement."
+            : eligibility.message,
+          maxCancellableAmount: eligibility.maxCancellableAmount,
+          remainingSubtotal: eligibility.remainingSubtotal,
+          minPurchaseAmount: eligibility.minPurchaseAmount,
+        });
+      }
+    }
+
     item.status     = status;
 
     if (['cancelled', 'returned'].includes(status) && !['cancelled', 'returned'].includes(oldStatus)) {
-      const isCOD = order.paymentMethod === 'cod';
       const Variant = (await import("../../model/variantModel.js")).default;
-      await Variant.findByIdAndUpdate(item.variantId, { $inc: { stock: item.quantity } });
+      const shouldRestoreStock = order.paymentMethod === 'cod' || ['paid', 'partially_refunded', 'refunded', 'adjusted'].includes(order.paymentStatus);
 
-      // COD orders: customer never paid online, no wallet refund
-      if (!isCOD && (order.paymentStatus === 'paid' || order.paymentStatus === 'refunded')) {
-        const rawRefund       = item.finalAmount != null ? item.finalAmount : Math.max(0, (item.lineTotal ?? 0) - (item.couponDiscount ?? 0));
-        const alreadyRefunded = order.refundAmount || 0;
-        const refundAmt       = Math.min(rawRefund, Math.max(0, (order.totalAmount || 0) - alreadyRefunded));
-
-        if (refundAmt > 0 && order.paymentStatus === 'paid') {
-          order.refundAmount      = alreadyRefunded + refundAmt;
-          order.refundStatus      = 'processed';
-          order.refundProcessedAt = new Date();
-          await creditWallet(order.userId, refundAmt, `Refund for Admin updated ${status} item "${item.productName}" in order #${order.orderId}`);
-        }
+      if (shouldRestoreStock) {
+        await Variant.findByIdAndUpdate(item.variantId, { $inc: { stock: item.quantity } });
       }
+
+      await refundItemsToWallet(
+        order,
+        [item],
+        `Refund for admin ${status} item "${item.productName}" in order #${order.orderId}`,
+      );
     }
 
     order.items.forEach(i => {
       if (i.finalAmount == null) i.finalAmount = i.lineTotal ?? 0;
     });
 
-    const statuses = order.items.map(i => i.status);
-    const allSame  = statuses.every(s => s === statuses[0]);
-
-    if (allSame) {
-      order.orderStatus = statuses[0];
-    } else {
-      const allCancelled  = statuses.every(s => s === 'cancelled');
-      const allDelivered  = statuses.every(s => s === 'delivered');
-      const allDone       = statuses.every(s => ['returned', 'cancelled'].includes(s));
-      const someCancelled = statuses.some(s => s === 'cancelled');
-
-      if (allCancelled)       order.orderStatus = 'cancelled';
-      else if (allDelivered)  {
-        order.orderStatus = 'delivered';
-        if (order.paymentStatus !== 'refunded') order.paymentStatus = 'paid';
-      }
-      else if (allDone)       order.orderStatus = 'returned';
-      else if (someCancelled) order.orderStatus = 'partially_cancelled';
-      else {
-        const priority = ['out_for_delivery', 'shipped', 'confirmed'];
-        const active   = statuses.filter(s => !['cancelled', 'returned'].includes(s));
-        order.orderStatus = priority.find(p => active.includes(p)) || active[0] || order.orderStatus;
-      }
+    order.orderStatus = deriveOrderStatusFromItems(order.items);
+    if (
+      order.orderStatus === "delivered" &&
+      !["paid", "partially_refunded", "refunded"].includes(order.paymentStatus)
+    ) {
+      order.paymentStatus = "paid";
     }
 
     await order.save();
@@ -277,7 +217,17 @@ export const approveReturn = async (req, res) => {
     const now = new Date();
     const Variant = (await import('../../model/variantModel.js')).default;
 
-    let totalRefund = 0;
+    const eligibility = await validatePartialCancellation(order, returnItems);
+    if (!eligibility.allowed) {
+      return res.json({
+        success: false,
+        message:
+          "Return cannot be approved because coupon eligibility will be lost. The remaining order value will fall below the coupon minimum purchase requirement.",
+        maxCancellableAmount: eligibility.maxCancellableAmount,
+        remainingSubtotal: eligibility.remainingSubtotal,
+        minPurchaseAmount: eligibility.minPurchaseAmount,
+      });
+    }
 
     for (const item of returnItems) {
       item.status           = 'returned';
@@ -285,39 +235,13 @@ export const approveReturn = async (req, res) => {
 
       // Restore stock
       await Variant.findByIdAndUpdate(item.variantId, { $inc: { stock: item.quantity } });
-
-      // Accumulate refund amount
-      const itemRefund = item.finalAmount != null
-        ? item.finalAmount
-        : Math.max(0, (item.lineTotal ?? 0) - (item.couponDiscount ?? 0));
-      totalRefund += itemRefund;
     }
 
-    // Issue wallet refund only for online payments (not COD)
-    // COD: customer never paid digitally, so no wallet credit on return
-    const isCODOrder = order.paymentMethod === 'cod';
-    const isEligibleForRefund = 
-      !isCODOrder &&
-      ['paid', 'refunded', 'partially_refunded'].includes(order.paymentStatus);
-    
-    if (totalRefund > 0 && isEligibleForRefund) {
-      const alreadyRefunded = order.refundAmount || 0;
-      // We should not refund more than what was actually paid
-      const maxRefundable   = Math.max(0, (order.totalAmount || 0) - alreadyRefunded);
-      const safeRefund      = Math.min(totalRefund, maxRefundable);
-
-      if (safeRefund > 0) {
-        order.refundAmount      = alreadyRefunded + safeRefund;
-        order.refundStatus      = 'processed';
-        order.refundProcessedAt = now;
-        
-        // If we have now refunded everything, it's 'refunded'; otherwise 'partially_refunded'
-        const isFullyRefunded = order.refundAmount >= (order.totalAmount || 0);
-        order.paymentStatus   = isFullyRefunded ? 'refunded' : 'partially_refunded';
-        
-        await creditWallet(order.userId, safeRefund, `Refund for approved return on order #${order.orderId}`, "order_refund", order._id);
-      }
-    }
+    const refundedAmount = await refundItemsToWallet(
+      order,
+      returnItems,
+      `Refund for approved return on order #${order.orderId}`,
+    );
 
     // Recalculate order-level status
     const statuses = order.items.map(i => i.status);
@@ -330,7 +254,10 @@ export const approveReturn = async (req, res) => {
     }
 
     await order.save();
-    res.json({ success: true, message: 'Return approved. Refund issued to customer wallet.', orderStatus: order.orderStatus });
+    const message = refundedAmount > 0
+      ? 'Return approved. Refund issued to customer wallet.'
+      : 'Return approved.';
+    res.json({ success: true, message, orderStatus: order.orderStatus });
   } catch (err) {
     console.error('approveReturn error:', err);
     res.status(500).json({ success: false, message: 'Server error' });

@@ -163,7 +163,10 @@ function cleanVariants(variantOptions) {
 
 export const createCategory = async (req, res) => {
   try {
-    const { categoryName, description, isActive, specificationsConfig, variantOptions } = req.body;
+    let { categoryName, description, isActive, specificationsConfig, variantOptions } = req.body;
+
+    if (typeof specificationsConfig === 'string') specificationsConfig = JSON.parse(specificationsConfig);
+    if (typeof variantOptions === 'string') variantOptions = JSON.parse(variantOptions);
 
     const error = validateCategoryBody({ categoryName, specificationsConfig, variantOptions });
     if (error) return res.status(400).json({ success: false, message: error });
@@ -175,9 +178,15 @@ export const createCategory = async (req, res) => {
     if (exists)
       return res.status(409).json({ success: false, message: "Category already exists." });
 
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: "Category image is required." });
+    }
+    const imagePath = `/uploads/category/${req.file.filename}`;
+
     const category = await Category.create({
       categoryName:         categoryName.trim(),
       description:          (description || "").trim(),
+      image:                imagePath,
       isActive:             isActive === true || isActive === "true",
       isDeleted:            false,
       specificationsConfig: cleanSpecs(specificationsConfig),
@@ -205,7 +214,10 @@ export const getCategoryById = async (req, res) => {
 
 export const updateCategory = async (req, res) => {
   try {
-    const { categoryName, description, isActive, specificationsConfig, variantOptions } = req.body;
+    let { categoryName, description, isActive, specificationsConfig, variantOptions } = req.body;
+
+    if (typeof specificationsConfig === 'string') specificationsConfig = JSON.parse(specificationsConfig);
+    if (typeof variantOptions === 'string') variantOptions = JSON.parse(variantOptions);
 
     const error = validateCategoryBody({ categoryName, specificationsConfig, variantOptions });
     if (error) return res.status(400).json({ success: false, message: error });
@@ -222,8 +234,21 @@ export const updateCategory = async (req, res) => {
     if (!category)
       return res.status(404).json({ success: false, message: "Category not found." });
 
+    const imageRemoved = req.body.imageRemoved === "true" || req.body.imageRemoved === true;
+    if (imageRemoved && !req.file) {
+      return res.status(400).json({ success: false, message: "Category image is required." });
+    }
+    if (!category.image && !req.file) {
+      return res.status(400).json({ success: false, message: "Category image is required." });
+    }
+
     category.categoryName         = categoryName.trim();
     category.description          = (description || "").trim();
+    if (req.file) {
+      category.image = `/uploads/category/${req.file.filename}`;
+    } else if (imageRemoved) {
+      category.image = "";
+    }
     category.isActive             = isActive === true || isActive === "true";
     category.specificationsConfig = cleanSpecs(specificationsConfig);
     category.variantOptions       = cleanVariants(variantOptions);

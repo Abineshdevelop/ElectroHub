@@ -36,6 +36,11 @@ const orderItemSchema = new Schema(
       required: true,
       min: 0,
     },
+    originalPrice: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
     lineTotal: {
       type: Number,
       required: true,
@@ -47,10 +52,25 @@ const orderItemSchema = new Schema(
       default: 0,
       min: 0,
     },
+    discountShare: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
     // NEW: what the user actually paid — use this for refunds
     finalAmount: {
       type: Number,
       required: true,
+      min: 0,
+    },
+    finalPrice: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    paidAmount: {
+      type: Number,
+      default: 0,
       min: 0,
     },
 status: {
@@ -64,6 +84,8 @@ status: {
     returnApprovedAt: { type: Date, default: null },
     returnRejectedAt: { type: Date, default: null },
     returnRejectionReason: { type: String, default: null },
+    invoiceNumber: { type: String, default: null },
+    invoiceDate: { type: Date, default: null },
   },
   { _id: true },
 );
@@ -109,14 +131,20 @@ const orderSchema = new Schema(
     },
     subtotal: { type: Number, required: true, min: 0 },
     discount: { type: Number, default: 0, min: 0 },
+    couponDiscount: { type: Number, default: 0, min: 0 },
     shipping: { type: Number, default: 0, min: 0 },
     totalAmount: { type: Number, required: true, min: 0 },
+    paidAmount: { type: Number, default: 0, min: 0 },
     couponCode: { type: String, default: null },
     couponId: { type: Schema.Types.ObjectId, ref: "Coupon", default: null },
     couponStatus: {
       type: String,
       enum: ["applied", "removed", "adjusted"],
       default: "applied",
+    },
+    couponSnapshot: {
+      type: Schema.Types.Mixed,
+      default: null,
     },
     paymentMethod: {
       type: String,
@@ -133,7 +161,7 @@ const orderSchema = new Schema(
     razorpaySignature: { type: String, default: null },
 orderStatus: {
   type: String,
-  enum: ["pending", "confirmed", "shipped", "out_for_delivery", "delivered", "cancelled", "returned", "return_requested", "partially_cancelled", "expired", "return_rejected"],
+  enum: ["confirmed", "shipped", "out_for_delivery", "delivered", "cancelled", "returned", "return_requested", "partially_cancelled", "expired", "return_rejected"],
   default: "pending",
 },
 paymentAttempts: [

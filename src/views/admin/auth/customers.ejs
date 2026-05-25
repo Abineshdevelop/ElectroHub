@@ -7,6 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+  <%- include('../layout/admin-ui') %>
 </head>
 
 <body class="bg-gray-100">
@@ -162,35 +163,26 @@
                 <td class="px-5 py-3.5 text-gray-500 w-[12%] font-mono text-xs truncate uppercase"><%= user.referralToken || "—" %></td>
                 <td class="px-5 py-3.5 w-[14%]" data-status-cell>
                   <% if (user.status === 'blocked') { %>
-                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">
-                      <span class="w-1.5 h-1.5 rounded-full bg-red-500 mr-1.5"></span> Blocked
-                    </span>
+                    <span class="status-pill status-pill-blocked">Blocked</span>
                   <% } else { %>
-                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
-                      <span class="w-1.5 h-1.5 rounded-full bg-green-500 mr-1.5"></span> Active
-                    </span>
+                    <span class="status-pill status-pill-active">Active</span>
                   <% } %>
                 </td>
                 <td class="px-5 py-3.5 w-[16%]" data-action-cell>
-                  <div class="flex items-center gap-2">
+                  <div class="action-btns text-sm font-medium">
                     <% if (user.status === 'blocked') { %>
-                      <button
+                      <button type="button"
                         onclick="openConfirm('toggle', '<%= user._id %>', 'blocked', '<%= user.firstName %> <%= user.lastName %>')"
-                        class="inline-flex items-center justify-center gap-1.5 w-24 py-1.5 rounded text-sm font-medium bg-green-50 text-green-700 hover:bg-green-100 transition">
-                        <i class="bi bi-unlock"></i> Unblock
-                      </button>
+                        class="admin-btn-unblock">Unblock</button>
                     <% } else { %>
-                      <button
+                      <button type="button"
                         onclick="openConfirm('toggle', '<%= user._id %>', 'active', '<%= user.firstName %> <%= user.lastName %>')"
-                        class="inline-flex items-center justify-center gap-1.5 w-24 py-1.5 rounded text-sm font-medium bg-yellow-50 text-yellow-700 hover:bg-yellow-100 transition">
-                        <i class="bi bi-slash-circle"></i> Block
-                      </button>
+                        class="admin-btn-block">Block</button>
                     <% } %>
+                    <span class="sep">|</span>
                     <button
                       onclick="openConfirm('delete', '<%= user._id %>', '', '<%= user.firstName %> <%= user.lastName %>')"
-                      class="inline-flex items-center justify-center gap-1.5 w-20 py-1.5 rounded text-sm font-medium bg-red-50 text-red-700 hover:bg-red-100 transition">
-                      <i class="bi bi-trash"></i> Delete
-                    </button>
+                      class="admin-btn-delete">Delete</button>
                   </div>
                 </td>
               </tr>
@@ -417,22 +409,12 @@
         const fullName  = escHtml(`${u.firstName} ${u.lastName}`);
 
         const statusBadge = isBlocked
-          ? `<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">
-               <span class="w-1.5 h-1.5 rounded-full bg-red-500 mr-1.5"></span> Blocked
-             </span>`
-          : `<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
-               <span class="w-1.5 h-1.5 rounded-full bg-green-500 mr-1.5"></span> Active
-             </span>`;
+          ? `<span class="status-pill status-pill-blocked">Blocked</span>`
+          : `<span class="status-pill status-pill-active">Active</span>`;
 
         const toggleBtn = isBlocked
-          ? `<button onclick="openConfirm('toggle','${u._id}','blocked','${fullName}')"
-               class="inline-flex items-center justify-center gap-1.5 w-24 py-1.5 rounded text-sm font-medium bg-green-50 text-green-700 hover:bg-green-100 transition">
-               <i class="bi bi-unlock"></i> Unblock
-             </button>`
-          : `<button onclick="openConfirm('toggle','${u._id}','active','${fullName}')"
-               class="inline-flex items-center justify-center gap-1.5 w-24 py-1.5 rounded text-sm font-medium bg-yellow-50 text-yellow-700 hover:bg-yellow-100 transition">
-               <i class="bi bi-slash-circle"></i> Block
-             </button>`;
+          ? `<button type="button" onclick="openConfirm('toggle','${u._id}','blocked','${fullName}')" class="admin-btn-unblock">Unblock</button>`
+          : `<button type="button" onclick="openConfirm('toggle','${u._id}','active','${fullName}')" class="admin-btn-block">Block</button>`;
 
         return `
           <tr class="hover:bg-gray-50 transition" data-user-id="${u._id}">
@@ -449,12 +431,10 @@
             <td class="px-5 py-3.5 text-gray-500 w-[12%] font-mono text-xs truncate uppercase">${escHtml(u.referralToken || '—')}</td>
             <td class="px-5 py-3.5 w-[14%]" data-status-cell>${statusBadge}</td>
             <td class="px-5 py-3.5 w-[16%]" data-action-cell>
-              <div class="flex items-center gap-2">
+              <div class="action-btns text-sm font-medium">
                 ${toggleBtn}
-                <button onclick="openConfirm('delete','${u._id}','','${fullName}')"
-                  class="inline-flex items-center justify-center gap-1.5 w-20 py-1.5 rounded text-sm font-medium bg-red-50 text-red-700 hover:bg-red-100 transition">
-                  <i class="bi bi-trash"></i> Delete
-                </button>
+                <span class="sep">|</span>
+                <button onclick="openConfirm('delete','${u._id}','','${fullName}')" class="admin-btn-delete">Delete</button>
               </div>
             </td>
           </tr>`;
@@ -550,19 +530,17 @@
 
         // Swap status badge
         row.querySelector('[data-status-cell]').innerHTML = newStatus === 'blocked'
-          ? `<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700"><span class="w-1.5 h-1.5 rounded-full bg-red-500 mr-1.5"></span> Blocked</span>`
-          : `<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700"><span class="w-1.5 h-1.5 rounded-full bg-green-500 mr-1.5"></span> Active</span>`;
+          ? `<span class="status-pill status-pill-blocked">Blocked</span>`
+          : `<span class="status-pill status-pill-active">Active</span>`;
 
-        // Swap toggle button, keep delete button
         const actionCell = row.querySelector('[data-action-cell]');
-        const deleteBtn  = actionCell.querySelector('button:last-child').outerHTML;
         const name       = row.querySelector('td:first-child span.font-medium').textContent.trim();
 
         const toggleBtn = newStatus === 'blocked'
-          ? `<button onclick="openConfirm('toggle','${userId}','blocked','${name}')" class="inline-flex items-center justify-center gap-1.5 w-24 py-1.5 rounded text-sm font-medium bg-green-50 text-green-700 hover:bg-green-100 transition"><i class="bi bi-unlock"></i> Unblock</button>`
-          : `<button onclick="openConfirm('toggle','${userId}','active','${name}')" class="inline-flex items-center justify-center gap-1.5 w-24 py-1.5 rounded text-sm font-medium bg-yellow-50 text-yellow-700 hover:bg-yellow-100 transition"><i class="bi bi-slash-circle"></i> Block</button>`;
+          ? `<button type="button" onclick="openConfirm('toggle','${userId}','blocked','${name}')" class="admin-btn-unblock">Unblock</button>`
+          : `<button type="button" onclick="openConfirm('toggle','${userId}','active','${name}')" class="admin-btn-block">Block</button>`;
 
-        actionCell.innerHTML = `<div class="flex items-center gap-2">${toggleBtn}${deleteBtn}</div>`;
+        actionCell.innerHTML = `<div class="action-btns text-sm font-medium">${toggleBtn}<span class="sep">|</span><button onclick="openConfirm('delete','${userId}','','${name}')" class="admin-btn-delete">Delete</button></div>`;
         showToast(`Customer ${action}ed successfully.`, 'success');
       } catch (err) {
         showToast(err.message || 'Network error', 'error');

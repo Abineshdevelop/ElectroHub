@@ -153,13 +153,23 @@ document.addEventListener("DOMContentLoaded", () => {
   // CLEAR ERROR ON TYPING
   // ===============================
   identifier.addEventListener("input", () => {
-    identifierError.textContent = "";
-    identifierError.classList.add("invisible");
+    const v = identifier.value.trim();
+    if (!v) {
+      identifierError.textContent = "";
+      identifierError.classList.add("invisible");
+      return;
+    }
+    if (regex.email.test(v) || regex.phone.test(v)) {
+      identifierError.textContent = "";
+      identifierError.classList.add("invisible");
+    }
   });
 
   password.addEventListener("input", () => {
-    passwordError.textContent = "";
-    passwordError.classList.add("invisible");
+    if (password.value.trim()) {
+      passwordError.textContent = "";
+      passwordError.classList.add("invisible");
+    }
   });
 
   // ===============================

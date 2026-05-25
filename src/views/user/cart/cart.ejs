@@ -237,10 +237,7 @@
       <% } %>
     </main>
   </div>
-
-  <%- include('../partials/layout-scripts') %>
-
-  <script>
+<script>
     function showToast(message, type = 'success') {
       const icons = { success:'bi-check-circle-fill', error:'bi-x-circle-fill', info:'bi-info-circle-fill', warn:'bi-exclamation-triangle-fill' };
       const toast = document.createElement('div');
@@ -364,6 +361,9 @@
               if (!document.querySelector('.cart-item')) location.reload();
             }, 300);
           }
+          if (window.updateNavBadge) {
+            window.updateNavBadge('cart', -1);
+          }
           localStorage.setItem('cart_qty_update', JSON.stringify({ variantId, quantity: 0, ts: Date.now() }));
           showToast('Item removed', 'info');
         } else {
@@ -420,5 +420,6 @@
       });
     }
   </script>
+  <%- include('../partials/footer') %>
 </body>
 </html>

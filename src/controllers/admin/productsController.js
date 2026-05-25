@@ -116,11 +116,10 @@ function findDuplicateVariant(parsedVariants) {
   return null;
 }
 
-// ── GET /admin/products ───────────────────────────────────────
 export const getProducts = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
-    const limit = 2;
+    const limit = 8;
     const q = req.query.q?.trim() || "";
     const cat = req.query.cat || "";
     const sort = req.query.sort === "asc" ? 1 : -1;
@@ -199,7 +198,6 @@ export const getProducts = async (req, res) => {
   }
 };
 
-// ── GET /admin/products/:id ───────────────────────────────────
 export const getProductById = async (req, res) => {
   try {
     const product = await Product.findOne({
@@ -236,7 +234,6 @@ export const getProductById = async (req, res) => {
   }
 };
 
-// ── POST /admin/products/create ───────────────────────────────
 export const createProduct = async (req, res) => {
   const fileMap = buildFileMap(req.files);
   try {
@@ -277,14 +274,14 @@ export const createProduct = async (req, res) => {
         .json({ success: false, message: "At least one variant is required." });
     }
 
-    // ── validate: no duplicate variant option combos ──────────
+    //prevent dupicate varient
     const dupMsg = findDuplicateVariant(parsedVariants);
     if (dupMsg) {
       cleanupFileMap(fileMap);
       return res.status(400).json({ success: false, message: dupMsg });
     }
 
-    // ── validate: all 5 images per variant ───────────────────
+    // all 5 images per variant 
     for (let vi = 0; vi < parsedVariants.length; vi++) {
       const images = buildVariantImages(vi, parsedVariants[vi], fileMap);
       if (images.length < 5) {
@@ -326,8 +323,6 @@ export const createProduct = async (req, res) => {
   }
 };
 
-// ── PUT /admin/products/:id/edit ──────────────────────────────
-// ── PUT /admin/products/:id/edit ──────────────────────────────
 export const updateProduct = async (req, res) => {
   const fileMap = buildFileMap(req.files);
   try {
@@ -396,7 +391,6 @@ export const updateProduct = async (req, res) => {
         .json({ success: false, message: "Product not found." });
     }
 
-    // ── delete removed images from disk ──────────────────────
     const oldVariants = await Variant.find({
       productId: req.params.id,
       isDeleted: false,
@@ -409,7 +403,6 @@ export const updateProduct = async (req, res) => {
       if (!keptImages.has(imgPath)) deleteImageFile(imgPath);
     });
 
-    // ── update product fields ─────────────────────────────────
     product.productName = productName.trim();
     product.brandName = (brandName || "").trim();
     product.categoryId = category;
@@ -418,10 +411,9 @@ export const updateProduct = async (req, res) => {
     product.specifications = parseSpecs(specifications);
     await product.save();
 
-    // ── collect variant IDs that are being kept ───────────────
     const incomingIds = parsedVariants.map((v) => v._id).filter(Boolean);
 
-    // ── soft-delete variants that were REMOVED by admin ───────
+    // soft-delete variants that were REMOVED by admin
     // Only delete variants whose _id is NOT in the incoming list
     await Variant.updateMany(
       {
@@ -429,10 +421,10 @@ export const updateProduct = async (req, res) => {
         isDeleted: false,
         ...(incomingIds.length > 0 && { _id: { $nin: incomingIds } }),
       },
-      { $set: { isDeleted: true } },
+      { $set: { isDeleted: true } },  //delete varient not in the incoming list
     );
 
-    // ── update existing variants / insert new ones ────────────
+    //  update existing variants insert new ones
     for (let vi = 0; vi < parsedVariants.length; vi++) {
       const v = parsedVariants[vi];
       const images = buildVariantImages(vi, v, fileMap);
@@ -445,7 +437,7 @@ export const updateProduct = async (req, res) => {
       };
 
       if (v._id) {
-        // existing variant — update in place, preserve _id so cart still works
+        // existing variant  update in place, preserve _id so cart still works
         await Variant.updateOne(
           { _id: v._id, productId: req.params.id },
           { $set: data },
@@ -466,7 +458,6 @@ export const updateProduct = async (req, res) => {
   }
 };
 
-// ── DELETE /admin/products/:id/delete ────────────────────────
 export const deleteProduct = async (req, res) => {
   try {
     const product = await Product.findOne({

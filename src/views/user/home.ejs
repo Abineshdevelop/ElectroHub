@@ -8,6 +8,9 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Swiper JS & CSS CDN -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css" />
+    <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
 
     <script>
         tailwind.config = {
@@ -20,15 +23,364 @@
     </script>
 
     <style>
-        body {
-            font-family: 'Inter', sans-serif;
+        body { font-family: 'Inter', sans-serif; }
+
+        /* Dynamic premium theme synced with listing & details */
+        .pcard {
+            background: #fff;
+            border: 1px solid #f0f0f0;
+            border-radius: 20px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            position: relative;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+            display: flex;
+            flex-direction: column;
+            text-decoration: none;
+            color: inherit;
+        }
+        .pcard:hover {
+            border-color: #fca5a5;
+            transform: translateY(-4px);
+            box-shadow: 0 16px 32px rgba(220, 38, 38, 0.11);
+        }
+        .img-wrap {
+            width: 100%;
+            aspect-ratio: 4/3;
+            position: relative;
+            background: #fff;
+            border-bottom: 1px solid #f3f4f6;
+            overflow: hidden;
+            flex-shrink: 0;
+            padding: 20px;
+        }
+        .img-wrap img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+            transition: transform 0.35s ease;
+        }
+        .no-img {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #d1d5db;
+            font-size: 11px;
+            gap: 5px;
+        }
+        .badge-disc {
+            position: absolute;
+            top: 11px;
+            left: 11px;
+            z-index: 4;
+            background: #dc2626;
+            color: #fff;
+            font-size: 10px;
+            font-weight: 700;
+            padding: 3px 9px;
+            border-radius: 20px;
+            pointer-events: none;
+        }
+        .card-wish-btn {
+            position: absolute;
+            top: 11px;
+            right: 11px;
+            z-index: 4;
+            width: 33px;
+            height: 33px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.93);
+            border: 1.5px solid #e5e7eb;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.09);
+        }
+        .card-wish-btn:hover {
+            border-color: #fca5a5;
+            transform: scale(1.12);
+        }
+        .card-wish-btn.on {
+            background: #fef2f2;
+            border-color: #fca5a5;
+        }
+        .card-wish-btn i {
+            font-size: 14px;
+            color: #9ca3af;
+            transition: all 0.18s;
+            line-height: 1;
+        }
+        .card-wish-btn.on i {
+            color: #dc2626;
+        }
+        .pcontent {
+            padding: 13px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        .brand-cat {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: #9ca3af;
+            margin-bottom: 5px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            flex-shrink: 0;
+        }
+        .brand-cat span {
+            color: #ef4444;
+        }
+        .name-row {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 6px;
+            margin-bottom: 8px;
+            flex-shrink: 0;
+        }
+        .name-row h3 {
+            font-size: 13px;
+            font-weight: 700;
+            line-height: 1.4;
+            color: #1f2937;
+            flex: 1;
+            margin: 0;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            min-height: 2.8em;
+        }
+        .stock-pill {
+            flex-shrink: 0;
+            margin-top: 2px;
+            border-radius: 20px;
+            font-size: 9px;
+            font-weight: 700;
+            padding: 3px 8px;
+            white-space: nowrap;
+            border: 1px solid;
+        }
+        .stock-pill.in {
+            color: #16a34a;
+            border-color: #bbf7d0;
+            background: #f0fdf4;
+        }
+        .stock-pill.out {
+            color: #dc2626;
+            border-color: #fecaca;
+            background: #fef2f2;
+        }
+        .price-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: baseline;
+            gap: 5px 4px;
+            margin-bottom: 11px;
+            flex-shrink: 0;
+            min-height: 28px;
+        }
+        .cur-price {
+            font-size: 18px;
+            font-weight: 800;
+            color: #111827;
+        }
+        .mrp-price {
+            font-size: 12px;
+            color: #9ca3af;
+            text-decoration: line-through;
+        }
+        .disc-badge {
+            background: #dcfce7;
+            color: #16a34a;
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 7px;
+            border-radius: 20px;
+        }
+        .btn-view {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            width: 100%;
+            padding: 10px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 600;
+            background: linear-gradient(135deg, #dc2626, #ef4444);
+            color: #fff;
+            border: none;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.2s;
+            margin-top: auto;
+            flex-shrink: 0;
+        }
+        .btn-view:hover {
+            background: linear-gradient(135deg, #b91c1c, #dc2626);
+            transform: translateY(-1px);
+            color: #fff;
+        }
+
+        /* Swiper slider styling adjustments */
+        .swiper-button-next, .swiper-button-prev {
+            color: #fff !important;
+            width: 44px !important;
+            height: 44px !important;
+            background: rgba(220,38,38,0.7);
+            border-radius: 50%;
+            transition: all 0.2s;
+        }
+        .swiper-button-next:hover, .swiper-button-prev:hover {
+            background: rgba(220,38,38,0.95);
+            transform: scale(1.08);
+        }
+        .swiper-button-next::after, .swiper-button-prev::after {
+            font-size: 18px !important;
+            font-weight: bold;
+        }
+        .swiper-pagination-bullet-active {
+            background: #dc2626 !important;
+            width: 12px !important;
+            border-radius: 6px !important;
         }
 
         .hero-section {
-            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-            border-bottom-left-radius: 50px;
-            border-bottom-right-radius: 50px;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            position: relative;
+            overflow: hidden;
         }
+
+        .hero-section::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(220,38,38,0.15) 0%, transparent 60%);
+            pointer-events: none;
+        }
+
+        .countdown-box {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.15);
+        }
+
+        .product-card {
+            transition: all 0.3s ease;
+        }
+        .product-card:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.12);
+        }
+
+        .badge-discount {
+            background: #dc2626;
+            color: white;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 3px 8px;
+            border-radius: 6px;
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            z-index: 10;
+        }
+
+        .category-card:hover img {
+            transform: scale(1.08);
+        }
+        .category-card img {
+            transition: transform 0.3s ease;
+        }
+
+        .section-label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+        .section-label span {
+            display: inline-block;
+            width: 4px;
+            height: 20px;
+            background: #dc2626;
+            border-radius: 2px;
+        }
+        .section-label p {
+            font-size: 11px;
+            font-weight: 700;
+            color: #dc2626;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        .star-filled { color: #f59e0b; }
+        .star-empty  { color: #d1d5db; }
+
+        .new-arrival-card {
+            position: relative;
+            overflow: hidden;
+            border-radius: 16px;
+            cursor: pointer;
+        }
+        .new-arrival-card img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.4s ease;
+        }
+        .new-arrival-card:hover img {
+            transform: scale(1.05);
+        }
+        .new-arrival-overlay {
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            background: linear-gradient(to top, rgba(0,0,0,0.75) 0%, transparent 100%);
+            padding: 20px 16px 16px;
+            color: white;
+        }
+
+        .discount-banner {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        }
+
+        .add-to-cart-btn {
+            background: #111;
+            color: white;
+            width: 100%;
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            transition: all 0.2s;
+        }
+        .add-to-cart-btn:hover {
+            background: #dc2626;
+        }
+
+        #toasts{position:fixed;top:76px;right:16px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+        .toast{padding:10px 16px;border-radius:12px;font-size:13px;font-weight:600;box-shadow:0 6px 20px rgba(0,0,0,.10);opacity:0;transform:translateX(28px);transition:all .25s;display:flex;align-items:center;gap:8px;background:#fff;min-width:190px}
+        .toast.in{opacity:1;transform:translateX(0)}
+        .t-ok{border-left:4px solid #16a34a;color:#15803d}
+        .t-err{border-left:4px solid #dc2626;color:#dc2626}
+        .t-inf{border-left:4px solid #6366f1;color:#4f46e5}
+        .spinr{display:inline-block;animation:spin .6s linear infinite}
+        @keyframes spin{to{transform:rotate(360deg)}}
     </style>
 </head>
 
@@ -36,90 +388,654 @@
 
     <%- include('./partials/navbar') %>
 
-
-        <!-- ===== HERO SECTION ===== -->
-        <section class="hero-section py-16 md:py-24">
-            <div class="max-w-screen-xl mx-auto px-6">
-                <div class="flex flex-col-reverse md:flex-row items-center gap-12">
-
-                    <!-- Text -->
-                    <div class="flex-1 text-center md:text-left">
-                        <span
-                            class="inline-block px-4 py-1.5 bg-red-100 text-red-600 text-xs font-bold rounded-full tracking-widest uppercase mb-4">
-                            2026 Next-Gen Collection
-                        </span>
-                        <h1 class="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight mb-5">
-                            Future of Sound <br class="hidden md:block"> in your Hands.
+    <!-- ===== HERO SECTION ===== -->
+    <% if (typeof heroBanners !== 'undefined' && heroBanners.length > 0) { %>
+        <% if (heroBanners.length === 1) { 
+            const hero = heroBanners[0];
+            let heroLink = '/user/list';
+            if (hero.redirectType === 'product' && hero.redirectValue) {
+              heroLink = `/user/list?search=${encodeURIComponent(hero.redirectValue)}`;
+            } else if (hero.redirectType === 'category' && hero.redirectValue) {
+              heroLink = `/user/list?category=${encodeURIComponent(hero.redirectValue)}`;
+            } else if (hero.redirectType === 'custom' && hero.redirectValue) {
+              heroLink = (hero.redirectValue.startsWith('/') || hero.redirectValue.startsWith('http')) 
+                ? hero.redirectValue 
+                : `/user/list?search=${encodeURIComponent(hero.redirectValue)}`;
+            }
+        %>
+            <section class="hero-section py-16 md:py-24 relative" style="<%= hero.image ? `background-image: url('${hero.image}'); background-size: cover; background-position: center;` : '' %>">
+                <div class="absolute inset-0 bg-gradient-to-r from-gray-900/95 via-gray-900/70 to-transparent"></div>
+                <div class="max-w-screen-xl mx-auto px-6 relative z-10">
+                    <div class="max-w-2xl text-left">
+                        <% if (hero.badgeText) { %>
+                            <span class="inline-block bg-red-600 text-white text-xs font-bold px-4 py-1.5 rounded-full mb-5 tracking-widest uppercase shadow-lg shadow-red-500/30"><%= hero.badgeText %></span>
+                        <% } %>
+                        <h1 class="text-4xl md:text-6xl font-extrabold text-white leading-tight mb-4 tracking-tight">
+                            <%= hero.title %> <br> <span class="text-transparent bg-clip-text bg-gradient-to-r from-red-400 to-red-600"><%= hero.subtitle %></span>
                         </h1>
-                        <p class="text-gray-500 text-lg mb-8 max-w-lg mx-auto md:mx-0">
-                            Experience high-fidelity audio with our new noise-canceling headphone series. Exclusive
-                            deals for members only.
-                        </p>
-                        <div class="flex items-center gap-4 justify-center md:justify-start">
-                            <a href="/user/list"
-                                class="bg-red-600 text-white font-bold px-7 py-3 rounded-full hover:bg-red-700 hover:shadow-lg hover:shadow-red-200 hover:scale-105 transition-all duration-200">
-                                Shop Now
-                            </a>
-                            <a href="/user/list"
-                                class="border border-gray-800 text-gray-800 font-bold px-7 py-3 rounded-full hover:bg-gray-900 hover:text-white transition-all duration-200">
-                                View Trends
-                            </a>
+
+                        <% if (hero.offerText) { %>
+                            <p class="text-gray-200 font-medium text-lg mb-8 max-w-lg leading-relaxed"><%= hero.offerText %></p>
+                        <% } %>
+
+                        <!-- Countdown Timer -->
+                        <% if (hero.countdownEnabled && hero.countdownEndDate) { %>
+                        <div class="flex items-center gap-3 mb-8 mt-2 countdown-wrapper" data-endtime="<%= new Date(hero.countdownEndDate).getTime() %>">
+                            <div class="countdown-box rounded-xl px-4 py-3 text-center min-w-[64px] bg-white/10 backdrop-blur-sm border border-white/20">
+                                <div class="text-2xl font-bold text-white days">00</div>
+                                <div class="text-xs text-gray-300 mt-1 uppercase tracking-wider">Days</div>
+                            </div>
+                            <span class="text-white/50 text-2xl font-bold">:</span>
+                            <div class="countdown-box rounded-xl px-4 py-3 text-center min-w-[64px] bg-white/10 backdrop-blur-sm border border-white/20">
+                                <div class="text-2xl font-bold text-white hours">00</div>
+                                <div class="text-xs text-gray-300 mt-1 uppercase tracking-wider">Hours</div>
+                            </div>
+                            <span class="text-white/50 text-2xl font-bold">:</span>
+                            <div class="countdown-box rounded-xl px-4 py-3 text-center min-w-[64px] bg-white/10 backdrop-blur-sm border border-white/20">
+                                <div class="text-2xl font-bold text-white minutes">00</div>
+                                <div class="text-xs text-gray-300 mt-1 uppercase tracking-wider">Mins</div>
+                            </div>
+                            <span class="text-white/50 text-2xl font-bold">:</span>
+                            <div class="countdown-box rounded-xl px-4 py-3 text-center min-w-[64px] bg-white/10 backdrop-blur-sm border border-white/20">
+                                <div class="text-2xl font-bold text-white seconds">00</div>
+                                <div class="text-xs text-gray-300 mt-1 uppercase tracking-wider">Secs</div>
+                            </div>
+                        </div>
+                        <% } %>
+
+                        <a href="<%= heroLink %>"
+                            class="inline-flex items-center gap-2 bg-white text-gray-900 font-bold px-8 py-3.5 rounded-lg hover:bg-red-600 hover:text-white hover:shadow-xl hover:shadow-red-500/20 transition-all duration-300 text-sm tracking-wide">
+                            Shop Now <i class="bi bi-arrow-right"></i>
+                        </a>
+                    </div>
+                </div>
+            </section>
+        <% } else { %>
+            <!-- Swiper Slider for multiple banners -->
+            <div class="swiper heroSwiper w-full overflow-hidden">
+                <div class="swiper-wrapper">
+                    <% heroBanners.forEach(hero => { 
+                        let heroLink = '/user/list';
+                        if (hero.redirectType === 'product' && hero.redirectValue) {
+                          heroLink = `/user/list?search=${encodeURIComponent(hero.redirectValue)}`;
+                        } else if (hero.redirectType === 'category' && hero.redirectValue) {
+                          heroLink = `/user/list?category=${encodeURIComponent(hero.redirectValue)}`;
+                        } else if (hero.redirectType === 'custom' && hero.redirectValue) {
+                          heroLink = (hero.redirectValue.startsWith('/') || hero.redirectValue.startsWith('http')) 
+                            ? hero.redirectValue 
+                            : `/user/list?search=${encodeURIComponent(hero.redirectValue)}`;
+                        }
+                    %>
+                        <div class="swiper-slide hero-section py-16 md:py-24 relative" style="<%= hero.image ? `background-image: url('${hero.image}'); background-size: cover; background-position: center;` : '' %>">
+                            <div class="absolute inset-0 bg-gradient-to-r from-gray-900/95 via-gray-900/70 to-transparent"></div>
+                            <div class="max-w-screen-xl mx-auto px-6 relative z-10">
+                                <div class="max-w-2xl text-left">
+                                    <% if (hero.badgeText) { %>
+                                        <span class="inline-block bg-red-600 text-white text-xs font-bold px-4 py-1.5 rounded-full mb-5 tracking-widest uppercase shadow-lg shadow-red-500/30"><%= hero.badgeText %></span>
+                                    <% } %>
+                                    <h1 class="text-4xl md:text-6xl font-extrabold text-white leading-tight mb-4 tracking-tight">
+                                        <%= hero.title %> <br> <span class="text-transparent bg-clip-text bg-gradient-to-r from-red-400 to-red-600"><%= hero.subtitle %></span>
+                                    </h1>
+
+                                    <% if (hero.offerText) { %>
+                                        <p class="text-gray-200 font-medium text-lg mb-8 max-w-lg leading-relaxed"><%= hero.offerText %></p>
+                                    <% } %>
+
+                                    <!-- Countdown Timer -->
+                                    <% if (hero.countdownEnabled && hero.countdownEndDate) { %>
+                                    <div class="flex items-center gap-3 mb-8 mt-2 countdown-wrapper" data-endtime="<%= new Date(hero.countdownEndDate).getTime() %>">
+                                        <div class="countdown-box rounded-xl px-4 py-3 text-center min-w-[64px] bg-white/10 backdrop-blur-sm border border-white/20">
+                                            <div class="text-2xl font-bold text-white days">00</div>
+                                            <div class="text-xs text-gray-300 mt-1 uppercase tracking-wider">Days</div>
+                                        </div>
+                                        <span class="text-white/50 text-2xl font-bold">:</span>
+                                        <div class="countdown-box rounded-xl px-4 py-3 text-center min-w-[64px] bg-white/10 backdrop-blur-sm border border-white/20">
+                                            <div class="text-2xl font-bold text-white hours">00</div>
+                                            <div class="text-xs text-gray-300 mt-1 uppercase tracking-wider">Hours</div>
+                                        </div>
+                                        <span class="text-white/50 text-2xl font-bold">:</span>
+                                        <div class="countdown-box rounded-xl px-4 py-3 text-center min-w-[64px] bg-white/10 backdrop-blur-sm border border-white/20">
+                                            <div class="text-2xl font-bold text-white minutes">00</div>
+                                            <div class="text-xs text-gray-300 mt-1 uppercase tracking-wider">Mins</div>
+                                        </div>
+                                        <span class="text-white/50 text-2xl font-bold">:</span>
+                                        <div class="countdown-box rounded-xl px-4 py-3 text-center min-w-[64px] bg-white/10 backdrop-blur-sm border border-white/20">
+                                            <div class="text-2xl font-bold text-white seconds">00</div>
+                                            <div class="text-xs text-gray-300 mt-1 uppercase tracking-wider">Secs</div>
+                                        </div>
+                                    </div>
+                                    <% } %>
+
+                                    <a href="<%= heroLink %>"
+                                        class="inline-flex items-center gap-2 bg-white text-gray-900 font-bold px-8 py-3.5 rounded-lg hover:bg-red-600 hover:text-white hover:shadow-xl hover:shadow-red-500/20 transition-all duration-300 text-sm tracking-wide">
+                                        Shop Now <i class="bi bi-arrow-right"></i>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    <% }) %>
+                </div>
+                <!-- Navigation & Pagination -->
+                <div class="swiper-pagination"></div>
+                <div class="swiper-button-prev"></div>
+                <div class="swiper-button-next"></div>
+            </div>
+        <% } %>
+    <% } %>
+    <!-- ===== NEW ARRIVALS ===== -->
+    <section id="new-arrivals" class="max-w-screen-xl mx-auto px-6 pt-14 md:pt-20 pb-16">
+        <div class="section-label">
+            <span></span>
+            <p>Special Trending Products</p>
+        </div>
+        <div class="flex items-center justify-between mb-8">
+            <h2 class="text-2xl font-bold">New Arrivals</h2>
+            <div class="flex gap-2">
+                <a href="/user/list" class="text-sm font-semibold text-red-600 hover:text-red-700 transition flex items-center gap-1">
+                    View More <i class="bi bi-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+
+        <div class="swiper newArrivalsSwiper w-full overflow-hidden py-4">
+            <div class="swiper-wrapper">
+                <% if (typeof newArrivals !== 'undefined' && newArrivals.length > 0) { 
+                    newArrivals.forEach(p => {
+                        const price = Number(p.price) || 0;
+                        const mrp = Number(p.mrp) || 0;
+                        const inStock = p.stock > 0;
+                        
+                        let iconClass = "bi-laptop";
+                        const prodName = p.productName?.toLowerCase() || "";
+                        if (prodName.includes("ear") || prodName.includes("bud") || prodName.includes("audio") || prodName.includes("head")) iconClass = "bi-headphones";
+                        else if (prodName.includes("watch") || prodName.includes("wearable")) iconClass = "bi-smartwatch";
+                        else if (prodName.includes("phone") || prodName.includes("iphone") || prodName.includes("poco")) iconClass = "bi-phone";
+                        else if (prodName.includes("speaker") || prodName.includes("alexa")) iconClass = "bi-speaker";
+                        else if (prodName.includes("keyboard")) iconClass = "bi-keyboard";
+                %>
+                    <div class="swiper-slide">
+                        <div class="pcard h-full">
+                            <div class="img-wrap">
+                                <% if (p.offerPct > 0) { %>
+                                    <div class="badge-disc">-<%= p.offerPct %>%</div>
+                                <% } %>
+                                <button onclick="toggleWishlist('<%= p._id %>', '<%= p.variantId %>', this)" class="card-wish-btn <%= p.wishlisted ? 'on' : '' %>" title="<%= p.wishlisted ? 'Remove from wishlist' : 'Add to wishlist' %>">
+                                    <i class="bi <%= p.wishlisted ? 'bi-heart-fill' : 'bi-heart' %>"></i>
+                                </button>
+                                <a href="/user/product/<%= p._id %>?variant=<%= p.variantId %>" class="w-full h-full flex items-center justify-center">
+                                    <% if (p.image) { %>
+                                        <img src="<%= p.image %>" alt="<%= p.productName %>">
+                                    <% } else { %>
+                                        <div class="no-img">
+                                            <i class="bi <%= iconClass %> text-4xl text-gray-400"></i>
+                                            <span>No Image</span>
+                                        </div>
+                                    <% } %>
+                                </a>
+                            </div>
+                            <div class="pcontent">
+                                <div class="brand-cat">
+                                    <%= p.brandName || 'ElectroHub' %>
+                                </div>
+                                <div class="name-row">
+                                    <h3><%= p.productName %></h3>
+                                    <span class="stock-pill <%= inStock ? 'in' : 'out' %>"><%= inStock ? 'In Stock' : 'Out' %></span>
+                                </div>
+                                <div class="flex gap-0.5 mb-3">
+                                    <% const avg = Math.round(p.avgRating || 4.5); %>
+                                    <% for(let i = 1; i <= 5; i++) { %>
+                                        <i class="bi bi-star-fill <%= i <= avg ? 'star-filled' : 'star-empty' %> text-xs"></i>
+                                    <% } %>
+                                </div>
+                                <div class="price-row mt-auto">
+                                    <span class="text-xs text-gray-500 font-medium self-center mr-1">From</span>
+                                    <span class="cur-price">₹<%= price.toLocaleString('en-IN') %></span>
+                                    <% if (mrp > price) { %>
+                                        <span class="mrp-price">₹<%= mrp.toLocaleString('en-IN') %></span>
+                                    <% } %>
+                                </div>
+                                <a href="/user/product/<%= p._id %>?variant=<%= p.variantId %>" class="btn-view mt-3">
+                                    <i class="bi bi-eye text-xs"></i> View Details
+                                </a>
+                            </div>
                         </div>
                     </div>
+                <% }) } %>
+            </div>
+            <!-- Add Pagination if needed, or just let it autoplay -->
+        </div>
+    </section>
 
-                    <!-- Icon / Image -->
-                    <div class="flex-1 flex justify-center">
-                        <div
-                            class="w-56 h-56 md:w-72 md:h-72 bg-white rounded-full shadow-xl flex items-center justify-center">
-                            <i class="bi bi-headphones text-red-600" style="font-size: 8rem;"></i>
-                        </div>
+
+    <!-- ===== DISCOUNT BANNER ===== -->
+    <% if (typeof promoBanners !== 'undefined' && promoBanners.length > 0) { 
+        const promo = promoBanners[0];
+        let promoLink = '/user/list';
+        if (promo.redirectType === 'product' && promo.redirectValue) {
+          promoLink = `/user/list?search=${encodeURIComponent(promo.redirectValue)}`;
+        } else if (promo.redirectType === 'category' && promo.redirectValue) {
+          promoLink = `/user/list?category=${encodeURIComponent(promo.redirectValue)}`;
+        } else if (promo.redirectType === 'custom' && promo.redirectValue) {
+          promoLink = (promo.redirectValue.startsWith('/') || promo.redirectValue.startsWith('http')) 
+            ? promo.redirectValue 
+            : `/user/list?search=${encodeURIComponent(promo.redirectValue)}`;
+        }
+    %>
+    <section class="max-w-screen-xl mx-auto px-6 mb-14">
+        <div class="discount-banner rounded-2xl overflow-hidden px-8 md:px-12 py-10 md:py-14 border border-gray-100 relative" style="<%= promo.image ? `background-image: linear-gradient(to right, rgba(255,255,255,0.96) 35%, rgba(255,255,255,0.2) 100%), url('${promo.image}'); background-size: cover; background-position: center;` : '' %>">
+            <!-- Text content container -->
+            <div class="max-w-md relative z-10 text-left">
+                <% if (promo.badgeText) { %>
+                    <span class="inline-block bg-red-600 text-white text-xs font-bold px-3 py-1 rounded-full mb-3.5 uppercase tracking-wider"><%= promo.badgeText %></span>
+                <% } %>
+                <h3 class="text-3xl md:text-4xl font-extrabold text-gray-900 tracking-tight mb-2"><%= promo.title %></h3>
+                <p class="text-gray-600 text-sm md:text-base mb-4 font-medium leading-relaxed"><%= promo.subtitle %></p>
+                <% if (promo.offerText) { %>
+                    <p class="text-red-600 font-extrabold text-base md:text-lg mb-5 uppercase tracking-wide"><%= promo.offerText %></p>
+                <% } %>
+                <a href="<%= promoLink %>" class="inline-flex items-center gap-2 bg-gray-900 text-white font-semibold text-sm px-6 py-3 rounded-lg hover:bg-red-600 transition-all duration-200 shadow-sm">
+                    Shop Now <i class="bi bi-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+    </section>
+    <% } %>
+
+    <!-- ===== FEATURED PRODUCTS (Flash Deals) ===== -->
+    <section class="max-w-screen-xl mx-auto px-6 pb-16">
+        <div class="section-label">
+            <span></span>
+            <p>Flash Deals</p>
+        </div>
+        <div class="flex items-center justify-between mb-8">
+            <h2 class="text-2xl font-bold">Featured Products</h2>
+            <div class="flex gap-2">
+                <button class="swiper-button-prev-featured w-9 h-9 rounded-full border border-gray-200 flex items-center justify-center hover:bg-red-600 hover:text-white hover:border-red-600 transition-all">
+                    <i class="bi bi-chevron-left text-sm"></i>
+                </button>
+                <button class="swiper-button-next-featured w-9 h-9 rounded-full bg-red-600 text-white flex items-center justify-center hover:bg-red-700 transition-all">
+                    <i class="bi bi-chevron-right text-sm"></i>
+                </button>
+            </div>
+        </div>
+
+        <div class="swiper featuredProductsSwiper w-full overflow-hidden py-4">
+            <div class="swiper-wrapper">
+            <% if (typeof featuredProducts !== 'undefined' && featuredProducts.length > 0) { 
+                featuredProducts.forEach(p => {
+                    const price = Number(p.price) || 0;
+                    const mrp = Number(p.mrp) || 0;
+                    const inStock = p.stock > 0;
+                    
+                    let iconClass = "bi-laptop";
+                    const prodName = p.productName?.toLowerCase() || "";
+                    if (prodName.includes("ear") || prodName.includes("bud") || prodName.includes("audio") || prodName.includes("head")) iconClass = "bi-headphones";
+                    else if (prodName.includes("watch") || prodName.includes("wearable")) iconClass = "bi-smartwatch";
+                    else if (prodName.includes("phone") || prodName.includes("iphone") || prodName.includes("poco")) iconClass = "bi-phone";
+                    else if (prodName.includes("speaker") || prodName.includes("alexa")) iconClass = "bi-speaker";
+                    else if (prodName.includes("keyboard")) iconClass = "bi-keyboard";
+            %>
+                <div class="swiper-slide">
+                    <div class="pcard h-full">
+                    <div class="img-wrap">
+                        <% if (p.offerPct > 0) { %>
+                            <div class="badge-disc">-<%= p.offerPct %>%</div>
+                        <% } %>
+                        <button onclick="toggleWishlist('<%= p._id %>', '<%= p.variantId %>', this)" class="card-wish-btn <%= p.wishlisted ? 'on' : '' %>" title="<%= p.wishlisted ? 'Remove from wishlist' : 'Add to wishlist' %>">
+                            <i class="bi <%= p.wishlisted ? 'bi-heart-fill' : 'bi-heart' %>"></i>
+                        </button>
+                        <a href="/user/product/<%= p._id %>?variant=<%= p.variantId %>" class="w-full h-full flex items-center justify-center">
+                            <% if (p.image) { %>
+                                <img src="<%= p.image %>" alt="<%= p.productName %>">
+                            <% } else { %>
+                                <div class="no-img">
+                                    <i class="bi <%= iconClass %> text-4xl text-gray-400"></i>
+                                    <span>No Image</span>
+                                </div>
+                            <% } %>
+                        </a>
                     </div>
-
+                    <div class="pcontent">
+                        <div class="brand-cat">
+                            <%= p.brandName || 'ElectroHub' %>
+                        </div>
+                        <div class="name-row">
+                            <h3><%= p.productName %></h3>
+                            <span class="stock-pill <%= inStock ? 'in' : 'out' %>"><%= inStock ? 'In Stock' : 'Out' %></span>
+                        </div>
+                        <div class="flex gap-0.5 mb-3">
+                            <% const avg = Math.round(p.avgRating || 4.5); %>
+                            <% for(let i = 1; i <= 5; i++) { %>
+                                <i class="bi bi-star-fill <%= i <= avg ? 'star-filled' : 'star-empty' %> text-xs"></i>
+                            <% } %>
+                        </div>
+                        <div class="price-row mt-auto">
+                            <span class="text-xs text-gray-500 font-medium self-center mr-1">From</span>
+                            <span class="cur-price">₹<%= price.toLocaleString('en-IN') %></span>
+                            <% if (mrp > price) { %>
+                                <span class="mrp-price">₹<%= mrp.toLocaleString('en-IN') %></span>
+                            <% } %>
+                        </div>
+                        <a href="/user/product/<%= p._id %>?variant=<%= p.variantId %>" class="btn-view mt-3">
+                            <i class="bi bi-eye text-xs"></i> View Details
+                        </a>
+                    </div>
                 </div>
             </div>
-        </section>
+            <% }) } else { %>
+                <!-- Fallback product list if none in DB -->
+                <div class="col-span-full text-center text-gray-400 py-10">
+                    <i class="bi bi-box-seam text-4xl block mb-2"></i>
+                    <p>No featured products available at the moment.</p>
+                </div>
+            <% } %>
+            </div>
+        </div>
+    </section>
 
-        <!-- ===== CATEGORY CARDS ===== -->
-        <section class="max-w-screen-xl mx-auto px-6 py-16">
-            <h2 class="text-2xl font-bold mb-8 text-center">Shop by Category</h2>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <!-- ===== BROWSE BY CATEGORY ===== -->
+    <section class="max-w-screen-xl mx-auto px-6 pt-10 pb-6">
+        <div class="section-label">
+            <span></span>
+            <p>Categories</p>
+        </div>
+        <div class="flex items-center justify-between mb-8">
+            <h2 class="text-2xl font-bold">Browse By Category</h2>
+        </div>
 
-                <a href="/user/list"
-                    class="flex flex-col items-center gap-3 p-6 bg-gray-50 rounded-2xl hover:bg-red-50 hover:shadow-md hover:-translate-y-1 transition-all duration-200 group">
-                    <i
-                        class="bi bi-phone text-4xl text-gray-500 group-hover:text-red-600 transition-colors duration-200"></i>
-                    <span
-                        class="font-semibold text-sm text-gray-700 group-hover:text-red-600 transition-colors duration-200">Smartphones</span>
-                </a>
+        <div class="swiper categorySwiper w-full overflow-hidden py-4">
+            <div class="swiper-wrapper">
+                <% if (typeof categories !== 'undefined' && categories.length > 0) { 
+                    categories.forEach(cat => { 
+                %>
+                    <div class="swiper-slide">
+                        <a href="/user/list?category=<%= cat._id %>" class="category-card flex flex-col items-center p-5 bg-white border border-gray-100 rounded-2xl shadow-sm hover:border-red-200 hover:shadow-md hover:-translate-y-1 transition-all duration-300 group text-center block h-full">
+                            <div class="w-24 h-24 rounded-xl overflow-hidden flex items-center justify-center bg-slate-50 mb-3 group-hover:scale-105 transition-transform duration-300">
+                                <% if (cat.image) { %>
+                                    <img src="<%= cat.image %>" alt="<%= cat.categoryName %>" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
+                                <% } else { %>
+                                    <div class="w-full h-full flex items-center justify-center bg-slate-50 group-hover:bg-red-50 transition-colors">
+                                        <i class="bi bi-tag text-3xl text-gray-400 group-hover:text-red-500 transition-colors duration-300"></i>
+                                    </div>
+                                <% } %>
+                            </div>
+                            <span class="font-semibold text-sm text-gray-800 group-hover:text-red-600 transition-colors duration-200"><%= cat.categoryName %></span>
+                        </a>
+                    </div>
+                <% }) } %>
+            </div>
+        </div>
+    </section>
 
-                <a href="/user/list"
-                    class="flex flex-col items-center gap-3 p-6 bg-gray-50 rounded-2xl hover:bg-red-50 hover:shadow-md hover:-translate-y-1 transition-all duration-200 group">
-                    <i
-                        class="bi bi-laptop text-4xl text-gray-500 group-hover:text-red-600 transition-colors duration-200"></i>
-                    <span
-                        class="font-semibold text-sm text-gray-700 group-hover:text-red-600 transition-colors duration-200">Laptops</span>
-                </a>
+    <!-- ===== TRUST BADGES ===== -->
+    <section class="border-t border-gray-100 py-12">
+        <div class="max-w-screen-xl mx-auto px-6">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
 
-                <a href="/user/list"
-                    class="flex flex-col items-center gap-3 p-6 bg-gray-50 rounded-2xl hover:bg-red-50 hover:shadow-md hover:-translate-y-1 transition-all duration-200 group">
-                    <i
-                        class="bi bi-watch text-4xl text-gray-500 group-hover:text-red-600 transition-colors duration-200"></i>
-                    <span
-                        class="font-semibold text-sm text-gray-700 group-hover:text-red-600 transition-colors duration-200">Wearables</span>
-                </a>
+                <div class="flex flex-col items-center gap-3">
+                    <div class="w-14 h-14 rounded-full border-2 border-gray-200 flex items-center justify-center">
+                        <i class="bi bi-truck text-xl text-gray-700"></i>
+                    </div>
+                    <div>
+                        <p class="font-bold text-sm tracking-widest uppercase text-gray-800">Free and Fast Delivery</p>
+                        <p class="text-xs text-gray-500 mt-1">Free delivery for all orders over $140</p>
+                    </div>
+                </div>
 
-                <a href="/user/list"
-                    class="flex flex-col items-center gap-3 p-6 bg-gray-50 rounded-2xl hover:bg-red-50 hover:shadow-md hover:-translate-y-1 transition-all duration-200 group">
-                    <i
-                        class="bi bi-controller text-4xl text-gray-500 group-hover:text-red-600 transition-colors duration-200"></i>
-                    <span
-                        class="font-semibold text-sm text-gray-700 group-hover:text-red-600 transition-colors duration-200">Gaming</span>
-                </a>
+                <div class="flex flex-col items-center gap-3">
+                    <div class="w-14 h-14 rounded-full border-2 border-gray-200 flex items-center justify-center">
+                        <i class="bi bi-headset text-xl text-gray-700"></i>
+                    </div>
+                    <div>
+                        <p class="font-bold text-sm tracking-widest uppercase text-gray-800">24/7 Customer Service</p>
+                        <p class="text-xs text-gray-500 mt-1">Friendly 24/7 customer support</p>
+                    </div>
+                </div>
+
+                <div class="flex flex-col items-center gap-3">
+                    <div class="w-14 h-14 rounded-full border-2 border-gray-200 flex items-center justify-center">
+                        <i class="bi bi-shield-check text-xl text-gray-700"></i>
+                    </div>
+                    <div>
+                        <p class="font-bold text-sm tracking-widest uppercase text-gray-800">Money Back Guarantee</p>
+                        <p class="text-xs text-gray-500 mt-1">We return money within 30 days</p>
+                    </div>
+                </div>
 
             </div>
-        </section>
+        </div>
+    </section>
 
-        <%- include('./partials/layout-scripts') %>
+    <!-- ===== TOAST CONTAINER ===== -->
+    <div id="toasts"></div>
+
+    <%- include('./partials/footer') %>
+
+    <!-- ===== CLIENT SCRIPTS ===== -->
+    <script>
+        // ── Countdown Timer Logic ──
+        function initCountdowns() {
+            const wrappers = document.querySelectorAll('.countdown-wrapper');
+            wrappers.forEach(wrapper => {
+                const deadline = parseInt(wrapper.getAttribute('data-endtime'));
+                if (isNaN(deadline)) return;
+
+                const daysEl = wrapper.querySelector('.days');
+                const hoursEl = wrapper.querySelector('.hours');
+                const minutesEl = wrapper.querySelector('.minutes');
+                const secondsEl = wrapper.querySelector('.seconds');
+
+                if (!daysEl || !hoursEl || !minutesEl || !secondsEl) return;
+
+                function updateCountdown() {
+                    const now = new Date().getTime();
+                    const distance = deadline - now;
+
+                    if (distance <= 0) {
+                        daysEl.textContent = '00';
+                        hoursEl.textContent = '00';
+                        minutesEl.textContent = '00';
+                        secondsEl.textContent = '00';
+                        return;
+                    }
+
+                    const d = Math.floor(distance / (1000 * 60 * 60 * 24));
+                    const h = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                    const m = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+                    const s = Math.floor((distance % (1000 * 60)) / 1000);
+
+                    daysEl.textContent    = String(d).padStart(2, '0');
+                    hoursEl.textContent   = String(h).padStart(2, '0');
+                    minutesEl.textContent = String(m).padStart(2, '0');
+                    secondsEl.textContent = String(s).padStart(2, '0');
+                }
+
+                updateCountdown();
+                setInterval(updateCountdown, 1000);
+            });
+        }
+        initCountdowns();
+
+        // ── Swiper Slider Initialization ──
+        document.addEventListener("DOMContentLoaded", function() {
+            if (typeof Swiper !== "undefined") {
+                const swiper = new Swiper('.heroSwiper', {
+                    loop: true,
+                    autoplay: {
+                        delay: 4500,
+                        disableOnInteraction: false,
+                    },
+                    pagination: {
+                        el: '.swiper-pagination',
+                        clickable: true,
+                    },
+                    navigation: {
+                        nextEl: '.swiper-button-next',
+                        prevEl: '.swiper-button-prev',
+                    },
+                });
+
+                const newArrivalsSwiper = new Swiper('.newArrivalsSwiper', {
+                    slidesPerView: 2,
+                    spaceBetween: 20,
+                    loop: true,
+                    autoplay: {
+                        delay: 2000, // every 2 sec right to left
+                        disableOnInteraction: false,
+                    },
+                    breakpoints: {
+                        768: { slidesPerView: 3, spaceBetween: 20 },
+                        1024: { slidesPerView: 4, spaceBetween: 20 },
+                    }
+                });
+
+                const categorySwiper = new Swiper('.categorySwiper', {
+                    slidesPerView: 3,
+                    spaceBetween: 16,
+                    loop: true,
+                    autoplay: {
+                        delay: 3000,
+                        disableOnInteraction: false,
+                    },
+                    breakpoints: {
+                        768: { slidesPerView: 5, spaceBetween: 20 },
+                        1024: { slidesPerView: 6, spaceBetween: 20 },
+                    }
+                });
+
+                const featuredProductsSwiper = new Swiper('.featuredProductsSwiper', {
+                    slidesPerView: 1,
+                    spaceBetween: 20,
+                    loop: true,
+                    navigation: {
+                        nextEl: '.swiper-button-next-featured',
+                        prevEl: '.swiper-button-prev-featured',
+                    },
+                    breakpoints: {
+                        640: { slidesPerView: 2, spaceBetween: 20 },
+                        768: { slidesPerView: 3, spaceBetween: 20 },
+                        1024: { slidesPerView: 4, spaceBetween: 20 },
+                    }
+                });
+            }
+        });
+
+        // ── Toast Notifications ──
+        function toast(msg, type='info') {
+            const icons = {success:'bi-check-circle-fill', error:'bi-x-circle-fill', info:'bi-info-circle-fill'};
+            const cls   = {success:'t-ok', error:'t-err', info:'t-inf'};
+            const el    = document.createElement('div');
+            el.className = `toast ${cls[type] || 't-inf'}`;
+            el.innerHTML = `<i class="bi ${icons[type] || icons.info}"></i><span>${msg}</span>`;
+            document.getElementById('toasts').appendChild(el);
+            requestAnimationFrame(function() {
+                requestAnimationFrame(function() {
+                    el.classList.add('in');
+                });
+            });
+            setTimeout(function() {
+                el.classList.remove('in');
+                setTimeout(function() {
+                    el.remove();
+                }, 300);
+            }, 3500);
+        }
+
+        // ── Add to Cart Handler ──
+        async function addToCart(productId, variantId, btn) {
+            btn.disabled = true;
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = '<i class="bi bi-arrow-repeat spinr text-xs"></i> Adding…';
+            try {
+                const res = await fetch('/user/cart/add', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ productId: productId, variantId: variantId, quantity: 1 })
+                });
+                const data = await res.json();
+
+                if (res.status === 401) {
+                    toast('Please login to add items to cart', 'error');
+                    setTimeout(function() {
+                        window.location.href = '/user/login';
+                    }, 1500);
+                    return;
+                }
+
+                if (data.success) {
+                    toast('Added to cart successfully!', 'success');
+                    if (window.updateNavBadge) {
+                        window.updateNavBadge('cart', 1);
+                    }
+                } else {
+                    toast(data.message || 'Failed to add to cart', 'error');
+                }
+            } catch (err) {
+                toast('An error occurred. Please try again.', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalHTML;
+            }
+        }
+
+        // ── Wishlist Handler ──
+        async function toggleWishlist(productId, variantId, btn) {
+            btn.disabled = true;
+            const heartIcon = btn.querySelector('i');
+            const wasOn = btn.classList.contains('on');
+            
+            // Toggle classes immediately for ultra-snappy UX feel
+            btn.classList.toggle('on', !wasOn);
+            heartIcon.className = `bi ${!wasOn ? 'bi-heart-fill' : 'bi-heart'}`;
+            
+            try {
+                const res = await fetch('/user/wishlist/toggle', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ productId: productId, variantId: variantId })
+                });
+                const data = await res.json();
+
+                if (res.status === 401) {
+                    btn.classList.toggle('on', wasOn);
+                    heartIcon.className = `bi ${wasOn ? 'bi-heart-fill' : 'bi-heart'}`;
+                    toast('Please login to manage wishlist', 'error');
+                    setTimeout(function() {
+                        window.location.href = '/user/login';
+                    }, 1500);
+                    return;
+                }
+
+                if (data.success) {
+                    btn.classList.toggle('on', data.wishlisted);
+                    heartIcon.className = `bi ${data.wishlisted ? 'bi-heart-fill' : 'bi-heart'}`;
+                    btn.title = data.wishlisted ? 'Remove from wishlist' : 'Add to wishlist';
+                    
+                    if (data.wishlisted) {
+                        toast('Added to wishlist!', 'success');
+                        if (window.updateNavBadge) {
+                            window.updateNavBadge('wishlist', 1);
+                        }
+                    } else {
+                        toast('Removed from wishlist', 'info');
+                        if (window.updateNavBadge) {
+                            window.updateNavBadge('wishlist', -1);
+                        }
+                    }
+                } else {
+                    btn.classList.toggle('on', wasOn);
+                    heartIcon.className = `bi ${wasOn ? 'bi-heart-fill' : 'bi-heart'}`;
+                    toast(data.message || 'Failed to update wishlist', 'error');
+                }
+            } catch (err) {
+                btn.classList.toggle('on', wasOn);
+                heartIcon.className = `bi ${wasOn ? 'bi-heart-fill' : 'bi-heart'}`;
+                toast('An error occurred. Please try again.', 'error');
+            } finally {
+                btn.disabled = false;
+            }
+        }
+    </script>
+
 </body>
-
 </html>

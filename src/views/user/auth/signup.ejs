@@ -270,7 +270,12 @@
           }
           const value = fields[key].value.trim();
           const error = validateField(key, value);
-          if (errors[key]) errors[key].textContent = error;
+          if (errors[key]) {
+            errors[key].textContent = error;
+            errors[key].className = error
+              ? "text-xs text-red-500 block h-4 mt-1"
+              : "text-xs text-gray-400 block h-4 mt-1";
+          }
         });
       });
 
