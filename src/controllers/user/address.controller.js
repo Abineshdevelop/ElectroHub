@@ -7,7 +7,7 @@ export async function loadAddress(req, res, next) {
     const addresses = await Address.find({ userId }).sort({ createdAt: -1 });
     res.render("user/userProfile/address", {
       addresses,
-      user: req.user,
+      user: req.user || req.session?.user || null,
       error: null,
       success: null,
       activePage: "address",

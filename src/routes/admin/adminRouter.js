@@ -3,7 +3,7 @@ import adminController from "../../controllers/admin/admincontroller.js";
 import * as customersController from "../../controllers/admin/customersController.js";
 import { isAdminLoggedIn, isAdminLoggedOut } from "../../middlewares/adminAuth.js";
 import { getCategories, createCategory, getCategoryById, updateCategory, toggleCategoryStatus, deleteCategory } from "../../controllers/admin/categoriescontroller.js";
-import { getProducts, getProductById, createProduct, updateProduct, deleteProduct, toggleProductsStauts, toggleVariantStatus } from '../../controllers/admin/productsController.js';
+import { getProducts, getProductById, createProduct, updateProduct, deleteProduct, toggleProductStatus, toggleVariantStatus } from '../../controllers/admin/productsController.js';
 import { uploadCategory, uploadBanner, uploadProduct } from '../../middlewares/uploads.js';
 import { getCoupons, getCouponById, createCoupon, editCoupon, deleteCoupon, toggleCoupon } from '../../controllers/admin/couponController.js';
 import { getOffersPage,getOfferById, searchProducts, searchCategories, createOffer, editOffer, toggleOffer, deleteOffer } from "../../controllers/admin/offersController.js";
@@ -41,7 +41,7 @@ router.post  ('/products/create',                   isAdminLoggedIn, uploadProdu
 router.get   ('/products/:id',                      isAdminLoggedIn, getProductById);
 router.put   ('/products/:id/edit',                 isAdminLoggedIn, uploadProduct.any(), updateProduct);
 router.delete('/products/:id/delete',               isAdminLoggedIn, deleteProduct);
-router.patch ('/products/:id/toggle-status',        isAdminLoggedIn, toggleProductsStauts);
+router.patch ('/products/:id/toggle-status',        isAdminLoggedIn, toggleProductStatus);
 router.patch ('/products/:id/variants/:vid/toggle', isAdminLoggedIn, toggleVariantStatus);
 
 router.get   ('/coupons',            isAdminLoggedIn, getCoupons);

@@ -24,8 +24,8 @@ export const getNavCounts = async (req, res) => {
       cartCount:     cart?.items?.length || 0,
       wishlistCount,
     });
-  } catch (err) {
-    console.error('getNavCounts error:', err);
+  } catch (error) {
+    console.error('getNavCounts error:', error);
     res.json({ cartCount: 0, wishlistCount: 0 });
   }
 };
@@ -33,37 +33,39 @@ export const getNavCounts = async (req, res) => {
 // ── GET /user/search-suggestions ─────────────────────────────────────────
 export const getSearchSuggestions = async (req, res) => {
   try {
-    const q = (req.query.q || '').trim();
-    if (!q || q.length < 2) return res.json({ categories: [], products: [], variants: [] });
+    const searchQuery = (req.query.q || '').trim();
+    if (!searchQuery || searchQuery.length < 2) {
+      return res.json({ categories: [], products: [], variants: [] });
+    }
 
     // Categories matching query
-    const rawCats = await Category.find({
+    const rawCategories = await Category.find({
       isActive:     true,
       isDeleted:    false,
-      categoryName: { $regex: q, $options: 'i' },
+      categoryName: { $regex: searchQuery, $options: 'i' },
     }).limit(4).lean();
 
     const categories = await Promise.all(
-      rawCats.map(async (c) => ({
-        _id:          c._id,
-        categoryName: c.categoryName,
+      rawCategories.map(async (category) => ({
+        _id:          category._id,
+        categoryName: category.categoryName,
         productCount: await Product.countDocuments({
-          categoryId: c._id,
+          categoryId: category._id,
           isActive:   true,
           isDeleted:  false,
         }),
       }))
     );
 
-    // Products matching query
+    // Products matching query, populated with their lowest variant price and variant thumbnail
     const products = await Product.aggregate([
       {
         $match: {
           isDeleted: false,
           isActive:  true,
           $or: [
-            { productName: { $regex: q, $options: 'i' } },
-            { brandName:   { $regex: q, $options: 'i' } },
+            { productName: { $regex: searchQuery, $options: 'i' } },
+            { brandName:   { $regex: searchQuery, $options: 'i' } },
           ],
         },
       },
@@ -76,10 +78,31 @@ export const getSearchSuggestions = async (req, res) => {
         },
       },
       {
+        $lookup: {
+          from:         'variants',
+          let:          { productId: '$_id' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$productId', '$$productId'] },
+                    { $eq: ['$isDeleted', false] },
+                    { $eq: ['$isActive', true] }
+                  ]
+                }
+              }
+            }
+          ],
+          as:           'activeVariants',
+        }
+      },
+      { $match: { 'activeVariants.0': { $exists: true } } },
+      {
         $addFields: {
           categoryName: { $arrayElemAt: ['$categoryData.categoryName', 0] },
-          thumbnail:    { $arrayElemAt: [{ $arrayElemAt: ['$variants.images', 0] }, 0] },
-          price:        { $min: '$variants.price' },
+          thumbnail:    { $arrayElemAt: [{ $arrayElemAt: ['$activeVariants.images', 0] }, 0] },
+          price:        { $min: '$activeVariants.price' },
         },
       },
       { $sort:  { productName: 1 } },
@@ -96,9 +119,8 @@ export const getSearchSuggestions = async (req, res) => {
     ]);
 
     res.json({ categories, products, variants: products });
-
-  } catch (err) {
-    console.error('searchSuggestions error:', err);
+  } catch (error) {
+    console.error('searchSuggestions error:', error);
     res.json({ categories: [], products: [], variants: [] });
   }
 };
@@ -106,14 +128,14 @@ export const getSearchSuggestions = async (req, res) => {
 // ── GET /user/nav-categories ──────────────────────────────────────────────
 export const getNavCategories = async (req, res) => {
   try {
-    const cats = await Category.aggregate([
+    const activeCategories = await Category.aggregate([
       { $match: { isActive: true, isDeleted: false } },
       {
         $lookup: {
           from:         'products',
           localField:   '_id',
           foreignField: 'categoryId',
-          as:           'prods',
+          as:           'productsList',
         },
       },
       {
@@ -121,12 +143,12 @@ export const getNavCategories = async (req, res) => {
           productCount: {
             $size: {
               $filter: {
-                input: '$prods',
-                as:    'p',
+                input: '$productsList',
+                as:    'product',
                 cond: {
                   $and: [
-                    { $eq: ['$$p.isActive',  true]  },
-                    { $eq: ['$$p.isDeleted', false] },
+                    { $eq: ['$$product.isActive',  true]  },
+                    { $eq: ['$$product.isDeleted', false] },
                   ],
                 },
               },
@@ -137,9 +159,9 @@ export const getNavCategories = async (req, res) => {
       { $sort:    { categoryName: 1 } },
       { $project: { categoryName: 1, productCount: 1 } },
     ]);
-    res.json(cats);
-  } catch (err) {
-    console.error('getNavCategories error:', err);
+    res.json(activeCategories);
+  } catch (error) {
+    console.error('getNavCategories error:', error);
     res.json([]);
   }
 };
@@ -155,20 +177,40 @@ export const getNavCategoryProducts = async (req, res) => {
 
     const products = await Product.aggregate([
       { $match: match },
+      {
+        $lookup: {
+          from: 'variants',
+          let: { productId: '$_id' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$productId', '$$productId'] },
+                    { $eq: ['$isDeleted', false] },
+                    { $eq: ['$isActive', true] }
+                  ]
+                }
+              }
+            }
+          ],
+          as: 'activeVariants'
+        }
+      },
+      { $match: { 'activeVariants.0': { $exists: true } } },
       { $limit: Number(limit) },
       {
         $project: {
           name:      '$productName',
-          thumbnail: { $arrayElemAt: [{ $arrayElemAt: ['$variants.images', 0] }, 0] },
-          price:     { $min: '$variants.price' },
+          thumbnail: { $arrayElemAt: [{ $arrayElemAt: ['$activeVariants.images', 0] }, 0] },
+          price:     { $min: '$activeVariants.price' },
         },
       },
     ]);
 
     res.json({ products });
-  } catch (err) {
-    console.error('getNavCategoryProducts error:', err);
+  } catch (error) {
+    console.error('getNavCategoryProducts error:', error);
     res.json({ products: [] });
   }
-  
 };

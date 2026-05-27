@@ -9,10 +9,10 @@ import Offer from "../../model/offersModel.js";
 export const getMaxPrice = async (req, res) => {
   try {
     const variants = await Variant.find({ isDeleted: false }).select("price").lean();
-    const prices   = variants.map(v => Number(v.price) || 0).filter(p => p > 0);
+    const prices   = variants.map(variant => Number(variant.price) || 0).filter(price => price > 0);
     const rawMax   = prices.length ? Math.max(...prices) : 100000;
     res.json({ maxPrice: rawMax + 2000 });
-  } catch (err) {
+  } catch (error) {
     res.json({ maxPrice: 102000 });
   }
 };
@@ -32,29 +32,29 @@ export const toggleWishlist = async (req, res) => {
     let wishlist = await Wishlist.findOne({ userId });
     if (!wishlist) wishlist = await Wishlist.create({ userId });
 
-    let existing = null;
+    let existingWishlistItem = null;
     if (variantId) {
-      existing = await WishlistItem.findOne({
+      existingWishlistItem = await WishlistItem.findOne({
         wishlistId: wishlist._id,
         productId,
         variantId,
       });
-      if (!existing) {
-        existing = await WishlistItem.findOne({
+      if (!existingWishlistItem) {
+        existingWishlistItem = await WishlistItem.findOne({
           wishlistId: wishlist._id,
           productId,
           $or: [{ variantId: null }, { variantId: { $exists: false } }],
         });
       }
     } else {
-      existing = await WishlistItem.findOne({
+      existingWishlistItem = await WishlistItem.findOne({
         wishlistId: wishlist._id,
         productId,
       });
     }
 
-    if (existing) {
-      await WishlistItem.deleteOne({ _id: existing._id });
+    if (existingWishlistItem) {
+      await WishlistItem.deleteOne({ _id: existingWishlistItem._id });
       return res.json({ success: true, wishlisted: false, message: "Removed from wishlist" });
     } else {
       await WishlistItem.create({
@@ -64,8 +64,8 @@ export const toggleWishlist = async (req, res) => {
       });
       return res.json({ success: true, wishlisted: true, message: "Added to wishlist!" });
     }
-  } catch (err) {
-    console.error("Wishlist toggle error:", err);
+  } catch (error) {
+    console.error("Wishlist toggle error:", error);
     res.status(500).json({ success: false, message: "Server error" });
   }
 };
@@ -86,7 +86,7 @@ export const getProductListingPage = async (req, res, next) => {
     const currentPage = Math.max(1, parseInt(page));
 
     const allVariants = await Variant.find({ isDeleted: false }).select("price").lean();
-    const allPrices   = allVariants.map(v => Number(v.price) || 0).filter(p => p > 0);
+    const allPrices   = allVariants.map(variant => Number(variant.price) || 0).filter(price => price > 0);
     const rawMax      = allPrices.length ? Math.max(...allPrices) : 100000;
     const maxPriceCap = rawMax + 2000;
 
@@ -112,13 +112,13 @@ export const getProductListingPage = async (req, res, next) => {
       {
         $lookup: {
           from: "variants",
-          let:  { pid: "$_id" },
+          let:  { productId: "$_id" },
           pipeline: [
             {
               $match: {
                 $expr: {
                   $and: [
-                    { $eq: ["$productId", "$$pid"] },
+                    { $eq: ["$productId", "$$productId"] },
                     { $eq: ["$isDeleted", false] },
                   ],
                 },
@@ -151,15 +151,15 @@ export const getProductListingPage = async (req, res, next) => {
           variants: {
             $map: {
               input: "$variantDocs",
-              as:    "v",
+              as:    "variant",
               in: {
-                _id:       "$$v._id",
-                price:     "$$v.priceDouble",
-                mrp:       "$$v.mrpDouble",
-                stock:     "$$v.stock",
-                options:   "$$v.options",
-                thumbnail: { $arrayElemAt: ["$$v.images", 0] },
-                inStock:   { $gt: ["$$v.stock", 0] },
+                _id:       "$$variant._id",
+                price:     "$$variant.priceDouble",
+                mrp:       "$$variant.mrpDouble",
+                stock:     "$$variant.stock",
+                options:   "$$variant.options",
+                thumbnail: { $arrayElemAt: ["$$variant.images", 0] },
+                inStock:   { $gt: ["$$variant.stock", 0] },
               },
             },
           },
@@ -184,11 +184,11 @@ export const getProductListingPage = async (req, res, next) => {
           variants: {
             $filter: {
               input: "$variants",
-              as:    "v",
+              as:    "variant",
               cond: {
                 $and: [
-                  ...(minVal !== null ? [{ $gte: ["$$v.price", minVal] }] : []),
-                  ...(maxVal !== null ? [{ $lte: ["$$v.price", maxVal] }] : []),
+                  ...(minVal !== null ? [{ $gte: ["$$variant.price", minVal] }] : []),
+                  ...(maxVal !== null ? [{ $lte: ["$$variant.price", maxVal] }] : []),
                 ],
               },
             },
@@ -259,53 +259,53 @@ export const getProductListingPage = async (req, res, next) => {
     // ── Build offer maps: key = string of refId ──
     const productOfferMap  = new Map();
     const categoryOfferMap = new Map();
-    activeOffers.forEach(o => {
-      const key = String(o.refId);
-      if (o.offerType === "product") {
-        if (!productOfferMap.has(key) || o.offerPrecentage > productOfferMap.get(key).offerPrecentage)
-          productOfferMap.set(key, o);
-      } else if (o.offerType === "category") {
-        if (!categoryOfferMap.has(key) || o.offerPrecentage > categoryOfferMap.get(key).offerPrecentage)
-          categoryOfferMap.set(key, o);
+    activeOffers.forEach(offer => {
+      const key = String(offer.refId);
+      if (offer.offerType === "product") {
+        if (!productOfferMap.has(key) || offer.offerPrecentage > productOfferMap.get(key).offerPrecentage)
+          productOfferMap.set(key, offer);
+      } else if (offer.offerType === "category") {
+        if (!categoryOfferMap.has(key) || offer.offerPrecentage > categoryOfferMap.get(key).offerPrecentage)
+          categoryOfferMap.set(key, offer);
       }
     });
 
-    const productsWithWishlist = products.map(p => {
+    const productsWithWishlist = products.map(product => {
       // ✅ convert both to string for reliable comparison
-      const pid = String(p._id);
-      const cid = String(p.categoryId);
+      const productId = String(product._id);
+      const categoryId = String(product.categoryId);
 
-      const applicableOffer = productOfferMap.get(pid) || categoryOfferMap.get(cid) || null;
-      const offerPct        = applicableOffer ? Number(applicableOffer.offerPrecentage) : 0;
+      const applicableOffer = productOfferMap.get(productId) || categoryOfferMap.get(categoryId) || null;
+      const offerPercentage = applicableOffer ? Number(applicableOffer.offerPrecentage) : 0;
 
-      let variants = (p.variants || []).map(v => {
+      let variants = (product.variants || []).map(variant => {
         let optionsObj = {};
-        if (v.options instanceof Map) {
-          v.options.forEach((val, key) => { optionsObj[key] = val; });
-        } else if (v.options && typeof v.options === "object") {
+        if (variant.options instanceof Map) {
+          variant.options.forEach((val, key) => { optionsObj[key] = val; });
+        } else if (variant.options && typeof variant.options === "object") {
           optionsObj = Object.fromEntries(
-            Object.entries(v.options).filter(
-              ([k]) => !k.startsWith("$") && !k.startsWith("_") && k !== "toObject"
+            Object.entries(variant.options).filter(
+              ([key]) => !key.startsWith("$") && !key.startsWith("_") && key !== "toObject"
             )
           );
         }
-        const vid           = String(v._id);
-        const originalPrice = Number(v.price) || 0;
-        const mrp           = Number(v.mrp)   || 0;
+        const variantId     = String(variant._id);
+        const originalPrice = Number(variant.price) || 0;
+        const mrp           = Number(variant.mrp)   || 0;
 
-        const offerPrice = offerPct > 0
-          ? Math.round(originalPrice * (1 - offerPct / 100))
+        const offerPrice = offerPercentage > 0
+          ? Math.round(originalPrice * (1 - offerPercentage / 100))
           : originalPrice;
 
         return {
-          ...v,
+          ...variant,
           price:         offerPrice,
           originalPrice,
           mrp,
           options:       optionsObj,
-          offerPct,
+          offerPct:      offerPercentage,
           offerName:     applicableOffer?.offerName || "",
-          wishlisted:    wishlistedVariantIds.has(vid) || wishlistedProductIds.has(pid),
+          wishlisted:    wishlistedVariantIds.has(variantId) || wishlistedProductIds.has(productId),
         };
       });
 
@@ -315,7 +315,7 @@ export const getProductListingPage = async (req, res, next) => {
         variants.sort((a, b) => b.price - a.price);
       }
 
-      return { ...p, variants };
+      return { ...product, variants };
     });
 
     if (req.headers["x-requested-with"] === "XMLHttpRequest") {
@@ -349,8 +349,8 @@ export const getProductListingPage = async (req, res, next) => {
       isLoggedIn:   !!(sessionUser),
     });
 
-  } catch (err) {
-    console.error("Shop error:", err);
-    next(err);
+  } catch (error) {
+    console.error("Shop error:", error);
+    next(error);
   }
 };

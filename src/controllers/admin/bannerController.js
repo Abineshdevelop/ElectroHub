@@ -12,88 +12,100 @@ const __dirname = path.dirname(__filename);
 function deleteImage(imagePath) {
   if (!imagePath) return;
   const fullPath = path.join(__dirname, "../../public", imagePath);
-  if (fs.existsSync(fullPath)) fs.unlink(fullPath, () => {});
+  if (fs.existsSync(fullPath)) {
+    fs.unlink(fullPath, () => {});
+  }
 }
 
 function getFilter(tab) {
-  const base = { isDeleted: false };
-  if (tab === "hero") return { ...base, type: "hero" };
-  if (tab === "promo") return { ...base, type: "promo" };
-  if (tab === "active") return { ...base, status: "active" };
-  if (tab === "inactive") return { ...base, status: "inactive" };
-  return base;
+  const baseFilter = { isDeleted: false };
+  if (tab === "hero") return { ...baseFilter, type: "hero" };
+  if (tab === "promo") return { ...baseFilter, type: "promo" };
+  if (tab === "active") return { ...baseFilter, status: "active" };
+  if (tab === "inactive") return { ...baseFilter, status: "inactive" };
+  return baseFilter;
 }
 
-const LIMIT = 10;
+const ITEMS_PER_PAGE = 10;
 
 export const getBannersPage = async (req, res, next) => {
   try {
-    const tab = ["all", "hero", "promo", "active", "inactive"].includes(req.query.tab) ? req.query.tab : "all";
-    const page = Math.max(1, Number(req.query.page) || 1);
-    const filter = getFilter(tab);
+    const activeTab = ["all", "hero", "promo", "active", "inactive"].includes(req.query.tab)
+      ? req.query.tab
+      : "all";
+    const requestedPage = Math.max(1, Number(req.query.page) || 1);
+    const filter = getFilter(activeTab);
 
-    const total = await Banner.countDocuments(filter);//25
-    const totalPages = Math.ceil(total / LIMIT) || 1;//3
-    const currentPage = Math.min(page, totalPages);
-    const showingFrom = total === 0 ? 0 : (currentPage - 1) * LIMIT + 1;
-    const showingTo = Math.min(currentPage * LIMIT, total);
+    const totalBanners = await Banner.countDocuments(filter);
+    const totalPages = Math.ceil(totalBanners / ITEMS_PER_PAGE) || 1;
+    const currentPage = Math.min(requestedPage, totalPages);
+    const showingFrom = totalBanners === 0 ? 0 : (currentPage - 1) * ITEMS_PER_PAGE + 1;
+    const showingTo = Math.min(currentPage * ITEMS_PER_PAGE, totalBanners);
 
-    const [bannersRaw, offersRaw] = await Promise.all([
+    const [rawBanners, rawOffers] = await Promise.all([
       Banner.find(filter)
         .populate("offerId")
         .sort({ createdAt: -1 })
-        .skip((currentPage - 1) * LIMIT)
-        .limit(LIMIT)
+        .skip((currentPage - 1) * ITEMS_PER_PAGE)
+        .limit(ITEMS_PER_PAGE)
         .lean(),
       Offer.find({ isDeleted: false, isActive: true }).lean()
     ]);
 
-    const offers = [];//load offers for banner
-    for (const off of offersRaw) {
-      if (off.offerType === "product") {
-        const prod = await Product.findOne({ _id: off.refId, isDeleted: false }).lean();
-        off.targetName = prod ? prod.productName : "Unknown Product";
-      } else if (off.offerType === "category") {
-        const cat = await Category.findOne({ _id: off.refId, isDeleted: false }).lean();
-        off.targetName = cat ? cat.categoryName : "Unknown Category";
+    const processedOffers = [];
+    for (const offer of rawOffers) {
+      if (offer.offerType === "product") {
+        const product = await Product.findOne({ _id: offer.refId, isDeleted: false }).lean();
+        offer.targetName = product ? product.productName : "Unknown Product";
+      } else if (offer.offerType === "category") {
+        const category = await Category.findOne({ _id: offer.refId, isDeleted: false }).lean();
+        offer.targetName = category ? category.categoryName : "Unknown Category";
       } else {
-        off.targetName = "";
+        offer.targetName = "";
       }
-      offers.push(off);
+      processedOffers.push(offer);
     }
-    //console.log(offers)
 
-    const banners = [];
-    for (const b of bannersRaw) {
-      if (b.offerId) {
-        const offer = b.offerId;
+    const processedBanners = [];
+    for (const banner of rawBanners) {
+      if (banner.offerId) {
+        const offer = banner.offerId;
         if (offer.offerType === "product") {
-          const prod = await Product.findOne({ _id: offer.refId, isDeleted: false });
-          b.redirectType = "product";
-          b.redirectValue = prod ? prod.productName : "Unknown Product";
+          const product = await Product.findOne({ _id: offer.refId, isDeleted: false }).lean();
+          banner.redirectType = "product";
+          banner.redirectValue = product ? product.productName : "Unknown Product";
         } else if (offer.offerType === "category") {
-          const cat = await Category.findOne({ _id: offer.refId, isDeleted: false });
-          b.redirectType = "category";
-          b.redirectValue = cat ? cat.categoryName : "Unknown Category";
+          const category = await Category.findOne({ _id: offer.refId, isDeleted: false }).lean();
+          banner.redirectType = "category";
+          banner.redirectValue = category ? category.categoryName : "Unknown Category";
         }
       } else {
-        b.redirectType = "";
-        b.redirectValue = "—";
+        banner.redirectType = "";
+        banner.redirectValue = "—";
       }
-      banners.push(b);
+      processedBanners.push(banner);
     }
 
-    const data = { banners, tab, total, totalPages, currentPage, showingFrom, showingTo };
+    const responseData = {
+      banners: processedBanners,
+      tab: activeTab,
+      total: totalBanners,
+      totalPages,
+      currentPage,
+      showingFrom,
+      showingTo
+    };
 
-    if (req.query.ajax === "1") return res.json({ success: true, ...data });
-    res.render("admin/banners", { ...data, offers });
-  } catch (err) {
-    next(err)
+    if (req.query.ajax === "1") {
+      return res.json({ success: true, ...responseData });
+    }
+    res.render("admin/banners", { ...responseData, offers: processedOffers });
+  } catch (error) {
+    next(error);
   }
 };
 
-
-function getErrors({ type, title, subtitle, badgeText, offerText, countdownEnabled, countdownEndDate, status }) {
+function getValidationError({ type, title, subtitle, badgeText, offerText, countdownEnabled, countdownEndDate, status }) {
   if (!type || !["hero", "promo"].includes(type)) {
     return "Banner type must be 'hero' or 'promo'.";
   }
@@ -122,11 +134,11 @@ function getErrors({ type, title, subtitle, badgeText, offerText, countdownEnabl
   if (status && !["active", "inactive"].includes(status)) {
     return "Status must be 'active' or 'inactive'.";
   }
-  const countdownOn = countdownEnabled === "true" || countdownEnabled === true;
-  if (countdownOn && !countdownEndDate) {
+  const isCountdownOn = countdownEnabled === "true" || countdownEnabled === true;
+  if (isCountdownOn && !countdownEndDate) {
     return "Countdown end date is required.";
   }
-  if (countdownOn && countdownEndDate && new Date(countdownEndDate) <= new Date()) {
+  if (isCountdownOn && countdownEndDate && new Date(countdownEndDate) <= new Date()) {
     return "Countdown end date must be in the future.";
   }
   return null;
@@ -141,13 +153,13 @@ export const createBanner = async (req, res) => {
     }
     const newImagePath = `/uploads/banners/${req.file.filename}`;
 
-    const error = getErrors({ type, title, subtitle, badgeText, offerText, countdownEnabled, countdownEndDate, status });
-    if (error) {
+    const validationError = getValidationError({ type, title, subtitle, badgeText, offerText, countdownEnabled, countdownEndDate, status });
+    if (validationError) {
       deleteImage(newImagePath);
-      return res.status(400).json({ success: false, message: error });
+      return res.status(400).json({ success: false, message: validationError });
     }
 
-    const countdownOn = countdownEnabled === "true" || countdownEnabled === true;
+    const isCountdownOn = countdownEnabled === "true" || countdownEnabled === true;
 
     let computedRedirectType = "product";
     let computedRedirectValue = "";
@@ -163,9 +175,9 @@ export const createBanner = async (req, res) => {
         return res.status(400).json({ success: false, message: "Selected offer is invalid or deactivated." });
       }
       if (offerDoc.offerType === "product") {
-        const prod = await Product.findOne({ _id: offerDoc.refId, isDeleted: false });
+        const product = await Product.findOne({ _id: offerDoc.refId, isDeleted: false });
         computedRedirectType = "product";
-        computedRedirectValue = prod ? prod.productName : "";
+        computedRedirectValue = product ? product.productName : "";
       } else if (offerDoc.offerType === "category") {
         computedRedirectType = "category";
         computedRedirectValue = offerDoc.refId.toString();
@@ -179,8 +191,8 @@ export const createBanner = async (req, res) => {
       badgeText: badgeText?.trim() || "",
       offerText: offerText?.trim() || "",
       image: newImagePath,
-      countdownEnabled: countdownOn,
-      countdownEndDate: countdownOn ? new Date(countdownEndDate) : null,
+      countdownEnabled: isCountdownOn,
+      countdownEndDate: isCountdownOn ? new Date(countdownEndDate) : null,
       status: status || "active",
       offerId: offerId && offerId.trim() !== "" ? offerId : null,
       redirectType: computedRedirectType,
@@ -188,81 +200,69 @@ export const createBanner = async (req, res) => {
     });
 
     res.status(201).json({ success: true, message: "Banner created successfully", banner });
-
-  } catch (err) {
-    console.error(err);
-    if (req.file) deleteImage(`/uploads/banners/${req.file.filename}`);
+  } catch (error) {
+    console.error(error);
+    if (req.file) {
+      deleteImage(`/uploads/banners/${req.file.filename}`);
+    }
     res.status(500).json({ success: false, message: "Failed to create banner" });
   }
 };
 
-export const getBannerById = async (req, res,next) => {//edit banner
+export const getBannerById = async (req, res, next) => {
   try {
     if (!req.params.id.match(/^[0-9a-fA-F]{24}$/)) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Invalid banner ID" });
+      return res.status(400).json({ success: false, message: "Invalid banner ID" });
     }
     const banner = await Banner.findOne({
       _id: req.params.id,
       isDeleted: false,
     }).populate("offerId").lean();
 
-    if (!banner)
-      return res
-        .status(404)
-        .json({ success: false, message: "Banner not found" });
+    if (!banner) {
+      return res.status(404).json({ success: false, message: "Banner not found" });
+    }
 
     if (banner.offerId) {
-if (offer.offerType === "product") {
-
-  const prod = await Product.findOne({
-    _id: offer.refId,
-    isDeleted: false
-  });
-
-  banner.redirectType = "product";  //if redirect type is product then product redirect
-  if (prod) {
-    banner.redirectValue = prod.productName;
-  } else {
-    banner.redirectValue = "";
-  }
-
-} else if (offer.offerType === "category") {
-
-  const cat = await Category.findOne({ _id: offer.refId,isDeleted: false});//category
-
-  banner.redirectType = "category"; //if redirect type is category then by category
-
-  if (cat) {
-    banner.redirectValue = cat.categoryName;
-  } else {
-    banner.redirectValue = "";
-  }
-
-}
+      const offer = banner.offerId;
+      if (offer.offerType === "product") {
+        const product = await Product.findOne({
+          _id: offer.refId,
+          isDeleted: false
+        });
+        banner.redirectType = "product";
+        banner.redirectValue = product ? product.productName : "";
+      } else if (offer.offerType === "category") {
+        const category = await Category.findOne({
+          _id: offer.refId,
+          isDeleted: false
+        });
+        banner.redirectType = "category";
+        banner.redirectValue = category ? category.categoryName : "";
+      }
     } else {
       banner.redirectType = "";
       banner.redirectValue = "";
     }
 
     res.json({ success: true, banner });
-  } catch (err) {
-    next(err)
+  } catch (error) {
+    next(error);
   }
 };
 
 export const editBanner = async (req, res) => {
   try {
-    if (!req.params.id.match(/^[0-9a-fA-F]{24}$/))
+    if (!req.params.id.match(/^[0-9a-fA-F]{24}$/)) {
       return res.status(400).json({ success: false, message: "Invalid banner ID" });
+    }
 
     const { type, title, subtitle, badgeText, offerText, countdownEnabled, countdownEndDate, status, offerId } = req.body;
 
-    const error = getErrors({ type, title, subtitle, badgeText, offerText, countdownEnabled, countdownEndDate, status });
-    if (error) {
+    const validationError = getValidationError({ type, title, subtitle, badgeText, offerText, countdownEnabled, countdownEndDate, status });
+    if (validationError) {
       if (req.file) deleteImage(`/uploads/banners/${req.file.filename}`);
-      return res.status(400).json({ success: false, message: error });
+      return res.status(400).json({ success: false, message: validationError });
     }
 
     const banner = await Banner.findOne({ _id: req.params.id, isDeleted: false });
@@ -271,7 +271,7 @@ export const editBanner = async (req, res) => {
       return res.status(404).json({ success: false, message: "Banner not found" });
     }
 
-    const countdownOn = countdownEnabled === "true" || countdownEnabled === true;
+    const isCountdownOn = countdownEnabled === "true" || countdownEnabled === true;
 
     if (req.file) {
       deleteImage(banner.image);
@@ -292,9 +292,9 @@ export const editBanner = async (req, res) => {
         return res.status(400).json({ success: false, message: "Selected offer is invalid or deactivated." });
       }
       if (offerDoc.offerType === "product") {
-        const prod = await Product.findOne({ _id: offerDoc.refId, isDeleted: false });
+        const product = await Product.findOne({ _id: offerDoc.refId, isDeleted: false });
         computedRedirectType = "product";
-        computedRedirectValue = prod ? prod.productName : "";
+        computedRedirectValue = product ? product.productName : "";
       } else if (offerDoc.offerType === "category") {
         computedRedirectType = "category";
         computedRedirectValue = offerDoc.refId.toString();
@@ -306,8 +306,8 @@ export const editBanner = async (req, res) => {
     banner.subtitle = subtitle?.trim() || "";
     banner.badgeText = badgeText?.trim() || "";
     banner.offerText = offerText?.trim() || "";
-    banner.countdownEnabled = countdownOn;
-    banner.countdownEndDate = countdownOn ? new Date(countdownEndDate) : null;
+    banner.countdownEnabled = isCountdownOn;
+    banner.countdownEndDate = isCountdownOn ? new Date(countdownEndDate) : null;
     banner.status = status || "active";
     banner.offerId = offerId && offerId.trim() !== "" ? offerId : null;
     banner.redirectType = computedRedirectType;
@@ -315,8 +315,8 @@ export const editBanner = async (req, res) => {
     await banner.save();
 
     res.json({ success: true, message: "Banner updated successfully", banner });
-  } catch (err) {
-    console.error(err);
+  } catch (error) {
+    console.error(error);
     if (req.file) deleteImage(`/uploads/banners/${req.file.filename}`);
     res.status(500).json({ success: false, message: "Failed to update banner" });
   }
@@ -324,38 +324,44 @@ export const editBanner = async (req, res) => {
 
 export const toggleBanner = async (req, res) => {
   try {
-    if (!req.params.id.match(/^[0-9a-fA-F]{24}$/))
+    if (!req.params.id.match(/^[0-9a-fA-F]{24}$/)) {
       return res.status(400).json({ success: false, message: "Invalid banner ID" });
+    }
 
     const banner = await Banner.findOne({ _id: req.params.id, isDeleted: false });
-    if (!banner) return res.status(404).json({ success: false, message: "Banner not found" });
+    if (!banner) {
+      return res.status(404).json({ success: false, message: "Banner not found" });
+    }
 
     banner.status = banner.status === "active" ? "inactive" : "active";
     await banner.save();
 
-    const msg = banner.status === "active" ? "activated" : "deactivated";
-    res.json({ success: true, message: `Banner ${msg} successfully`, status: banner.status });
-  } catch (err) {
-    console.error(err);
+    const statusMessage = banner.status === "active" ? "activated" : "deactivated";
+    res.json({ success: true, message: `Banner ${statusMessage} successfully`, status: banner.status });
+  } catch (error) {
+    console.error(error);
     res.status(500).json({ success: false, message: "Failed to toggle banner" });
   }
 };
 
 export const deleteBanner = async (req, res) => {
   try {
-    if (!req.params.id.match(/^[0-9a-fA-F]{24}$/))
+    if (!req.params.id.match(/^[0-9a-fA-F]{24}$/)) {
       return res.status(400).json({ success: false, message: "Invalid banner ID" });
+    }
 
     const banner = await Banner.findOne({ _id: req.params.id, isDeleted: false });
-    if (!banner) return res.status(404).json({ success: false, message: "Banner not found" });
+    if (!banner) {
+      return res.status(404).json({ success: false, message: "Banner not found" });
+    }
 
     banner.isDeleted = true;
     banner.status = "inactive";
     await banner.save();
 
     res.json({ success: true, message: "Banner deleted successfully" });
-  } catch (err) {
-    console.error(err);
+  } catch (error) {
+    console.error(error);
     res.status(500).json({ success: false, message: "Failed to delete banner" });
   }
 };

@@ -15,8 +15,8 @@ const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function logoutUser (req, res){
   delete req.session.user;
-  req.session.save((err) => {
-    if (err) console.error("Session save error during profile logout:", err);
+  req.session.save((error) => {
+    if (error) console.error("Session save error during profile logout:", error);
     res.redirect("/user/login");
   });
 };
@@ -69,8 +69,8 @@ export async function loadDashboard (req, res){
       defaultAddress, 
       activePage: "dashboard",
     });
-  } catch (err) {
-    console.error("Dashboard error:", err);
+  } catch (error) {
+    console.error("Dashboard error:", error);
     return res.redirect("/user/login");
   }
 };
@@ -89,8 +89,8 @@ export async function loadAddress (req, res){
       user, 
       activePage: "address"  //add activePage
     });
-  } catch (err) {
-    console.error("Load address error:", err);
+  } catch (error) {
+    console.error("Load address error:", error);
     res.redirect("/user/profile");
   }
 };
@@ -126,8 +126,8 @@ export async function addAddress(req, res){
     });
 
     return res.json({ success: true });
-  } catch (err) {
-    console.error("Add address error:", err);
+  } catch (error) {
+    console.error("Add address error:", error);
     return res.json({ success: false, message: "Something went wrong" });
   }
 };
@@ -167,8 +167,8 @@ export async function updateAddress (req, res){
 
     if (!updated) return res.json({ success: false, message: "Address not found" });
     return res.json({ success: true });
-  } catch (err) {
-    console.error("Update address error:", err);
+  } catch (error) {
+    console.error("Update address error:", error);
     return res.json({ success: false, message: "Something went wrong" });
   }
 };
@@ -182,8 +182,8 @@ export async function deleteAddress (req, res){
 
     await Address.deleteOne({ _id: addressId, userId });
     return res.json({ success: true });
-  } catch (err) {
-    console.error("Delete address error:", err);
+  } catch (error) {
+    console.error("Delete address error:", error);
     return res.json({ success: false, message: "Something went wrong" });
   }
 };
@@ -202,8 +202,8 @@ export async function setDefaultAddress (req, res){
 
     if (!updated) return res.json({ success: false, message: "Address not found" });
     return res.json({ success: true });
-  } catch (err) {
-    console.error("Set default address error:", err);
+  } catch (error) {
+    console.error("Set default address error:", error);
     return res.json({ success: false, message: "Something went wrong" });
   }
 };
@@ -219,8 +219,8 @@ export async function removeDefaultAddress(req, res) {
     );
     if (!updated) return res.json({ success: false, message: "Address not found" });
     return res.json({ success: true });
-  } catch (err) {
-    console.error("Remove default error:", err);
+  } catch (error) {
+    console.error("Remove default error:", error);
     return res.json({ success: false, message: "Something went wrong" });
   }
 };
@@ -244,8 +244,8 @@ export async function loadProfile (req, res) {
       defaultAddress,
       activePage: "profile"
     });
-  } catch (err) {
-    console.error("Load profile error:", err);
+  } catch (error) {
+    console.error("Load profile error:", error);
     return res.redirect("/user/dashboard");
   }
 };
@@ -265,8 +265,8 @@ export async function updateAvatar (req, res) {
     user.profileImage = `/uploads/profile/${req.file.filename}`;
     await user.save();
     res.redirect("/user/profile");
-  } catch (err) {
-    console.error("Profile image update error:", err);
+  } catch (error) {
+    console.error("Profile image update error:", error);
     res.redirect("/user/profile");
   }
 };
@@ -283,8 +283,8 @@ export async function updateAvatar (req, res) {
     user.profileImage = null;
     await user.save();
     res.redirect("/user/profile");
-  } catch (err) {
-    console.error("Profile image remove error:", err);
+  } catch (error) {
+    console.error("Profile image remove error:", error);
     res.redirect("/user/profile");
   }
 };
@@ -322,8 +322,8 @@ export async function requestEmailChangeOtp (req, res){
         return res.json({ success: false, message: "New email must be different from your current email" });
       }
 
-      const exists = await User.findOne({ email: emailToUse });
-      if (exists) {
+      const existingUserWithEmail = await User.findOne({ email: emailToUse });
+      if (existingUserWithEmail) {
         return res.json({ success: false, message: "Email already in use" });
       }
     }
@@ -354,8 +354,8 @@ export async function requestEmailChangeOtp (req, res){
     );
 
     return res.json({ success: true, message: "OTP sent to new email" });
-  } catch (err) {
-    console.error("Request email OTP error:", err);
+  } catch (error) {
+    console.error("Request email OTP error:", error);
     return res.status(500).json({ success: false, message: "Server error" });
   }
 };
@@ -417,8 +417,8 @@ export async function verifyEmailChangeOtp(req, res){
 
     req.session.user.email = user.email;
     return res.json({ success: true, message: "Email updated successfully" });
-  } catch (err) {
-    console.error("Verify email OTP error:", err);
+  } catch (error) {
+    console.error("Verify email OTP error:", error);
     return res.status(500).json({ success: false, message: "Server error" });
   }
 };
@@ -441,8 +441,8 @@ export async function updateProfileDetails(req, res){
     req.session.user.lastName = lastName.trim();
 
     return res.json({ success: true, message: "Profile updated" });
-  } catch (err) {
-    console.error("Update profile error:", err);
+  } catch (error) {
+    console.error("Update profile error:", error);
     return res.status(500).json({ success: false, message: "Server error" });
   }
 };
@@ -620,8 +620,8 @@ export async function verifyPasswordChangeOtp (req, res){
     await user.save();
 
     return res.json({ success: true, message: "Password updated successfully" });
-  } catch (err) {
-    console.error("Verify password OTP error:", err);
+  } catch (error) {
+    console.error("Verify password OTP error:", error);
     return res.status(500).json({ success: false, message: "Server error" });
   }
 };
@@ -641,8 +641,8 @@ export async function updateAvatarAjax (req, res){
     user.profileImage = `/uploads/profile/${req.file.filename}`;
     await user.save();
     return res.json({ success: true, profileImage: user.profileImage });
-  } catch (err) {
-    console.error("Avatar AJAX upload error:", err);
+  } catch (error) {
+    console.error("Avatar AJAX upload error:", error);
     return res.json({ success: false, message: "Upload failed" });
   }
 };
@@ -659,8 +659,8 @@ export async function removeAvatarAjax (req, res){
     user.profileImage = null;
     await user.save();
     return res.json({ success: true, profileImage: null });
-  } catch (err) {
-    console.error("Avatar AJAX remove error:", err);
+  } catch (error) {
+    console.error("Avatar AJAX remove error:", error);
     return res.json({ success: false, message: "Remove failed" });
   }
 };

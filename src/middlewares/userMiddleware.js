@@ -16,16 +16,20 @@ export async function isLoggedOut(req, res, next) {
 }
 
 export async function attachUserLocals(req, res, next) {//app.js
-  if (!req.session.user) return next();
   try {
-    const fresh = await User.findById(req.session.user._id)
-      .select("firstName lastName email phone profileImage status isAdmin")
-      .lean();
-    if (fresh) {
-      req.session.user = { ...req.session.user, ...fresh, _id: req.session.user._id };
+    if (req.session.user) {
+      const fresh = await User.findById(req.session.user._id)
+        .select("firstName lastName email phone profileImage status isAdmin")
+        .lean();
+      if (fresh) {
+        req.session.user = { ...req.session.user, ...fresh, _id: req.session.user._id };
+      }
+      res.locals.user = req.session.user;
+    } else {
+      res.locals.user = req.user || null;
     }
   } catch (err) {
-
+    res.locals.user = req.user || req.session?.user || null;
   }
   next();
 }

@@ -97,16 +97,16 @@ export const getSalesReport = async (req, res) => {
     const kpi = summarizeKpisFromOrders(orders);
     const chartData = buildChartSeriesFromOrders(orders);
 
-    const topCategories = topCategoriesRaw.map((c) => ({
-      _id: c._id,
-      count: c.count,
-      revenue: Math.round(c.revenue || 0),
+    const topCategories = topCategoriesRaw.map((category) => ({
+      _id: category._id,
+      count: category.count,
+      revenue: Math.round(category.revenue || 0),
     }));
 
-    const topProducts = topProductsRaw.map((p) => ({
-      name: p.name,
-      count: p.count,
-      revenue: Math.round(p.revenue || 0),
+    const topProducts = topProductsRaw.map((product) => ({
+      name: product.name,
+      count: product.count,
+      revenue: Math.round(product.revenue || 0),
     }));
 
     res.render("admin/auth/salesReport", {
@@ -120,8 +120,8 @@ export const getSalesReport = async (req, res) => {
       query: req.query,
       dateRange,
     });
-  } catch (err) {
-    console.error("Sales Report error:", err);
+  } catch (error) {
+    console.error("Sales Report error:", error);
     res.status(500).send("Failed to generate sales report");
   }
 };
@@ -177,10 +177,10 @@ async function fetchReportPayload(req) {
   ]);
 
   if (topCategoriesAgg.length) {
-    payload.topCategories = topCategoriesAgg.map((c) => ({
-      name: c.name || c._id,
-      units: c.units,
-      revenue: Math.round(c.revenue || 0),
+    payload.topCategories = topCategoriesAgg.map((category) => ({
+      name: category.name || category._id,
+      units: category.units,
+      revenue: Math.round(category.revenue || 0),
     }));
   }
 
@@ -192,8 +192,8 @@ export const downloadPDF = async (req, res) => {
     const payload = await fetchReportPayload(req);
     const stamp = new Date().toISOString().split("T")[0];
     generateSalesPDFReport(res, payload, `ElectroHub_Sales_Report_${stamp}`);
-  } catch (err) {
-    console.error("PDF Download error:", err);
+  } catch (error) {
+    console.error("PDF Download error:", error);
     res.status(500).send("Failed to generate PDF");
   }
 };
@@ -203,8 +203,8 @@ export const downloadExcel = async (req, res) => {
     const payload = await fetchReportPayload(req);
     const stamp = new Date().toISOString().split("T")[0];
     await generateSalesExcelReport(res, payload, `ElectroHub_Sales_Report_${stamp}`);
-  } catch (err) {
-    console.error("Excel Download error:", err);
+  } catch (error) {
+    console.error("Excel Download error:", error);
     res.status(500).send("Failed to generate Excel");
   }
 };

@@ -78,9 +78,9 @@ export const generatePDFReport = (res, data, fileName, title) => {
   let currentY = tableTop;
   doc.font('Helvetica-Bold').fontSize(8);
   let currentX = 30;
-  tableHeaders.forEach((header, i) => {
+  tableHeaders.forEach((header, index) => {
     doc.text(header, currentX, currentY);
-    currentX += colWidths[i];
+    currentX += colWidths[index];
   });
 
   doc.moveTo(30, currentY + 15).lineTo(565, currentY + 15).stroke();

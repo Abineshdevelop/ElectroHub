@@ -6,30 +6,30 @@ import Cart from "../../model/cartModel.js";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-const toId = (id) => new mongoose.Types.ObjectId(String(id));
+const toObjectId = (id) => new mongoose.Types.ObjectId(String(id));
 
 const getOrCreateWishlist = async (userId) =>
   (await Wishlist.findOne({ userId })) ?? (await Wishlist.create({ userId }));
 
 const getVariant = async (variantId, productId) => {
-  const col = mongoose.connection.collection("variants");
+  const variantCollection = mongoose.connection.collection("variants");
   const query = { isDeleted: false };
 
-  const raw = variantId
-    ? await col.findOne({ _id: toId(variantId), ...query })
-    : await col.findOne({ productId: toId(productId), ...query });
+  const rawVariant = variantId
+    ? await variantCollection.findOne({ _id: toObjectId(variantId), ...query })
+    : await variantCollection.findOne({ productId: toObjectId(productId), ...query });
 
-  if (!raw) return null;
+  if (!rawVariant) return null;
 
   return {
-    ...raw,
-    _id: String(raw._id),
-    productId: String(raw.productId),
-    price: Number(raw.price) || 0,
-    mrp: Number(raw.mrp) || 0,
-    stock: Number(raw.stock) || 0,
-    images: Array.isArray(raw.images) ? raw.images.map(String) : [],
-    options: raw.options ? JSON.parse(JSON.stringify(raw.options)) : {},
+    ...rawVariant,
+    _id: String(rawVariant._id),
+    productId: String(rawVariant.productId),
+    price: Number(rawVariant.price) || 0,
+    mrp: Number(rawVariant.mrp) || 0,
+    stock: Number(rawVariant.stock) || 0,
+    images: Array.isArray(rawVariant.images) ? rawVariant.images.map(String) : [],
+    options: rawVariant.options ? JSON.parse(JSON.stringify(rawVariant.options)) : {},
   };
 };
 
@@ -49,15 +49,15 @@ export const getWishlist = async (req, res, next) => {
     }
 
     // Get cart variant IDs for "inCart" check
-    const cart = await Cart.findOne({ userId: toId(userId) }).lean();
-    const cartVariantIds = new Set(cart?.items?.map((i) => String(i.variantId)) ?? []);
+    const cart = await Cart.findOne({ userId: toObjectId(userId) }).lean();
+    const cartVariantIds = new Set(cart?.items?.map((item) => String(item.variantId)) ?? []);
 
     // Fetch wishlist items with product + variant
-    const wishItems = await WishlistItem.find({ wishlistId: wishlist._id }).lean();
+    const wishlistItems = await WishlistItem.find({ wishlistId: wishlist._id }).lean();
 
     const items = (
       await Promise.all(
-        wishItems.map(async (item) => {
+        wishlistItems.map(async (item) => {
           const product = await Product.findOne({
             _id: item.productId,
             isDeleted: false,
@@ -83,8 +83,8 @@ export const getWishlist = async (req, res, next) => {
       items,
       activePage: "wishlist",
     });
-  } catch (err) {
-    next(err);
+  } catch (error) {
+    next(error);
   }
 };
 
@@ -94,14 +94,14 @@ export const addToWishlist = async (req, res, next) => {
     const { productId, variantId } = req.body;
 
     const wishlist = await getOrCreateWishlist(userId);
-    const exists = await WishlistItem.findOne({ wishlistId: wishlist._id, productId });
+    const existingWishlistItem = await WishlistItem.findOne({ wishlistId: wishlist._id, productId });
 
-    if (exists) return res.json({ success: false, message: "Already in wishlist" });
+    if (existingWishlistItem) return res.json({ success: false, message: "Already in wishlist" });
 
     await WishlistItem.create({ wishlistId: wishlist._id, productId, variantId: variantId || null, quantity: 1 });
     return res.json({ success: true, message: "Added to wishlist" });
-  } catch (err) {
-    next(err);
+  } catch (error) {
+    next(error);
   }
 };
 
@@ -111,17 +111,17 @@ export const toggleWishlist = async (req, res, next) => {
     const { productId, variantId } = req.body;
 
     const wishlist = await getOrCreateWishlist(userId);
-    const exists = await WishlistItem.findOne({ wishlistId: wishlist._id, productId });
+    const existingWishlistItem = await WishlistItem.findOne({ wishlistId: wishlist._id, productId });
 
-    if (exists) {
+    if (existingWishlistItem) {
       await WishlistItem.deleteMany({ wishlistId: wishlist._id, productId });
       return res.json({ success: true, wishlisted: false, message: "Removed from wishlist" });
     }
 
     await WishlistItem.create({ wishlistId: wishlist._id, productId, variantId: variantId || null, quantity: 1 });
     return res.json({ success: true, wishlisted: true, message: "Added to wishlist" });
-  } catch (err) {
-    next(err);
+  } catch (error) {
+    next(error);
   }
 };
 
@@ -135,17 +135,17 @@ export const removeFromWishlist = async (req, res, next) => {
 
     const { deletedCount } = await WishlistItem.deleteMany({
       wishlistId: wishlist._id,
-      productId: toId(productId),
+      productId: toObjectId(productId),
     });
 
     return res.json({ success: true, message: "Removed", deleted: deletedCount });
-  } catch (err) {
-    next(err);
+  } catch (error) {
+    next(error);
   }
 };
 
 export const removeFromWishlistByProduct = async (userId, productId) => {
   const wishlist = await Wishlist.findOne({ userId });
   if (!wishlist) return;
-  await WishlistItem.deleteMany({ wishlistId: wishlist._id, productId: toId(productId) });
+  await WishlistItem.deleteMany({ wishlistId: wishlist._id, productId: toObjectId(productId) });
 };

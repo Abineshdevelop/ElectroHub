@@ -30,7 +30,7 @@ export function calculateRefundAmount(order, refundItems) {
   if (maxRefundable <= 0) return 0;
 
   const itemRefundTotal = (refundItems || []).reduce(
-    (sum, item) => sum + getItemRefundAmount(item, order),
+    (totalRefundAccumulator, item) => totalRefundAccumulator + getItemRefundAmount(item, order),
     0,
   );
 

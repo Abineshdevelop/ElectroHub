@@ -6,11 +6,18 @@ import Variant from "../../model/variantModel.js";
 import Offer from "../../model/offersModel.js";
 import Wishlist from "../../model/wishlistModel.js";
 import WishlistItem from "../../model/wishlistItemModel.js";
+import User from "../../model/usermodel.js"
 
 export async function loadHomePage(req, res, next) {
   try {
-    const sessionUser = req.user
+    const sessionUser = req.user || req.session?.user || null;
     const now = new Date();
+
+    // const www=req.session.user._id
+    // console.log(www)
+    // const w=await User.findOne({_id:www})
+
+//console.log("hi",w)
 
     // Fetch all data in parallel
     const [categories, bannersRaw, activeOffers, rawProducts, recentProducts] = await Promise.all([
@@ -22,60 +29,60 @@ export async function loadHomePage(req, res, next) {
     ]);
 
     const banners = [];
-    for (const b of bannersRaw) {
-      if (b.offerId) {
-        const offer = b.offerId;
+    for (const banner of bannersRaw) {
+      if (banner.offerId) {
+        const offer = banner.offerId;
         if (offer.offerType === "product") {
-          const prod = await Product.findOne({ _id: offer.refId, isDeleted: false });
-          b.redirectType = "product";
-          b.redirectValue = prod ? prod.productName : "";
-          if (!b.offerText && offer.offerPrecentage) {
-            b.offerText = `${offer.offerPrecentage}% OFF`;
+          const product = await Product.findOne({ _id: offer.refId, isDeleted: false });
+          banner.redirectType = "product";
+          banner.redirectValue = product ? product.productName : "";
+          if (!banner.offerText && offer.offerPrecentage) {
+            banner.offerText = `${offer.offerPrecentage}% OFF`;
           }
-          if (!b.title) {
-            b.title = prod ? prod.productName : "Special Offer";
+          if (!banner.title) {
+            banner.title = product ? product.productName : "Special Offer";
           }
-          if (!b.subtitle) {
-            b.subtitle = `Exclusive discount on premium products!`;
+          if (!banner.subtitle) {
+            banner.subtitle = `Exclusive discount on premium products!`;
           }
         } else if (offer.offerType === "category") {
-          const cat = await Category.findOne({ _id: offer.refId, isDeleted: false });
-          b.redirectType = "category";
-          b.redirectValue = cat ? cat._id.toString() : "";
-          if (!b.offerText && offer.offerPrecentage) {
-            b.offerText = `${offer.offerPrecentage}% OFF`;
+          const category = await Category.findOne({ _id: offer.refId, isDeleted: false });
+          banner.redirectType = "category";
+          banner.redirectValue = category ? category._id.toString() : "";
+          if (!banner.offerText && offer.offerPrecentage) {
+            banner.offerText = `${offer.offerPrecentage}% OFF`;
           }
-          if (!b.title) {
-            b.title = cat ? `${cat.categoryName} Special` : "Special Offer";
+          if (!banner.title) {
+            banner.title = category ? `${category.categoryName} Special` : "Special Offer";
           }
-          if (!b.subtitle) {
-            b.subtitle = `Unbeatable deals on top categories!`;
+          if (!banner.subtitle) {
+            banner.subtitle = `Unbeatable deals on top categories!`;
           }
         }
       } else {
-        b.redirectType = "";
-        b.redirectValue = "";
+        banner.redirectType = "";
+        banner.redirectValue = "";
       }
-      banners.push(b);
+      banners.push(banner);
     }
 
     // Split banners by type
-    const heroBanners = banners.filter((b) => b.type === "hero");
-    const promoBanners = banners.filter((b) => b.type === "promo");
+    const heroBanners = banners.filter((banner) => banner.type === "hero");
+    const promoBanners = banners.filter((banner) => banner.type === "promo");
 
     // Helper: get the best offer % for a product
-    const getOfferPct = (pid, cid) =>
+    const getOfferPercentage = (productId, categoryId) =>
       activeOffers
-        .filter((o) => 
-          (o.offerType === "product" && o.refId.toString() === pid) ||
-          (o.offerType === "category" && o.refId.toString() === cid)
+        .filter((offer) => 
+          (offer.offerType === "product" && offer.refId.toString() === productId) ||
+          (offer.offerType === "category" && offer.refId.toString() === categoryId)
         )
-        .reduce((max, o) => Math.max(max, o.offerPrecentage), 0);
+        .reduce((maxPercentage, offer) => Math.max(maxPercentage, offer.offerPrecentage), 0);
 
     // Batch query reviews to compute ratings in-memory
     const allProductIds = [
-      ...rawProducts.map((p) => p._id),
-      ...recentProducts.map((p) => p._id),
+      ...rawProducts.map((product) => product._id),
+      ...recentProducts.map((product) => product._id),
     ];
 
     const reviews = await mongoose.connection
@@ -84,16 +91,18 @@ export async function loadHomePage(req, res, next) {
       .toArray();
 
     const ratingsMap = {};
-    reviews.forEach((r) => {
-      const pid = r.productId.toString();
-      if (!ratingsMap[pid]) ratingsMap[pid] = { sum: 0, count: 0 };
-      ratingsMap[pid].sum += r.rating || 0;
-      ratingsMap[pid].count += 1;
+    reviews.forEach((review) => {
+      const productId = review.productId.toString();
+      if (!ratingsMap[productId]) {
+        ratingsMap[productId] = { totalRatingSum: 0, reviewCount: 0 };
+      }
+      ratingsMap[productId].totalRatingSum += review.rating || 0;
+      ratingsMap[productId].reviewCount += 1;
     });
 
-    const getAvgRating = (pid) => {
-      const entry = ratingsMap[pid];
-      return entry && entry.count > 0 ? parseFloat((entry.sum / entry.count).toFixed(1)) : 4.5;
+    const getAvgRating = (productId) => {
+      const entry = ratingsMap[productId];
+      return entry && entry.reviewCount > 0 ? parseFloat((entry.totalRatingSum / entry.reviewCount).toFixed(1)) : 4.5;
     };
 
     // ── Wishlist State ──
@@ -130,10 +139,10 @@ export async function loadHomePage(req, res, next) {
 
       if (!variant) continue;
 
-      const offerPct = getOfferPct(product._id.toString(), product.categoryId.toString());
+      const offerPercentage = getOfferPercentage(product._id.toString(), product.categoryId.toString());
       const originalPrice = Number(variant.price) || 0;
-      const finalPrice = offerPct > 0
-        ? Math.round(originalPrice * (1 - offerPct / 100))
+      const finalPrice = offerPercentage > 0
+        ? Math.round(originalPrice * (1 - offerPercentage / 100))
         : originalPrice;
 
       const variantId = variant._id.toString();
@@ -146,7 +155,7 @@ export async function loadHomePage(req, res, next) {
         categoryId: product.categoryId,
         price: finalPrice,
         mrp: Number(variant.mrp || variant.price) || 0,
-        offerPct,
+        offerPct: offerPercentage,
         stock: variant.stock || 0,
         image: variant.images?.[0] || "",
         variantId: variant._id,
@@ -169,10 +178,10 @@ export async function loadHomePage(req, res, next) {
 
       if (!variant) continue;
 
-      const offerPct = getOfferPct(product._id.toString(), product.categoryId.toString());
+      const offerPercentage = getOfferPercentage(product._id.toString(), product.categoryId.toString());
       const originalPrice = Number(variant.price) || 0;
-      const finalPrice = offerPct > 0
-        ? Math.round(originalPrice * (1 - offerPct / 100))
+      const finalPrice = offerPercentage > 0
+        ? Math.round(originalPrice * (1 - offerPercentage / 100))
         : originalPrice;
 
       const variantId = variant._id.toString();
@@ -185,7 +194,7 @@ export async function loadHomePage(req, res, next) {
         categoryId: product.categoryId,
         price: finalPrice,
         mrp: Number(variant.mrp || variant.price) || 0,
-        offerPct,
+        offerPct: offerPercentage,
         stock: variant.stock || 0,
         image: variant.images?.[0] || "",
         variantId: variant._id,
@@ -203,7 +212,7 @@ export async function loadHomePage(req, res, next) {
       newArrivals,
     });
 
-  } catch (err) {
-    next(err);
+  } catch (error) {
+    next(error);
   }
 }

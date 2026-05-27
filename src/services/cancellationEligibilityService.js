@@ -18,7 +18,7 @@ export function getActiveItems(order) {
 
 export function getItemsSubtotal(items) {
   return (items || []).reduce(
-    (sum, item) => sum + getItemOriginalValue(item),
+    (subtotalAccumulator, item) => subtotalAccumulator + getItemOriginalValue(item),
     0,
   );
 }
@@ -35,11 +35,11 @@ export function getMaximumCancellableAmount(order) {
 
 export async function validatePartialCancellation(order, itemsToCancel) {
   const activeItems = getActiveItems(order);
-  const cancelIds = new Set(
+  const cancellingItemIds = new Set(
     (itemsToCancel || []).map((item) => item._id.toString()),
   );
   const cancellingAllActiveItems = activeItems.every((item) =>
-    cancelIds.has(item._id.toString()),
+    cancellingItemIds.has(item._id.toString()),
   );
 
   if (cancellingAllActiveItems || !hasAppliedCoupon(order)) {
@@ -66,7 +66,7 @@ export async function validatePartialCancellation(order, itemsToCancel) {
   }
 
   const remainingItems = activeItems.filter(
-    (item) => !cancelIds.has(item._id.toString()),
+    (item) => !cancellingItemIds.has(item._id.toString()),
   );
   const activeSubtotal = getItemsSubtotal(activeItems);
   const remainingSubtotal = getItemsSubtotal(remainingItems);

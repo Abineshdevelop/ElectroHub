@@ -135,7 +135,7 @@ export const cancelOrder = async (req, res) => {
 
     //item cancel
     if (itemId) {
-      const item = order.items.find((i) => i._id.toString() === itemId);
+      const item = order.items.find((item) => item._id.toString() === itemId);
       if (!item)
         return res.json({ success: false, message: "Item not found in order" });
 
@@ -202,14 +202,14 @@ export const cancelOrder = async (req, res) => {
 
       await order.save();
 
-      let msg = "Item cancelled successfully.";
+      let successMessage = "Item cancelled successfully.";
       if (refundAmount > 0) {
-        msg = `Item cancelled. ₹${refundAmount.toLocaleString("en-IN")} refunded to your wallet.`;
+        successMessage = `Item cancelled. ₹${refundAmount.toLocaleString("en-IN")} refunded to your wallet.`;
       }
 
       return res.json({
         success: true,
-        message: msg,
+        message: successMessage,
         refundAmount,
         orderStatus: order.orderStatus,
       });
@@ -326,7 +326,7 @@ export const requestReturn = async (req, res) => {
     const now = new Date();
 
     if (itemId) {
-      const item = order.items.find((i) => i._id.toString() === itemId);
+      const item = order.items.find((item) => item._id.toString() === itemId);
       if (!item)
         return res.json({ success: false, message: "Item not found in order" });
 
@@ -368,8 +368,8 @@ export const requestReturn = async (req, res) => {
 
       // Update order-level status if all active items are return_requested
       const allPending = order.items
-        .filter((i) => !["cancelled"].includes(i.status))
-        .every((i) => i.status === "return_requested");
+        .filter((item) => !["cancelled"].includes(item.status))
+        .every((item) => item.status === "return_requested");
       if (allPending) order.orderStatus = "return_requested";
 
       await order.save();

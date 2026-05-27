@@ -40,14 +40,14 @@ function findBestOffer(product, activeOffers) {
 //caculate sale price after offer
 function getSalePrice(variant, product, activeOffers) {
   const offer = findBestOffer(product, activeOffers);
-  const offerPct = offer ? offer.offerPrecentage : 0;
+  const offerPercentage = offer ? offer.offerPrecentage : 0;
   const originalPrice = Number(variant.price) || 0;
   const offerPrice =
-    offerPct > 0
-      ? Math.round(originalPrice * (1 - offerPct / 100))
+    offerPercentage > 0
+      ? Math.round(originalPrice * (1 - offerPercentage / 100))
       : originalPrice;
 
-  return { offerPrice, originalPrice, offerPct };
+  return { offerPrice, originalPrice, offerPercentage };
 }
 
 export async function getCart(req, res, next) {
@@ -76,11 +76,11 @@ export async function getCart(req, res, next) {
 
       const variantLabel = variant.options
         ? Object.entries(variant.options)
-            .map(([k, v]) => `${k}: ${v}`)
+            .map(([key, value]) => `${key}: ${value}`)
             .join(" / ") //convert object in to array for varient ["color red" , "size":"m"]. "color: Red / size: M"
         : "";
 
-      const { offerPrice, originalPrice, offerPct } = getSalePrice(
+      const { offerPrice, originalPrice, offerPercentage } = getSalePrice(
         variant,
         product,
         activeOffers,
@@ -95,7 +95,7 @@ export async function getCart(req, res, next) {
         variantLabel,
         price: offerPrice,
         originalPrice,
-        offerPct,
+        offerPct: offerPercentage,
         image: variant.images?.[0] || "/images/placeholder.png",
         stock: variant.stock,
         isAvailable,
@@ -108,15 +108,15 @@ export async function getCart(req, res, next) {
       // remove product or varient that is deleted
       const hadInvalidItems = enrichedItems.length !== cart.items.length;
       if (hadInvalidItems) {
-        cart.items = cart.items.filter((i) =>
-          validVariantIds.includes(String(i.variantId)),
+        cart.items = cart.items.filter((item) =>
+          validVariantIds.includes(String(item.variantId)),
         );
         await cart.save();
       }
     }
 
     const subtotal = enrichedItems.reduce(
-      (sum, item) => sum + item.totalPrice,
+      (subtotalAccumulator, item) => subtotalAccumulator + item.totalPrice,
       0,
     );
 
@@ -125,8 +125,8 @@ export async function getCart(req, res, next) {
       cart: cart ? { ...cart.toObject(), items: enrichedItems } : { items: [] },
       subtotal,
     });
-  } catch (err) {
-    next(err);
+  } catch (error) {
+    next(error);
   }
 }
 
@@ -134,9 +134,9 @@ export async function addToCart(req, res, next) {
   try {
     const userId = req.session.user._id;
     const { productId, variantId, quantity = 1 } = req.body;
-    const qty = Number(quantity);
+    const requestedQuantity = Number(quantity);
 
-    if (!Number.isInteger(qty) || qty < 1 || qty > MAX_QTY) {
+    if (!Number.isInteger(requestedQuantity) || requestedQuantity < 1 || requestedQuantity > MAX_QTY) {
       return res.status(400).json({
         success: false,
         message: `Quantity must be between 1 and ${MAX_QTY}`,
@@ -185,29 +185,29 @@ export async function addToCart(req, res, next) {
       cart = new Cart({ userId, items: [] });
     }
 
-    const existingIndex = cart.items.findIndex(
-      (i) =>
-        i.productId.toString() === productId.toString() &&
-        i.variantId.toString() === variantId.toString(),
+    const existingItemIndex = cart.items.findIndex(
+      (item) =>
+        item.productId.toString() === productId.toString() &&
+        item.variantId.toString() === variantId.toString(),
     );
 
-    if (existingIndex > -1) {
-      const newQty = cart.items[existingIndex].quantity + qty;
+    if (existingItemIndex > -1) {
+      const newQuantity = cart.items[existingItemIndex].quantity + requestedQuantity;
 
-      if (newQty > MAX_QTY) {
+      if (newQuantity > MAX_QTY) {
         return res.json({
           success: false,
           message: `Maximum ${MAX_QTY} units per item`,
         });
       }
-      if (newQty > variant.stock) {
+      if (newQuantity > variant.stock) {
         return res.json({
           success: false,
           message: `Only ${variant.stock} units in stock`,
         });
       }
 
-      cart.items[existingIndex].quantity = newQty;
+      cart.items[existingItemIndex].quantity = newQuantity;
     } else {
       if (cart.items.length >= CART_LIMIT) {
         return res.json({
@@ -215,14 +215,14 @@ export async function addToCart(req, res, next) {
           message: `Cart limit of ${CART_LIMIT} items reached`,
         });
       }
-      if (qty > variant.stock) {
+      if (requestedQuantity > variant.stock) {
         return res.json({
           success: false,
           message: `Only ${variant.stock} units in stock`,
         });
       }
 
-      cart.items.push({ productId, variantId, quantity: qty });
+      cart.items.push({ productId, variantId, quantity: requestedQuantity });
     }
 
     await cart.save();
@@ -232,8 +232,8 @@ export async function addToCart(req, res, next) {
       message: "Added to cart",
       cartCount: cart.items.length,
     });
-  } catch (err) {
-    next(err);
+  } catch (error) {
+    next(error);
   }
 }
 
@@ -241,9 +241,9 @@ export async function updateCart(req, res, next) {
   try {
     const userId = req.session.user._id;
     const { productId, variantId, quantity } = req.body;
-    const qty = Number(quantity);
+    const requestedQuantity = Number(quantity);
 
-    if (!Number.isInteger(qty) || qty < 1 || qty > MAX_QTY) {
+    if (!Number.isInteger(requestedQuantity) || requestedQuantity < 1 || requestedQuantity > MAX_QTY) {
       return res.status(400).json({
         success: false,
         message: `Quantity must be between 1 and ${MAX_QTY}`,
@@ -266,9 +266,9 @@ export async function updateCart(req, res, next) {
     }
 
     const item = cart.items.find(
-      (i) =>
-        i.productId.toString() === productId.toString() &&
-        i.variantId.toString() === variantId.toString(),
+      (item) =>
+        item.productId.toString() === productId.toString() &&
+        item.variantId.toString() === variantId.toString(),
     );
 
     if (!item) {
@@ -277,19 +277,19 @@ export async function updateCart(req, res, next) {
         .json({ success: false, message: "Item not in cart" });
     }
 
-    if (qty > variant.stock) {
+    if (requestedQuantity > variant.stock) {
       return res.json({
         success: false,
         message: `Only ${variant.stock} units in stock`,
       });
     }
 
-    item.quantity = qty;
+    item.quantity = requestedQuantity;
     await cart.save();
 
     return res.json({ success: true, message: "Cart updated" });
-  } catch (err) {
-    next(err);
+  } catch (error) {
+    next(error);
   }
 }
 
@@ -306,9 +306,9 @@ export async function removeFromCart(req, res, next) {
     }
     const beforeCount = cart.items.length;
     cart.items = cart.items.filter(
-      (i) =>
-        i.productId.toString() !== productId.toString() ||
-        i.variantId.toString() !== variantId.toString(),
+      (item) =>
+        item.productId.toString() !== productId.toString() ||
+        item.variantId.toString() !== variantId.toString(),
     );
     // one product have multiple varient so for that varient and product filter and both equal then delete
     if (cart.items.length === beforeCount) {
@@ -318,8 +318,8 @@ export async function removeFromCart(req, res, next) {
     }
     await cart.save();
     return res.json({ success: true, message: "Item removed" });
-  } catch (err) {
-    next(err);
+  } catch (error) {
+    next(error);
   }
 }
 
@@ -328,7 +328,7 @@ export async function clearCart(req, res, next) {
     const userId = req.session.user._id;
     await Cart.findOneAndUpdate({ userId }, { $set: { items: [] } });
     return res.json({ success: true, message: "Cart cleared" });
-  } catch (err) {
-    next(err);
+  } catch (error) {
+    next(error);
   }
 }

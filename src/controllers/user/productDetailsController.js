@@ -17,13 +17,13 @@ function buildPipeline({ excludeProductId, excludeVariantId, categoryId, brandNa
     {
       $lookup: {
         from: "variants",
-        let:  { pid: "$_id" },
+        let:  { productId: "$_id" },
         pipeline: [
           {
             $match: {
               $expr: {
                 $and: [
-                  { $eq: ["$productId", "$$pid"] },
+                  { $eq: ["$productId", "$$productId"] },
                   { $ne: ["$isDeleted", true] },
                   { $ne: ["$_id", new mongoose.Types.ObjectId(excludeVariantId)] },
                 ],
@@ -66,23 +66,23 @@ function buildPipeline({ excludeProductId, excludeVariantId, categoryId, brandNa
         variants: {
           $map: {
             input: "$variantDocs",
-            as:    "v",
+            as:    "variant",
             in: {
-              _id:       "$$v._id",
-              price:     "$$v.priceDouble",
-              mrp:       "$$v.mrpDouble",
-              stock:     "$$v.stock",
-              thumbnail: { $arrayElemAt: ["$$v.images", 0] },
-              inStock:   { $gt: ["$$v.stock", 0] },
+              _id:       "$$variant._id",
+              price:     "$$variant.priceDouble",
+              mrp:       "$$variant.mrpDouble",
+              stock:     "$$variant.stock",
+              thumbnail: { $arrayElemAt: ["$$variant.images", 0] },
+              inStock:   { $gt: ["$$variant.stock", 0] },
               options: {
                 $arrayToObject: {
                   $filter: {
-                    input: { $objectToArray: { $ifNull: ["$$v.options", {}] } },
-                    as:    "opt",
+                    input: { $objectToArray: { $ifNull: ["$$variant.options", {}] } },
+                    as:    "option",
                     cond: {
                       $and: [
-                        { $not: [{ $regexMatch: { input: "$$opt.k", regex: "^[$_]" } }] },
-                        { $eq: [{ $type: "$$opt.v" }, "string"] },
+                        { $not: [{ $regexMatch: { input: "$$option.k", regex: "^[$_]" } }] },
+                        { $eq: [{ $type: "$$option.v" }, "string"] },
                       ],
                     },
                   },
@@ -190,56 +190,56 @@ export const getRelatedProducts = async (req, res) => {
 
     const productOfferMap  = new Map();
     const categoryOfferMap = new Map();
-    activeOffers.forEach(o => {
-      const key = String(o.refId);
-      if (o.offerType === "product") {
-        if (!productOfferMap.has(key) || o.offerPrecentage > productOfferMap.get(key).offerPrecentage)
-          productOfferMap.set(key, o);
-      } else if (o.offerType === "category") {
-        if (!categoryOfferMap.has(key) || o.offerPrecentage > categoryOfferMap.get(key).offerPrecentage)
-          categoryOfferMap.set(key, o);
+    activeOffers.forEach(offer => {
+      const key = String(offer.refId);
+      if (offer.offerType === "product") {
+        if (!productOfferMap.has(key) || offer.offerPrecentage > productOfferMap.get(key).offerPrecentage)
+          productOfferMap.set(key, offer);
+      } else if (offer.offerType === "category") {
+        if (!categoryOfferMap.has(key) || offer.offerPrecentage > categoryOfferMap.get(key).offerPrecentage)
+          categoryOfferMap.set(key, offer);
       }
     });
 
     const normalised = products.map(p => {
-      const pid = String(p._id);//productid
-      const cid = String(p.categoryId);//categoryid
+      const productId = String(p._id);
+      const categoryId = String(p.categoryId);
 
-      const applicableOffer = productOfferMap.get(pid) || categoryOfferMap.get(cid) || null;
-      const offerPct        = applicableOffer ? Number(applicableOffer.offerPrecentage) : 0;
+      const applicableOffer = productOfferMap.get(productId) || categoryOfferMap.get(categoryId) || null;
+      const offerPercentage = applicableOffer ? Number(applicableOffer.offerPrecentage) : 0;
 
       return {
         ...p,
-        _id: pid,
-        variants: (p.variants || []).map(v => {
+        _id: productId,
+        variants: (p.variants || []).map(variant => {
           let optionsObj = {};
           try {
-            const raw = JSON.parse(JSON.stringify(v.options || {}));
+            const raw = JSON.parse(JSON.stringify(variant.options || {}));
             optionsObj = Object.fromEntries(
-              Object.entries(raw).filter(([k, val]) =>
-                !k.startsWith("$") && !k.startsWith("_") &&
-                k !== "toObject"   && typeof val === "string"
+              Object.entries(raw).filter(([key, val]) =>
+                !key.startsWith("$") && !key.startsWith("_") &&
+                key !== "toObject"   && typeof val === "string"
               )
             );
           } catch { optionsObj = {}; }
 
-          const vid           = v._id?.toString();
-          const originalPrice = Number(v.price) || 0;
-          const mrp           = Number(v.mrp)   || 0;
-          const offerPrice    = offerPct > 0
-            ? Math.round(originalPrice * (1 - offerPct / 100))
+          const variantId     = variant._id?.toString();
+          const originalPrice = Number(variant.price) || 0;
+          const mrp           = Number(variant.mrp)   || 0;
+          const offerPrice    = offerPercentage > 0
+            ? Math.round(originalPrice * (1 - offerPercentage / 100))
             : originalPrice;
 
           return {
-            ...v,
-            _id:          vid,
+            ...variant,
+            _id:          variantId,
             options:      optionsObj,
             price:        offerPrice,
             originalPrice,
             mrp,
-            offerPct,
+            offerPct:     offerPercentage,
             offerName:    applicableOffer?.offerName || "",
-            wishlisted:   wishlistedVariantIds.has(vid) || wishlistedProductIds.has(pid),
+            wishlisted:   wishlistedVariantIds.has(variantId) || wishlistedProductIds.has(productId),
           };
         }),
       };
@@ -253,8 +253,8 @@ export const getRelatedProducts = async (req, res) => {
       isLoggedIn:  !!(sessionUser),
     });
 
-  } catch (err) {
-    console.error("Related products error:", err);
+  } catch (error) {
+    console.error("Related products error:", error);
     res.status(500).json({ products: [], totalPages: 0 });
   }
 };
@@ -287,11 +287,11 @@ export const getProductDetailPage = async (req, res, next) => {
       })
       .toArray();
 
-    variants.forEach(v => {
-      v._id       = v._id.toString();
-      v.productId = v.productId.toString();
-      v.price     = Number(v.price) || 0;
-      v.mrp       = Number(v.mrp)   || 0;
+    variants.forEach(variant => {
+      variant._id       = variant._id.toString();
+      variant.productId = variant.productId.toString();
+      variant.price     = Number(variant.price) || 0;
+      variant.mrp       = Number(variant.mrp)   || 0;
     });
 
     // ── Apply offers to detail page variants ──
@@ -305,34 +305,34 @@ export const getProductDetailPage = async (req, res, next) => {
 
     const productOfferMap  = new Map();
     const categoryOfferMap = new Map();
-    activeOffers.forEach(o => {
-      const key = String(o.refId);
-      if (o.offerType === "product") {
-        if (!productOfferMap.has(key) || o.offerPrecentage > productOfferMap.get(key).offerPrecentage)
-          productOfferMap.set(key, o);
-      } else if (o.offerType === "category") {
-        if (!categoryOfferMap.has(key) || o.offerPrecentage > categoryOfferMap.get(key).offerPrecentage)
-          categoryOfferMap.set(key, o);
+    activeOffers.forEach(offer => {
+      const key = String(offer.refId);
+      if (offer.offerType === "product") {
+        if (!productOfferMap.has(key) || offer.offerPrecentage > productOfferMap.get(key).offerPrecentage)
+          productOfferMap.set(key, offer);
+      } else if (offer.offerType === "category") {
+        if (!categoryOfferMap.has(key) || offer.offerPrecentage > categoryOfferMap.get(key).offerPrecentage)
+          categoryOfferMap.set(key, offer);
       }
     });
 
-    const pid             = String(product._id);
-    const cid             = String(product.categoryId);
-    const applicableOffer = productOfferMap.get(pid) || categoryOfferMap.get(cid) || null;
-    const offerPct        = applicableOffer ? Number(applicableOffer.offerPrecentage) : 0;
+    const productId       = String(product._id);
+    const categoryId      = String(product.categoryId);
+    const applicableOffer = productOfferMap.get(productId) || categoryOfferMap.get(categoryId) || null;
+    const offerPercentage = applicableOffer ? Number(applicableOffer.offerPrecentage) : 0;
 
     // Mutate variants to inject offer pricing
-    variants.forEach(v => {
-      const originalPrice = v.price;
-      v.originalPrice     = originalPrice;
-      v.offerPct          = offerPct;
-      v.offerName         = applicableOffer?.offerName || "";
-      v.price             = offerPct > 0
-        ? Math.round(originalPrice * (1 - offerPct / 100))
+    variants.forEach(variant => {
+      const originalPrice = variant.price;
+      variant.originalPrice     = originalPrice;
+      variant.offerPct          = offerPercentage;
+      variant.offerName         = applicableOffer?.offerName || "";
+      variant.price             = offerPercentage > 0
+        ? Math.round(originalPrice * (1 - offerPercentage / 100))
         : originalPrice;
     });
 
-    const activeVariants = variants.filter((v) => v.isActive !== false);
+    const activeVariants = variants.filter((variant) => variant.isActive !== false);
     const isProductBlocked = product.isActive === false;
     const allVariantsBlocked = variants.length > 0 && activeVariants.length === 0;
     const isUnavailable = isProductBlocked || allVariantsBlocked || variants.length === 0;
@@ -350,7 +350,7 @@ export const getProductDetailPage = async (req, res, next) => {
 
     let defaultVariant = activeVariants[0] || variants[0] || null;
     if (variantQuery) {
-      const found = variants.find((v) => v._id === variantQuery);
+      const found = variants.find((variant) => variant._id === variantQuery);
       if (found) defaultVariant = found;
     }
     if (defaultVariant?.isActive === false && activeVariants.length > 0) {
@@ -382,13 +382,13 @@ export const getProductDetailPage = async (req, res, next) => {
     const reviewCount = reviewDocs.length;
     const avgRating   = reviewCount > 0
       ? parseFloat(
-          (reviewDocs.reduce((s, r) => s + (r.rating || 0), 0) / reviewCount).toFixed(1)
+          (reviewDocs.reduce((ratingSum, review) => ratingSum + (review.rating || 0), 0) / reviewCount).toFixed(1)
         )
       : 0;
 
     const ratingDist = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
-    reviewDocs.forEach(r => {
-      const star = Math.round(r.rating);
+    reviewDocs.forEach(review => {
+      const star = Math.round(review.rating);
       if (ratingDist[star] !== undefined) ratingDist[star]++;
     });
 
@@ -404,7 +404,7 @@ export const getProductDetailPage = async (req, res, next) => {
         userId: new mongoose.Types.ObjectId(sessionUser._id),
       }).lean();
       if (cart?.items?.length)
-        cartVariantIds = cart.items.map(i => i.variantId.toString());
+        cartVariantIds = cart.items.map(item => item.variantId.toString());
     }
 
     let isWishlisted = false;
@@ -454,8 +454,8 @@ export const getProductDetailPage = async (req, res, next) => {
       unavailableMessage,
     });
 
-  } catch (err) {
-    console.error("Product detail error:", err);
-    next(err);
+  } catch (error) {
+    console.error("Product detail error:", error);
+    next(error);
   }
 };

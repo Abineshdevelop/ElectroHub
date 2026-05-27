@@ -32,7 +32,7 @@ export const loginAdmin = async (req, res, next) => {
     const email = (req.body.email || "").trim();
     const password = (req.body.password || "").trim();
     if (!email || !password) {
-      throw new AppError(400, "Email and Password Required")
+      throw new AppError(400, "Email and Password Required");
     }
 
     const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
@@ -49,15 +49,15 @@ export const loginAdmin = async (req, res, next) => {
         loggedInAt: Date.now(),
       };
 
-      return req.session.save((err) => {
-        if (err) console.error("Session save error during admin login:", err);
+      return req.session.save((error) => {
+        if (error) console.error("Session save error during admin login:", error);
         return res.json({ success: true });
       });
     }
 
     return res.json({ success: false, message: "Invalid admin credentials" });
-  } catch (err) {
-    next(err)
+  } catch (error) {
+    next(error);
   }
 };
 
@@ -115,7 +115,7 @@ export const adminDashboard = async (req, res) => {
       { $unwind: "$category" },
       { $group: {
           _id: "$category._id",
-          name: { $first: "$category.categoryName" }, // FIXED: categoryName instead of name
+          name: { $first: "$category.categoryName" },
           count: { $sum: "$items.quantity" }
       }},
       { $sort: { count: -1 } },
@@ -160,25 +160,27 @@ export const adminDashboard = async (req, res) => {
     const kpi = summarizeKpisFromOrders(ordersForKpi);
     const chartData = buildChartSeriesFromOrders(ordersForKpi).slice(-12);
     const statusCounts = {};
-    statusCountsRaw.forEach(s => statusCounts[s._id] = s.count || 0);
+    statusCountsRaw.forEach((statusEntry) => {
+      statusCounts[statusEntry._id] = statusEntry.count || 0;
+    });
 
     const groupedCounts = buildDashboardGroupedCounts(ordersForKpi);
 
-    const recentOrdersEnriched = recentOrders.map((o) => ({
-      ...o,
-      dashboardBucket: classifyOrderBucket(o),
+    const recentOrdersEnriched = recentOrders.map((order) => ({
+      ...order,
+      dashboardBucket: classifyOrderBucket(order),
     }));
 
     const deliveredOrderCount = kpi.deliveredOrders || groupedCounts.completed || 0;
-    const aov = deliveredOrderCount > 0 ? (kpi.totalRevenue / deliveredOrderCount) : 0;
+    const averageOrderValue = deliveredOrderCount > 0 ? (kpi.totalRevenue / deliveredOrderCount) : 0;
 
     res.render("admin/auth/dashboard", {
       title: "Admin Dashboard",
       admin: req.session.admin,
       kpi,
       statusCounts,
-      groupedCounts, // New grouped counts
-      aov,
+      groupedCounts,
+      aov: averageOrderValue,
       totalCustomers,
       chartData,
       topProducts,
@@ -188,16 +190,16 @@ export const adminDashboard = async (req, res) => {
       currentFilter: filter
     });
 
-  } catch (err) {
-    console.error("Dashboard error:", err);
+  } catch (error) {
+    console.error("Dashboard error:", error);
     res.status(500).send("Failed to load dashboard");
   }
 };
 
 export const logoutAdmin = (req, res) => {
   delete req.session.admin;
-  req.session.save((err) => {
-    if (err) console.error("Session save error during admin logout:", err);
+  req.session.save((error) => {
+    if (error) console.error("Session save error during admin logout:", error);
     res.redirect("/admin/login");
   });
 };
@@ -218,8 +220,8 @@ export const downloadPDF = async (req, res) => {
     payload.meta.title = "Dashboard Sales Report";
     const stamp = new Date().toISOString().split("T")[0];
     generateSalesPDFReport(res, payload, `ElectroHub_Dashboard_Report_${stamp}`);
-  } catch (err) {
-    console.error("Dashboard PDF error:", err);
+  } catch (error) {
+    console.error("Dashboard PDF error:", error);
     res.status(500).send("Failed to generate PDF");
   }
 };
@@ -240,8 +242,8 @@ export const downloadExcel = async (req, res) => {
     payload.meta.title = "Dashboard Sales Report";
     const stamp = new Date().toISOString().split("T")[0];
     await generateSalesExcelReport(res, payload, `ElectroHub_Dashboard_Report_${stamp}`);
-  } catch (err) {
-    console.error("Dashboard Excel error:", err);
+  } catch (error) {
+    console.error("Dashboard Excel error:", error);
     res.status(500).send("Failed to generate Excel");
   }
 };

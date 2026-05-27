@@ -63,28 +63,28 @@ export const getWalletPage = async (req, res, next) => {
     const userId = req.session.user._id;
     const wallet = await getOrCreateWallet(userId);
 
-    const page = Math.max(1, Number(req.query.page) || 1);
-    const limit = 10;
-    const skip = (page - 1) * limit;
+    const pageNumber = Math.max(1, Number(req.query.page) || 1);
+    const pageSize = 10;
+    const skipTransactionsCount = (pageNumber - 1) * pageSize;
 
     const [transactions, totalCount] = await Promise.all([
       WalletTransaction.find({ walletId: wallet._id })
         .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit)
+        .skip(skipTransactionsCount)
+        .limit(pageSize)
         .lean(),
       WalletTransaction.countDocuments({ walletId: wallet._id }),
     ]);
 
 
-    const totalPages = Math.max(1, Math.ceil(totalCount / limit));
+    const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
 
     if (req.query.ajax === "1") {
       return res.json({
         success: true,
         balance: wallet.balance,
         transactions,
-        currentPage: page,
+        currentPage: pageNumber,
         totalPages,
         totalCount,
       });
@@ -94,7 +94,7 @@ export const getWalletPage = async (req, res, next) => {
       user: req.session.user,
       wallet,
       transactions,
-      currentPage: page,
+      currentPage: pageNumber,
       totalPages,
       totalCount,
     });
@@ -107,26 +107,26 @@ export const getWalletPage = async (req, res, next) => {
 export const createTopupOrder = async (req, res) => {
   try {
     const { amount } = req.body;
-    const numAmount = Number(amount);
+    const numericalAmount = Number(amount);
 
-    console.log(numAmount)
+    console.log(numericalAmount)
 
-    if (!numAmount || numAmount < 1) {
+    if (!numericalAmount || numericalAmount < 1) {
       return res.json({ success: false, message: "Minimum top-up is ₹1" });
     }
-    if (numAmount > 50000) {
+    if (numericalAmount > 50000) {
       return res.json({ success: false, message: "Maximum top-up is ₹50,000" });
     }
 
     const razorpayOrder = await razorpay.orders.create({
-      amount: Math.round(numAmount * 100),
+      amount: Math.round(numericalAmount * 100),
       currency: "INR",
       receipt: `wallet_${req.session.user._id.toString().slice(-8)}_${Date.now().toString().slice(-8)}`,
     });
 
     req.session.pendingWalletTopup = {
       razorpayOrderId: razorpayOrder.id,
-      amount: numAmount,
+      amount: numericalAmount,
     };
 
     return res.json({
@@ -154,8 +154,8 @@ export const verifyTopup = async (req, res) => {
       return res.json({ success: false, message: "Payment verification data missing" });
     }
 
-    const pending = req.session.pendingWalletTopup;
-    if (!pending || pending.razorpayOrderId !== razorpayOrderId) {
+    const pendingTopupSession = req.session.pendingWalletTopup;
+    if (!pendingTopupSession || pendingTopupSession.razorpayOrderId !== razorpayOrderId) {
       return res.json({ success: false, message: "Invalid top-up session" });
     }
 
@@ -170,7 +170,7 @@ export const verifyTopup = async (req, res) => {
 
     const wallet = await creditWallet(
       userId,
-      pending.amount,
+      pendingTopupSession.amount,
       `Wallet top-up via Razorpay (${razorpayPaymentId})`,
       "wallet_topup"
     );
@@ -179,7 +179,7 @@ export const verifyTopup = async (req, res) => {
 
     return res.json({
       success: true,
-      message: `₹${pending.amount.toLocaleString("en-IN")} added to your wallet!`,
+      message: `₹${pendingTopupSession.amount.toLocaleString("en-IN")} added to your wallet!`,
       balance: wallet.balance,
     });
   } catch (error) {

@@ -1,19 +1,19 @@
 import Order from "../../model/orderModel.js";
 import PDFDocument from "pdfkit";
 
-function fmt(n, INR = "Rs.") {
-  return `${INR} ${Number(n || 0).toLocaleString("en-IN")}`;
+function formatAmount(amount, currencySymbol = "Rs.") {
+  return `${currencySymbol} ${Number(amount || 0).toLocaleString("en-IN")}`;
 }
 
-function summaryRow(doc, y, label, value, opts = {}) {
-  const fontSize = opts.large ? 12 : 9;
+function summaryRow(doc, yCoordinate, label, value, options = {}) {
+  const fontSize = options.large ? 12 : 9;
   doc
-    .font(opts.bold ? "Helvetica-Bold" : "Helvetica")
+    .font(options.bold ? "Helvetica-Bold" : "Helvetica")
     .fontSize(fontSize)
-    .fillColor(opts.color || "#444444");
-  doc.text(label, 340, y, { width: 125, align: "right" });
-  doc.text(value, 470, y, { width: 75, align: "right" });
-  return y + (opts.large ? 24 : 18);
+    .fillColor(options.color || "#444444");
+  doc.text(label, 340, yCoordinate, { width: 125, align: "right" });
+  doc.text(value, 470, yCoordinate, { width: 75, align: "right" });
+  return yCoordinate + (options.large ? 24 : 18);
 }
 
 function getItemStatus(item, orderStatus) {
@@ -50,7 +50,7 @@ async function ensureItemInvoice(order, item) {
 
 function renderInvoicePdf({ res, order, invoiceItems, invoiceNumber, invoiceDateValue, singleProduct }) {
   const doc = new PDFDocument({ size: "A4", margin: 50 });
-  const INR = "Rs.";
+  const currencySymbol = "Rs.";
 
   res.setHeader("Content-Type", "application/pdf");
   res.setHeader(
@@ -59,7 +59,7 @@ function renderInvoicePdf({ res, order, invoiceItems, invoiceNumber, invoiceDate
   );
   doc.pipe(res);
 
-  const addr = order.shippingAddress || {};
+  const address = order.shippingAddress || {};
   const invoiceDate = new Date(invoiceDateValue || order.updatedAt).toLocaleDateString(
     "en-IN",
     {
@@ -69,7 +69,7 @@ function renderInvoicePdf({ res, order, invoiceItems, invoiceNumber, invoiceDate
     },
   );
   const customerName =
-    `${addr.firstName || ""} ${addr.lastName || ""}`.trim() || "Customer";
+    `${address.firstName || ""} ${address.lastName || ""}`.trim() || "Customer";
 
   doc
     .fontSize(24)
@@ -113,21 +113,21 @@ function renderInvoicePdf({ res, order, invoiceItems, invoiceNumber, invoiceDate
     .lineWidth(0.5)
     .stroke();
 
-  let y = 135;
-  const leftCol = 50;
-  const rightCol = 310;
-  const leftW = 240;
-  const rightW = 235;
+  let yCoordinate = 135;
+  const leftColumn = 50;
+  const rightColumn = 310;
+  const leftColumnWidth = 240;
+  const rightColumnWidth = 235;
 
   doc.fontSize(8).font("Helvetica-Bold").fillColor("#aaaaaa");
-  doc.text("FROM", leftCol, y, { width: leftW });
-  doc.text("BILL TO", rightCol, y, { width: rightW });
-  y += 18;
+  doc.text("FROM", leftColumn, yCoordinate, { width: leftColumnWidth });
+  doc.text("BILL TO", rightColumn, yCoordinate, { width: rightColumnWidth });
+  yCoordinate += 18;
 
   doc.font("Helvetica-Bold").fontSize(11).fillColor("#111111");
-  doc.text("ElectroHub Electronics", leftCol, y, { width: leftW });
-  doc.text(customerName, rightCol, y, { width: rightW });
-  y += 20;
+  doc.text("ElectroHub Electronics", leftColumn, yCoordinate, { width: leftColumnWidth });
+  doc.text(customerName, rightColumn, yCoordinate, { width: rightColumnWidth });
+  yCoordinate += 20;
 
   const fromLines = [
     "123 Tech Avenue, Silicon Valley",
@@ -136,86 +136,86 @@ function renderInvoicePdf({ res, order, invoiceItems, invoiceNumber, invoiceDate
   ].join("\n");
 
   const billToLines = [
-    addr.addressLine,
-    [addr.street, addr.state].filter(Boolean).join(", "),
-    [addr.country || "India", addr.pincode ? `- ${addr.pincode}` : ""]
+    address.addressLine,
+    [address.street, address.state].filter(Boolean).join(", "),
+    [address.country || "India", address.pincode ? `- ${address.pincode}` : ""]
       .filter(Boolean)
       .join(" "),
-    addr.phone ? `Phone: ${addr.phone}` : null,
-    addr.email ? `Email: ${addr.email}` : null,
+    address.phone ? `Phone: ${address.phone}` : null,
+    address.email ? `Email: ${address.email}` : null,
   ]
     .filter(Boolean)
     .join("\n");
 
   doc.font("Helvetica").fontSize(9).fillColor("#555555");
 
-  const fromStartY = y;
-  doc.text(fromLines, leftCol, y, { width: leftW, lineGap: 4 });
+  const fromStartY = yCoordinate;
+  doc.text(fromLines, leftColumn, yCoordinate, { width: leftColumnWidth, lineGap: 4 });
   const fromEndY =
-    fromStartY + doc.heightOfString(fromLines, { width: leftW, lineGap: 4 });
+    fromStartY + doc.heightOfString(fromLines, { width: leftColumnWidth, lineGap: 4 });
 
-  doc.text(billToLines, rightCol, fromStartY, { width: rightW, lineGap: 4 });
+  doc.text(billToLines, rightColumn, fromStartY, { width: rightColumnWidth, lineGap: 4 });
   const billToEndY =
     fromStartY +
-    doc.heightOfString(billToLines, { width: rightW, lineGap: 4 });
+    doc.heightOfString(billToLines, { width: rightColumnWidth, lineGap: 4 });
 
-  y = Math.max(fromEndY, billToEndY) + 23;
+  yCoordinate = Math.max(fromEndY, billToEndY) + 23;
 
-  doc.rect(50, y, 495, 22).fill("#f5f5f5");
+  doc.rect(50, yCoordinate, 495, 22).fill("#f5f5f5");
 
-  y += 6;
+  yCoordinate += 6;
   doc.font("Helvetica-Bold").fontSize(8).fillColor("#666666");
-  doc.text("#", 55, y, { width: 20 });
-  doc.text("PRODUCT", 80, y, { width: 190 });
-  doc.text("QTY", 275, y, { width: 40, align: "center" });
-  doc.text("UNIT PRICE", 320, y, { width: 75, align: "right" });
-  doc.text("DISCOUNT", 400, y, { width: 65, align: "right" });
-  doc.text("AMOUNT", 470, y, { width: 75, align: "right" });
+  doc.text("#", 55, yCoordinate, { width: 20 });
+  doc.text("PRODUCT", 80, yCoordinate, { width: 190 });
+  doc.text("QTY", 275, yCoordinate, { width: 40, align: "center" });
+  doc.text("UNIT PRICE", 320, yCoordinate, { width: 75, align: "right" });
+  doc.text("DISCOUNT", 400, yCoordinate, { width: 65, align: "right" });
+  doc.text("AMOUNT", 470, yCoordinate, { width: 75, align: "right" });
 
-  y += 22;
+  yCoordinate += 22;
 
   let itemSubtotal = 0;
   let totalOfferDiscount = 0;
   let totalCouponDiscount = 0;
   let itemTotalPaid = 0;
 
-  invoiceItems.forEach((item, idx) => {
+  invoiceItems.forEach((item, index) => {
     const lineTotal = Number(item.lineTotal || item.unitPrice * item.quantity || 0);
-    const couponDisc = Number(item.couponDiscount || 0);
-    const finalAmt = Number(item.finalAmount ?? lineTotal);
-    const offerDisc = lineTotal - finalAmt - couponDisc;
+    const couponDiscount = Number(item.couponDiscount || 0);
+    const finalAmount = Number(item.finalAmount ?? lineTotal);
+    const offerDiscount = lineTotal - finalAmount - couponDiscount;
 
     itemSubtotal += lineTotal;
-    totalOfferDiscount += Math.max(0, offerDisc);
-    totalCouponDiscount += couponDisc;
-    itemTotalPaid += finalAmt;
+    totalOfferDiscount += Math.max(0, offerDiscount);
+    totalCouponDiscount += couponDiscount;
+    itemTotalPaid += finalAmount;
 
-    if (y > 700) {
+    if (yCoordinate > 700) {
       doc.addPage();
-      y = 50;
+      yCoordinate = 50;
     }
 
-    if (idx % 2 === 1) {
-      doc.rect(50, y - 4, 495, 24).fill("#fafafa");
+    if (index % 2 === 1) {
+      doc.rect(50, yCoordinate - 4, 495, 24).fill("#fafafa");
     }
 
     doc.font("Helvetica").fontSize(9).fillColor("#333333");
-    doc.text(String(idx + 1), 55, y, { width: 20 });
-    doc.text(item.productName || "Product", 80, y, { width: 190 });
-    doc.text(String(item.quantity), 275, y, { width: 40, align: "center" });
-    doc.text(fmt(item.unitPrice, INR), 320, y, {
+    doc.text(String(index + 1), 55, yCoordinate, { width: 20 });
+    doc.text(item.productName || "Product", 80, yCoordinate, { width: 190 });
+    doc.text(String(item.quantity), 275, yCoordinate, { width: 40, align: "center" });
+    doc.text(formatAmount(item.unitPrice, currencySymbol), 320, yCoordinate, {
       width: 75,
       align: "right",
     });
 
-    const totalDisc = Math.max(0, offerDisc) + couponDisc;
-    if (totalDisc > 0) {
-      doc.fillColor("#16a34a").text(`-${fmt(totalDisc, INR)}`, 400, y, {
+    const totalDiscountAmount = Math.max(0, offerDiscount) + couponDiscount;
+    if (totalDiscountAmount > 0) {
+      doc.fillColor("#16a34a").text(`-${formatAmount(totalDiscountAmount, currencySymbol)}`, 400, yCoordinate, {
         width: 65,
         align: "right",
       });
     } else {
-      doc.fillColor("#aaaaaa").text("--", 400, y, {
+      doc.fillColor("#aaaaaa").text("--", 400, yCoordinate, {
         width: 65,
         align: "right",
       });
@@ -224,19 +224,19 @@ function renderInvoicePdf({ res, order, invoiceItems, invoiceNumber, invoiceDate
     doc
       .fillColor("#111111")
       .font("Helvetica-Bold")
-      .text(fmt(finalAmt, INR), 470, y, { width: 75, align: "right" });
+      .text(formatAmount(finalAmount, currencySymbol), 470, yCoordinate, { width: 75, align: "right" });
 
-    y += 24;
+    yCoordinate += 24;
   });
 
   doc
-    .moveTo(50, y)
-    .lineTo(545, y)
+    .moveTo(50, yCoordinate)
+    .lineTo(545, yCoordinate)
     .strokeColor("#cccccc")
     .lineWidth(0.5)
     .stroke();
 
-  y += 20;
+  yCoordinate += 20;
 
   const subtotal = singleProduct ? itemSubtotal : Number(order.subtotal || itemSubtotal);
   const couponDiscount = singleProduct
@@ -245,53 +245,53 @@ function renderInvoicePdf({ res, order, invoiceItems, invoiceNumber, invoiceDate
   const shipping = singleProduct ? 0 : Number(order.shipping || 0);
   const totalAmount = singleProduct ? itemTotalPaid : Number(order.totalAmount || 0);
 
-  y = summaryRow(doc, y, "Subtotal:", fmt(subtotal, INR));
+  yCoordinate = summaryRow(doc, yCoordinate, "Subtotal:", formatAmount(subtotal, currencySymbol));
   if (totalOfferDiscount > 0) {
-    y = summaryRow(doc, y, "Offer Discount:", `-${fmt(totalOfferDiscount, INR)}`, {
+    yCoordinate = summaryRow(doc, yCoordinate, "Offer Discount:", `-${formatAmount(totalOfferDiscount, currencySymbol)}`, {
       color: "#16a34a",
     });
   }
   if (couponDiscount > 0) {
-    y = summaryRow(
+    yCoordinate = summaryRow(
       doc,
-      y,
+      yCoordinate,
       `Coupon${order.couponCode ? ` (${order.couponCode})` : ""}:`,
-      `-${fmt(couponDiscount, INR)}`,
+      `-${formatAmount(couponDiscount, currencySymbol)}`,
       { color: "#2563eb" },
     );
   }
-  y = summaryRow(doc, y, "Shipping:", shipping === 0 ? "FREE" : fmt(shipping, INR), {
+  yCoordinate = summaryRow(doc, yCoordinate, "Shipping:", shipping === 0 ? "FREE" : formatAmount(shipping, currencySymbol), {
     color: shipping === 0 ? "#16a34a" : "#444444",
   });
 
   doc
-    .moveTo(340, y)
-    .lineTo(545, y)
+    .moveTo(340, yCoordinate)
+    .lineTo(545, yCoordinate)
     .strokeColor("#333333")
     .lineWidth(1)
     .stroke();
-  y += 10;
-  y = summaryRow(doc, y, "Total Paid:", fmt(totalAmount, INR), {
+  yCoordinate += 10;
+  yCoordinate = summaryRow(doc, yCoordinate, "Total Paid:", formatAmount(totalAmount, currencySymbol), {
     bold: true,
     large: true,
     color: "#111111",
   });
 
-  const getPaymentMethodLabel = (pm) => {
-    if (!pm) return "N/A";
-    const lower = pm.toLowerCase();
+  const getPaymentMethodLabel = (paymentMethod) => {
+    if (!paymentMethod) return "N/A";
+    const lower = paymentMethod.toLowerCase();
     if (lower === "cod") return "Cash on Delivery (COD)";
     if (lower === "wallet") return "Wallet";
     if (lower === "razorpay") return "Online (Razorpay)";
-    return pm.toUpperCase();
+    return paymentMethod.toUpperCase();
   };
 
-  y += 5;
+  yCoordinate += 5;
   doc.font("Helvetica").fontSize(8).fillColor("#888888");
   doc.text(
     `Payment Method: ${getPaymentMethodLabel(order.paymentMethod)}`,
     340,
-    y,
+    yCoordinate,
     { width: 205, align: "right" },
   );
 
