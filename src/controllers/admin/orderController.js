@@ -2,7 +2,7 @@ import Order from "../../model/orderModel.js";
 import { deriveOrderStatusFromItems } from "../../services/salesRevenueService.js";
 import mongoose from "mongoose";
 import { buildItemCancellationSafety, validatePartialCancellation } from "../../services/cancellationEligibilityService.js";
-import { refundItemsToWallet } from "../../services/orderRefundService.js";
+import { refundItemsToWallet } from "../user/orderController.js";
 
 const FORWARD_TRANSITIONS = {
   pending:             ['confirmed', 'shipped', 'out_for_delivery', 'delivered'],

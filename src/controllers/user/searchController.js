@@ -40,7 +40,7 @@ export const getSearchSuggestions = async (req, res) => {
 
     // Categories matching query
     const rawCategories = await Category.find({
-      isActive:     true,
+      isActive:     { $ne: false },
       isDeleted:    false,
       categoryName: { $regex: searchQuery, $options: 'i' },
     }).limit(4).lean();
@@ -51,7 +51,7 @@ export const getSearchSuggestions = async (req, res) => {
         categoryName: category.categoryName,
         productCount: await Product.countDocuments({
           categoryId: category._id,
-          isActive:   true,
+          isActive:   { $ne: false },
           isDeleted:  false,
         }),
       }))
@@ -62,7 +62,7 @@ export const getSearchSuggestions = async (req, res) => {
       {
         $match: {
           isDeleted: false,
-          isActive:  true,
+          isActive:  { $ne: false },
           $or: [
             { productName: { $regex: searchQuery, $options: 'i' } },
             { brandName:   { $regex: searchQuery, $options: 'i' } },
@@ -88,7 +88,7 @@ export const getSearchSuggestions = async (req, res) => {
                   $and: [
                     { $eq: ['$productId', '$$productId'] },
                     { $eq: ['$isDeleted', false] },
-                    { $eq: ['$isActive', true] }
+                    { $ne: ['$isActive', false] }
                   ]
                 }
               }
@@ -129,7 +129,7 @@ export const getSearchSuggestions = async (req, res) => {
 export const getNavCategories = async (req, res) => {
   try {
     const activeCategories = await Category.aggregate([
-      { $match: { isActive: true, isDeleted: false } },
+      { $match: { isActive: { $ne: false }, isDeleted: false } },
       {
         $lookup: {
           from:         'products',
@@ -147,7 +147,7 @@ export const getNavCategories = async (req, res) => {
                 as:    'product',
                 cond: {
                   $and: [
-                    { $eq: ['$$product.isActive',  true]  },
+                    { $ne: ['$$product.isActive', false] },
                     { $eq: ['$$product.isDeleted', false] },
                   ],
                 },
@@ -170,7 +170,7 @@ export const getNavCategories = async (req, res) => {
 export const getNavCategoryProducts = async (req, res) => {
   try {
     const { category, limit = 8 } = req.query;
-    const match = { isActive: true, isDeleted: false };
+    const match = { isActive: { $ne: false }, isDeleted: false };
     if (category) {
       match.categoryId = new mongoose.Types.ObjectId(String(category));
     }
@@ -188,7 +188,7 @@ export const getNavCategoryProducts = async (req, res) => {
                   $and: [
                     { $eq: ['$productId', '$$productId'] },
                     { $eq: ['$isDeleted', false] },
-                    { $eq: ['$isActive', true] }
+                    { $ne: ['$isActive', false] }
                   ]
                 }
               }

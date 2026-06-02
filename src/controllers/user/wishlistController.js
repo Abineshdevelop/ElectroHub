@@ -61,7 +61,6 @@ export const getWishlist = async (req, res, next) => {
           const product = await Product.findOne({
             _id: item.productId,
             isDeleted: false,
-            isActive: true,
           }).lean();
 
           if (!product) return null;

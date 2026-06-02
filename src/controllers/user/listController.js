@@ -8,7 +8,7 @@ import Offer from "../../model/offersModel.js";
 
 export const getMaxPrice = async (req, res) => {
   try {
-    const variants = await Variant.find({ isDeleted: false }).select("price").lean();
+    const variants = await Variant.find({ isDeleted: false, isActive: { $ne: false } }).select("price").lean();
     const prices   = variants.map(variant => Number(variant.price) || 0).filter(price => price > 0);
     const rawMax   = prices.length ? Math.max(...prices) : 100000;
     res.json({ maxPrice: rawMax + 2000 });
@@ -85,7 +85,7 @@ export const getProductListingPage = async (req, res, next) => {
     const LIMIT       = 9;
     const currentPage = Math.max(1, parseInt(page));
 
-    const allVariants = await Variant.find({ isDeleted: false }).select("price").lean();
+    const allVariants = await Variant.find({ isDeleted: false, isActive: { $ne: false } }).select("price").lean();
     const allPrices   = allVariants.map(variant => Number(variant.price) || 0).filter(price => price > 0);
     const rawMax      = allPrices.length ? Math.max(...allPrices) : 100000;
     const maxPriceCap = rawMax + 2000;
@@ -120,6 +120,7 @@ export const getProductListingPage = async (req, res, next) => {
                   $and: [
                     { $eq: ["$productId", "$$productId"] },
                     { $eq: ["$isDeleted", false] },
+                    { $ne: ["$isActive", false] },
                   ],
                 },
               },
@@ -228,7 +229,7 @@ export const getProductListingPage = async (req, res, next) => {
     }
     const brands = await Product.distinct("brandName", brandFilter);
 
-    // ── Wishlist ──
+    //Wishlist
     const wishlistedVariantIds = new Set();
     const wishlistedProductIds = new Set();
     const sessionUser = req.user || req.session?.user || null;
@@ -247,7 +248,7 @@ export const getProductListingPage = async (req, res, next) => {
       }
     }
 
-    // ── Fetch all active offers ──
+    //Fetch all active offers
     const now = new Date();
     const activeOffers = await Offer.find({
       isActive:  true,
@@ -271,7 +272,7 @@ export const getProductListingPage = async (req, res, next) => {
     });
 
     const productsWithWishlist = products.map(product => {
-      // ✅ convert both to string for reliable comparison
+      //convert both to string for reliable comparison
       const productId = String(product._id);
       const categoryId = String(product.categoryId);
 

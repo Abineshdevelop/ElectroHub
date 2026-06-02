@@ -2,10 +2,125 @@ import mongoose from "mongoose";
 import Order from "../../model/orderModel.js";
 import Variant from "../../model/variantModel.js";
 import { buildItemCancellationSafety, getActiveItems, getItemsSubtotal, getMaximumCancellableAmount, validatePartialCancellation } from "../../services/cancellationEligibilityService.js";
-import { releaseCouponUsage } from "../../services/couponValidationService.js";
-import { recalculateOrderStatus } from "../../services/orderRecalculationService.js";
-import { refundItemsToWallet } from "../../services/orderRefundService.js";
+import Coupon from "../../model/couponModel.js";
+import { creditWallet } from "./walletController.js";
 
+const TERMINAL_ITEM_STATUSES = ["cancelled", "returned"];
+const REFUNDABLE_PAYMENT_STATUSES = ["paid", "partially_refunded", "adjusted"];
+
+function money(value) {
+  return Math.max(0, Math.round(Number(value || 0)));
+}
+
+export async function releaseCouponUsage(order) {
+  if (!order?.couponId) return;
+
+  await Coupon.findOneAndUpdate(
+    { _id: order.couponId, usageCount: { $gt: 0 } },
+    {
+      $pull: { usedBy: order.userId },
+      $inc: { usageCount: -1 },
+    },
+  );
+
+  order.couponStatus = "removed";
+}
+
+export function getEffectiveItemStatus(item, orderStatus) {
+  if (item.status && item.status !== "pending") return item.status;
+  return orderStatus;
+}
+
+//used when handling partial or full return requests
+export function recalculateOrderStatus(order) {
+  const statuses = (order.items || []).map((item) =>
+    getEffectiveItemStatus(item, order.orderStatus),
+  );
+
+  if (statuses.length === 0) return order.orderStatus; //if empty return []
+
+  if (statuses.every((status) => status === "cancelled")) {
+    order.orderStatus = "cancelled";
+  } else if (statuses.every((status) => status === "returned")) {
+    order.orderStatus = "returned";
+  } else if (statuses.every((status) => status === "delivered")) {
+    order.orderStatus = "delivered";
+  } else if (statuses.some((status) => status === "return_requested")) {
+    const activeStatuses = statuses.filter(
+      (status) => !TERMINAL_ITEM_STATUSES.includes(status),
+    );
+    if (activeStatuses.every((status) => status === "return_requested")) {
+      order.orderStatus = "return_requested";
+    }
+  } else if (statuses.some((status) => status === "cancelled")) {
+    order.orderStatus = "partially_cancelled";
+  } else {
+    const priority = ["out_for_delivery", "shipped", "confirmed", "pending"];
+    order.orderStatus =
+      priority.find((status) => statuses.includes(status)) || order.orderStatus;
+  }
+
+  return order.orderStatus;
+}
+
+export function canRefundToWallet(order) {
+  return (
+    order.paymentMethod !== "cod" &&
+    REFUNDABLE_PAYMENT_STATUSES.includes(order.paymentStatus)
+  );
+}
+
+export function getItemRefundAmount(item, order) {
+  const lineTotal = money(item.lineTotal ?? item.unitPrice * item.quantity);
+
+  if (item.paidAmount != null) return money(item.paidAmount);
+  if (item.finalPrice != null) return money(item.finalPrice);
+  if (item.finalAmount != null) return money(item.finalAmount);
+
+  return money(lineTotal - money(item.couponDiscount));
+}
+
+export function calculateRefundAmount(order, refundItems) {
+  if (!canRefundToWallet(order)) return 0;
+
+  const alreadyRefunded = money(order.refundAmount);
+  const maxRefundable = Math.max(0, money(order.totalAmount) - alreadyRefunded);
+  if (maxRefundable <= 0) return 0;
+
+  const itemRefundTotal = (refundItems || []).reduce(
+    (totalRefundAccumulator, item) => totalRefundAccumulator + getItemRefundAmount(item, order),
+    0,
+  );
+
+  return Math.min(itemRefundTotal, maxRefundable);
+}
+
+export async function refundToWallet(order, amount, description) {
+  const refundAmount = money(amount);
+  if (refundAmount <= 0) return 0;
+
+  order.refundAmount = money(order.refundAmount) + refundAmount;
+  order.refundStatus = "processed";
+  order.refundProcessedAt = new Date();
+
+  const fullyRefunded = order.refundAmount >= money(order.totalAmount);
+  order.paymentStatus = fullyRefunded ? "refunded" : "partially_refunded";
+
+  await creditWallet(
+    order.userId,
+    refundAmount,
+    description,
+    "order_refund",
+    order._id,
+  );
+
+  return refundAmount;
+}
+
+export async function refundItemsToWallet(order, refundItems, description) {
+  const refundAmount = calculateRefundAmount(order, refundItems);
+  return refundToWallet(order, refundAmount, description);
+}
 //if the orders are partially cancelled other active items are keep confirmed
 function getEffectiveStatus(item, orderStatus) {
   if (

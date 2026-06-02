@@ -135,7 +135,8 @@
             const mrp        = Number(variant?.mrp)   || 0;
             const stock      = Number(variant?.stock)  || 0;
             const disc       = (mrp && price && mrp > price) ? Math.round((1-price/mrp)*100) : 0;
-            const inStock    = stock > 0;
+            const isAvailable = product.isActive !== false && (!variant || variant.isActive !== false);
+            const inStock    = isAvailable && stock > 0;
             const thumb      = Array.isArray(variant?.images) && variant.images[0]
                                ? variant.images[0] : '';
             const opts       = (variant?.options && typeof variant.options === 'object')
@@ -171,7 +172,7 @@
                 <div class="name-row">
                   <h3><%= product.productName %></h3>
                   <span class="stock-pill <%= inStock ? 'in' : 'out' %>">
-                    <%= inStock ? 'In Stock' : 'Out of Stock' %>
+                    <%= !isAvailable ? 'Unavailable' : (inStock ? 'In Stock' : 'Out of Stock') %>
                   </span>
                 </div>
 
@@ -214,13 +215,13 @@
                       onclick="addToCart('<%= productId %>','<%= variantId %>',this)">
                       <i class="bi bi-cart-plus text-xs"></i> Add to Cart
                     </button>
-                  <% } else if(!variantId){ %>
+                  <% } else if(!variantId && isAvailable){ %>
                     <a href="/user/product/<%= productId %>" class="btn-cart" style="text-decoration:none">
                       <i class="bi bi-arrow-right text-xs"></i> Select Variant
                     </a>
                   <% } else { %>
                     <button class="btn-cart" disabled>
-                      <i class="bi bi-x-circle text-xs"></i> Out of Stock
+                      <i class="bi bi-x-circle text-xs"></i> <%= !isAvailable ? 'Unavailable' : 'Out of Stock' %>
                     </button>
                   <% } %>
                 </div>

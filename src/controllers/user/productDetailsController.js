@@ -25,6 +25,7 @@ function buildPipeline({ excludeProductId, excludeVariantId, categoryId, brandNa
                 $and: [
                   { $eq: ["$productId", "$$productId"] },
                   { $ne: ["$isDeleted", true] },
+                  { $ne: ["$isActive", false] },
                   { $ne: ["$_id", new mongoose.Types.ObjectId(excludeVariantId)] },
                 ],
               },

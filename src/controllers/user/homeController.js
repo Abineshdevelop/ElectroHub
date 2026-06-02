@@ -12,20 +12,14 @@ export async function loadHomePage(req, res, next) {
   try {
     const sessionUser = req.user || req.session?.user || null;
     const now = new Date();
-
-    // const www=req.session.user._id
-    // console.log(www)
-    // const w=await User.findOne({_id:www})
-
-//console.log("hi",w)
-
+         
     // Fetch all data in parallel
     const [categories, bannersRaw, activeOffers, rawProducts, recentProducts] = await Promise.all([
-      Category.find({ isDeleted: false, isActive: true }).lean(),
+      Category.find({ isDeleted: false, isActive: { $ne: false } }).lean(),
       Banner.find({ isDeleted: false, status: "active" }).populate("offerId").lean(),
-      Offer.find({ isActive: true, isDeleted: false, startDate: { $lte: now }, endDate: { $gte: now } }).lean(),
-      Product.find({ isDeleted: false, isActive: true }).lean(),
-      Product.find({ isDeleted: false, isActive: true }).sort({ createdAt: -1 }).limit(12).lean(),
+      Offer.find({ isActive: { $ne: false }, isDeleted: false, startDate: { $lte: now }, endDate: { $gte: now } }).lean(),
+      Product.find({ isDeleted: false, isActive: { $ne: false } }).lean(),
+      Product.find({ isDeleted: false, isActive: { $ne: false } }).sort({ createdAt: -1 }).limit(12).lean(),
     ]);
 
     const banners = [];
@@ -33,27 +27,29 @@ export async function loadHomePage(req, res, next) {
       if (banner.offerId) {
         const offer = banner.offerId;
         if (offer.offerType === "product") {
-          const product = await Product.findOne({ _id: offer.refId, isDeleted: false });
+          const product = await Product.findOne({ _id: offer.refId, isDeleted: false, isActive: { $ne: false } });
+          if (!product) continue;
           banner.redirectType = "product";
-          banner.redirectValue = product ? product.productName : "";
+          banner.redirectValue = product.productName;
           if (!banner.offerText && offer.offerPrecentage) {
             banner.offerText = `${offer.offerPrecentage}% OFF`;
           }
           if (!banner.title) {
-            banner.title = product ? product.productName : "Special Offer";
+            banner.title = product.productName;
           }
           if (!banner.subtitle) {
             banner.subtitle = `Exclusive discount on premium products!`;
           }
         } else if (offer.offerType === "category") {
-          const category = await Category.findOne({ _id: offer.refId, isDeleted: false });
+          const category = await Category.findOne({ _id: offer.refId, isDeleted: false, isActive: { $ne: false } });
+          if (!category) continue;
           banner.redirectType = "category";
-          banner.redirectValue = category ? category._id.toString() : "";
+          banner.redirectValue = category._id.toString();
           if (!banner.offerText && offer.offerPrecentage) {
             banner.offerText = `${offer.offerPrecentage}% OFF`;
           }
           if (!banner.title) {
-            banner.title = category ? `${category.categoryName} Special` : "Special Offer";
+            banner.title = `${category.categoryName} Special`;
           }
           if (!banner.subtitle) {
             banner.subtitle = `Unbeatable deals on top categories!`;
@@ -134,7 +130,7 @@ export async function loadHomePage(req, res, next) {
       const variant = await Variant.findOne({
         productId: product._id,
         isDeleted: false,
-        isActive: true,
+        isActive: { $ne: false },
       }).lean();
 
       if (!variant) continue;
@@ -173,7 +169,7 @@ export async function loadHomePage(req, res, next) {
       const variant = await Variant.findOne({
         productId: product._id,
         isDeleted: false,
-        isActive: true,
+        isActive: { $ne: false },
       }).lean();
 
       if (!variant) continue;
