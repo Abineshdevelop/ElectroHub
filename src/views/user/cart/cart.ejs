@@ -87,6 +87,7 @@
                   const offerPct     = item.offerPct || 0;
                   const crossedPrice = offerPct > 0 ? item.originalPrice : 0;
                   const hasDiscount  = offerPct > 0 && crossedPrice > item.price;
+                  const stock=item.stock
                 %>
                 <div class="cart-item"
                   data-product-id="<%= item.productId._id %>"

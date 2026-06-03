@@ -161,7 +161,7 @@ const orderSchema = new Schema(
     razorpaySignature: { type: String, default: null },
 orderStatus: {
   type: String,
-  enum: ["confirmed", "shipped", "out_for_delivery", "delivered", "cancelled", "returned", "return_requested", "partially_cancelled", "expired", "return_rejected"],
+  enum: ["pending","confirmed", "shipped", "out_for_delivery", "delivered", "cancelled", "returned", "return_requested", "partially_cancelled", "expired", "return_rejected"],
   default: "pending",
 },
 paymentAttempts: [
