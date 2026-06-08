@@ -55,6 +55,7 @@ export async function loadDashboard (req, res){
     const lastOrder = await Order.findOne({ userId }).sort({ createdAt: -1 }).lean();
     const recentOrder = lastOrder ? {
         id: lastOrder.orderId,
+        _id: lastOrder._id.toString(),
         status: lastOrder.orderStatus.replace(/_/g, " ").toUpperCase()
     } : { id: "N/A", status: "No recent orders" };
 

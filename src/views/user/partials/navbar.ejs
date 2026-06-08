@@ -18,9 +18,9 @@
     <% if (isLoggedIn) { %>
       <img src="<%= user.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}&background=random` %>"
         class="rounded-full w-11 h-11 shrink-0 object-cover" alt="Profile">
-      <div>
-        <p class="font-bold text-sm text-gray-900 leading-tight"><%= userName %></p>
-        <p class="text-xs text-gray-400"><%= user.email || '' %></p>
+      <div class="min-w-0">
+        <p class="font-bold text-sm text-gray-900 leading-tight truncate"><%= userName %></p>
+        <p class="text-xs text-gray-400 truncate" title="<%= user.email || '' %>"><%= user.email || '' %></p>
       </div>
     <% } else { %>
       <div class="w-11 h-11 rounded-full bg-gray-200 flex items-center justify-center">
@@ -51,6 +51,7 @@
 
     <% if (isLoggedIn) { %>
       <a href="/user/dashboard" class="mobile-nav-link"><i class="bi bi-speedometer2"></i> Dashboard</a>
+      <a href="/user/profile" class="mobile-nav-link"><i class="bi bi-person"></i> Profile</a>
       <a href="/user/orders" class="mobile-nav-link"><i class="bi bi-bag-check"></i> Orders</a>
       <a href="/user/cart" class="mobile-nav-link"><i class="bi bi-cart3"></i> Cart</a>
       <a href="/user/wishlist" class="mobile-nav-link"><i class="bi bi-heart"></i> Wishlist</a>
@@ -71,9 +72,9 @@
 
 <style>
   html { scroll-padding-top: 80px; overflow-y: scroll; }
-  #mobile-sidebar { transform: translateX(-100%); transition: transform .25s ease; }
+  #mobile-sidebar { transform: translateX(-100%); transition: transform .25s ease; z-index: 150; }
   #mobile-sidebar.open { transform: translateX(0); }
-  #sidebar-overlay { opacity: 0; pointer-events: none; transition: opacity .25s ease; }
+  #sidebar-overlay { opacity: 0; pointer-events: none; transition: opacity .25s ease; z-index: 140; }
   #sidebar-overlay.open { opacity: 1; pointer-events: auto; }
   .search-wrap { position: relative; }
   .search-suggestions { display: none; position: absolute; top: calc(100% + 6px); left: 0; right: 0; z-index: 9999; background: white; border: 1px solid #e5e7eb; border-radius: .9rem; box-shadow: 0 12px 30px rgba(0,0,0,.12); overflow: hidden; }
@@ -81,7 +82,7 @@
   .search-suggestions a:hover { background: #fef2f2; color: #dc2626; }
   .mobile-nav-link { display: flex; align-items: center; gap: .75rem; width: 100%; padding: .75rem 1rem; border-radius: .75rem; font-size: .875rem; font-weight: 500; color: #4b5563; }
   .mobile-nav-link:hover { background: #f9fafb; color: #dc2626; }
-  .nav-link { padding: .5rem .75rem; border-radius: .75rem; transition: color .15s ease, background .15s ease; }
+  .nav-link { padding: .5rem .75rem; border-radius: .75rem; transition: color .15s ease, background .15s ease; white-space: nowrap; }
   .nav-link:hover { color: #dc2626; background: #fef2f2; }
   .nav-badge { position: absolute; top: -5px; right: -5px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 99px; background: #dc2626; color: white; border: 2px solid white; font-size: 10px; font-weight: 700; line-height: 16px; text-align: center; display: none; }
   #profile-menu, #mobile-menu { position: fixed; z-index: 9999; }
@@ -153,14 +154,7 @@
         <a href="/user/login" class="bg-red-600 text-white hover:bg-black px-5 py-2.5 rounded-full text-sm font-semibold">Login / Sign Up</a>
       <% } %>
 
-      <button id="mobile-menu-btn" class="md:hidden nav-icon">
-        <i class="bi bi-three-dots-vertical"></i>
-      </button>
-      <div id="mobile-menu" class="hidden w-48 bg-white rounded-xl shadow-xl border border-gray-100 p-2">
-        <a href="/" class="block px-3 py-2 rounded-lg text-sm hover:bg-red-50 hover:text-red-600">Home</a>
-        <a href="/user/list" class="block px-3 py-2 rounded-lg text-sm hover:bg-red-50 hover:text-red-600">Shop</a>
-        <a href="/user/coupons" class="block px-3 py-2 rounded-lg text-sm hover:bg-red-50 hover:text-red-600">Coupons</a>
-      </div>
+
     </div>
   </div>
 
@@ -460,7 +454,7 @@
     }
     
     toggleMenu('profile-btn', 'profile-menu');
-    toggleMenu('mobile-menu-btn', 'mobile-menu');
+
     
     setupSearchSuggestions('desktop');
     setupSearchSuggestions('mobile');
@@ -474,10 +468,7 @@
       profileMenu.classList.add('hidden');
     }
     
-    var mobileMenu = document.getElementById('mobile-menu');
-    if (mobileMenu) {
-      mobileMenu.classList.add('hidden');
-    }
+
     
     hideSearchSuggestions();
   });

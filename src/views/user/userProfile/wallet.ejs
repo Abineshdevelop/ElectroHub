@@ -75,8 +75,8 @@
           </div>
         </div>
 
-        <!-- Table Section -->
-        <div class="border border-gray-100 rounded-lg overflow-hidden mt-8">
+        <!-- Table Section (Desktop View) -->
+        <div class="hidden lg:block border border-gray-100 rounded-lg overflow-hidden mt-8">
           <div class="bg-white px-6 py-5 border-b border-gray-100">
             <h3 class="text-[11px] font-bold text-gray-800 tracking-wider">TRANSACTION DETAILS</h3>
           </div>
@@ -125,6 +125,54 @@
               </tbody>
             </table>
           </div>
+        </div>
+
+        <!-- Card Section (Mobile & Tablet View) -->
+        <div class="lg:hidden mt-8 space-y-4">
+          <div class="bg-white px-4 py-3 border-b border-gray-100">
+            <h3 class="text-[11px] font-bold text-gray-800 tracking-wider">TRANSACTION DETAILS</h3>
+          </div>
+          <% if (transactions && transactions.length > 0) { %>
+            <% transactions.forEach(txn => { %>
+              <div class="bg-white border border-gray-100 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow relative">
+                <!-- Top Row: Transaction ID and Type Badge -->
+                <div class="flex items-center justify-between mb-3">
+                  <span class="text-xs font-mono font-bold text-gray-400 select-all">
+                    #<%= String(txn.transactionId).replace(/^TXN-/, '').substring(0,8) %>
+                  </span>
+                  <% if (txn.transactionType === 'credit') { %>
+                    <span class="bg-green-50 text-green-700 text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">
+                      Deposit
+                    </span>
+                  <% } else { %>
+                    <span class="bg-red-50 text-red-700 text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">
+                      Withdrawal
+                    </span>
+                  <% } %>
+                </div>
+                
+                <!-- Description -->
+                <p class="text-sm font-semibold text-gray-800 mb-2">
+                  <%= txn.description || 'Wallet Transaction' %>
+                </p>
+                
+                <!-- Bottom Row: Date and Amount -->
+                <div class="flex items-center justify-between mt-3 pt-3 border-t border-gray-50">
+                  <span class="text-xs font-medium text-gray-400">
+                    <%= new Date(txn.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) %>
+                  </span>
+                  <span class="text-base font-extrabold <%= txn.transactionType === 'credit' ? 'text-green-600' : 'text-red-600' %>">
+                    <%= txn.transactionType === 'credit' ? '+' : '-' %> ₹<%= txn.amount.toLocaleString('en-IN') %>
+                  </span>
+                </div>
+              </div>
+            <% }) %>
+          <% } else { %>
+            <div class="bg-white border border-gray-100 rounded-xl p-8 text-center text-gray-400">
+              <i class="bi bi-receipt text-3xl mb-2 opacity-50 block"></i>
+              No transactions found
+            </div>
+          <% } %>
         </div>
 
         <!-- Pagination -->

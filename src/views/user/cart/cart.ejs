@@ -10,7 +10,7 @@
   <style>
     body { font-family: 'Inter', sans-serif; }
     .cart-item {
-      display: flex; align-items: center; gap: 16px;
+      display: flex; align-items: flex-start; gap: 16px;
       padding: 20px 0; border-bottom: 1px solid #f0f0f0;
       transition: opacity 0.3s ease, transform 0.3s ease;
     }
@@ -110,7 +110,7 @@
                     <p class="text-xs text-gray-400 mt-0.5"><%= item.variantLabel || '' %></p>
 
                     <!-- Price with offer strikethrough -->
-                    <div class="flex items-center gap-2 mt-1">
+                    <div class="flex items-center gap-2 mt-1 flex-wrap">
                       <span class="text-sm font-bold text-gray-800">₹<%= item.price.toLocaleString('en-IN') %></span>
                       <% if (hasDiscount) { %>
                         <span class="text-xs text-gray-400 line-through">₹<%= crossedPrice.toLocaleString('en-IN') %></span>
@@ -152,6 +152,20 @@
                         <i class="bi bi-plus"></i>
                       </button>
                     </div>
+
+                    <!-- Mobile: line total + Remove button in one row -->
+                    <div class="flex items-center justify-between mt-3 md:hidden">
+                      <div>
+                        <p class="item-total font-bold <%= (isOutOfStock || isInsufficient) ? 'text-red-400' : 'text-gray-800' %> text-sm">
+                          ₹<%= (item.price * item.quantity).toLocaleString('en-IN') %>
+                        </p>
+                        <p class="text-xs text-gray-400">₹<%= item.price.toLocaleString('en-IN') %> each</p>
+                      </div>
+                      <button class="remove-btn flex-shrink-0 bg-red-500 hover:bg-red-600 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
+                        data-id="<%= item.productId._id %>" data-variant="<%= item.variantId %>">
+                        Remove
+                      </button>
+                    </div>
                   </div>
 
                   <!-- Qty stepper desktop -->
@@ -168,16 +182,16 @@
                     </button>
                   </div>
 
-                  <!-- Line total -->
-                  <div class="text-right flex-shrink-0 min-w-[90px]">
+                  <!-- Line total (desktop only) -->
+                  <div class="text-right flex-shrink-0 min-w-[90px] hidden md:block">
                     <p class="item-total font-bold <%= (isOutOfStock || isInsufficient) ? 'text-red-400' : 'text-gray-800' %> text-sm md:text-base">
                       ₹<%= (item.price * item.quantity).toLocaleString('en-IN') %>
                     </p>
                     <p class="text-xs text-gray-400 mt-0.5">₹<%= item.price.toLocaleString('en-IN') %> each</p>
                   </div>
 
-                  <!-- Remove -->
-                  <button class="remove-btn flex-shrink-0 bg-red-500 hover:bg-red-600 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
+                  <!-- Remove (desktop only) -->
+                  <button class="remove-btn flex-shrink-0 bg-red-500 hover:bg-red-600 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors hidden md:block"
                     data-id="<%= item.productId._id %>" data-variant="<%= item.variantId %>">
                     Remove
                   </button>

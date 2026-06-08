@@ -89,6 +89,22 @@
     .heart-pop { animation: heartPop .3s ease }
     @keyframes spinr { to { transform: rotate(360deg) } }
     .spinr { animation: spinr .7s linear infinite }
+    @media (max-width: 767px) {
+      .action-btn-wrap {
+        flex-wrap: nowrap !important;
+        gap: 8px !important;
+        max-width: 100% !important;
+      }
+      #btnBuy {
+        flex: 1 !important;
+        width: auto !important;
+      }
+      #btnCart {
+        flex: 1 !important;
+        width: auto !important;
+        margin-left: 0 !important;
+      }
+    }
   </style>
 </head>
 

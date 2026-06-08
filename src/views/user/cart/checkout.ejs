@@ -760,49 +760,9 @@
         });
         const result = await res.json();
         if (result.success) {
-          showToast('Address saved!', 'success');
+          showToast('Address saved! Refreshing...', 'success');
           closeAddModal();
-          const addr = result.address;
-          const noMsg = document.getElementById('no-address-msg');
-          if (noMsg) noMsg.remove();
-          const modalList = document.getElementById('modal-address-list');
-          const mCard = document.createElement('div');
-          mCard.className = 'modal-addr-card';
-          mCard.dataset.addressId = addr._id;
-          mCard.dataset.name      = `${addr.firstName} ${addr.lastName}`;
-          mCard.dataset.line1     = `${addr.address}, ${addr.street}`;
-          mCard.dataset.line2     = `${addr.state}, ${addr.country} - ${addr.pincode}`;
-          mCard.dataset.phone     = addr.phone;
-          mCard.dataset.email     = addr.email;
-          mCard.dataset.isdefault = 'false';
-          mCard.dataset.firstname = addr.firstName;
-          mCard.dataset.lastname  = addr.lastName;
-          mCard.dataset.address   = addr.address;
-          mCard.dataset.street    = addr.street;
-          mCard.dataset.state     = addr.state;
-          mCard.dataset.country   = addr.country;
-          mCard.dataset.pincode   = addr.pincode;
-          mCard.innerHTML = `
-            <div class="flex justify-between items-start mb-1.5">
-              <p class="text-xs font-bold text-gray-400 uppercase tracking-wide">Delivery Address</p>
-            </div>
-            <p class="font-semibold text-gray-800 text-sm">${addr.firstName} ${addr.lastName}</p>
-            <p class="text-xs text-gray-500 mt-1 leading-relaxed">${addr.address}, ${addr.street}<br>${addr.state}, ${addr.country} - ${addr.pincode}</p>
-            <p class="text-xs text-gray-500 mt-1"><i class="bi bi-telephone-fill text-gray-400 me-1"></i>${addr.phone}</p>
-            <div class="flex gap-2 mt-3">
-              <button class="modal-select-btn text-xs font-semibold px-3 py-1.5 rounded-lg border-2 border-red-200 text-red-500 hover:bg-red-50 transition-colors">
-                <i class="bi bi-check2"></i> Select
-              </button>
-              <button onclick="event.stopPropagation(); openEditModal(this)"
-                data-id="${addr._id}" data-firstname="${addr.firstName}" data-lastname="${addr.lastName}"
-                data-phone="${addr.phone}" data-email="${addr.email}" data-address="${addr.address}"
-                data-street="${addr.street}" data-state="${addr.state}" data-country="${addr.country}" data-pincode="${addr.pincode}"
-                class="text-xs font-semibold px-3 py-1.5 rounded-lg border-2 border-amber-200 text-amber-600 hover:bg-amber-50 transition-colors">
-                <i class="bi bi-pencil"></i> Edit
-              </button>
-            </div>`;
-          bindModalCard(mCard);
-          modalList.appendChild(mCard);
+          setTimeout(() => location.reload(), 800);
         } else { showToast(result.message || 'Failed to save address', 'error'); }
       } catch(err) { showToast('Something went wrong', 'error'); }
       finally { btn.disabled=false; btn.innerHTML='<i class="bi bi-floppy me-1"></i> Save Address'; }

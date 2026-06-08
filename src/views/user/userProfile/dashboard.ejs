@@ -446,9 +446,15 @@
           <small class="text-white/75 text-xs font-medium">Order ID #<%= recentOrder?.id || 'N/A' %></small>
           <h2 class="text-white font-bold text-xl md:text-2xl my-2"><%= recentOrder?.status || 'No recent orders' %></h2>
           <p class="text-white/80 text-sm mb-5">Your package is on its way to your destination.</p>
-          <button class="bg-white text-gray-800 font-bold text-sm px-6 py-2.5 rounded-full shadow-md hover:shadow-lg hover:scale-105 transition-all duration-200">
-            Track Now
-          </button>
+          <% if (recentOrder && recentOrder._id) { %>
+            <a href="/user/orders/<%= recentOrder._id %>" class="inline-block bg-white text-gray-800 font-bold text-sm px-6 py-2.5 rounded-full shadow-md hover:shadow-lg hover:scale-105 transition-all duration-200 text-center">
+              Track Now
+            </a>
+          <% } else { %>
+            <a href="/user/orders" class="inline-block bg-white text-gray-800 font-bold text-sm px-6 py-2.5 rounded-full shadow-md hover:shadow-lg hover:scale-105 transition-all duration-200 text-center">
+              Track Now
+            </a>
+          <% } %>
         </div>
         <div class="relative z-10 hidden sm:block">
           <i class="bi bi-truck text-white/90 truck-icon" style="font-size: 5rem;"></i>
