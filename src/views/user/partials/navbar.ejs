@@ -34,7 +34,7 @@
   </div>
 
   <nav class="flex flex-col gap-1 px-3 py-4 flex-1 overflow-y-auto">
-    <a href="/user/home" class="mobile-nav-link"><i class="bi bi-house"></i> Home</a>
+    <a href="/" class="mobile-nav-link"><i class="bi bi-house"></i> Home</a>
     <a href="/user/list" class="mobile-nav-link"><i class="bi bi-shop"></i> Shop</a>
     <button onclick="toggleMobileCategories()" class="mobile-nav-link text-left justify-between">
       <span><i class="bi bi-grid"></i> Categories</span>
@@ -94,12 +94,12 @@
       <i class="bi bi-list text-xl"></i>
     </button>
 
-    <a href="/user/home" class="text-xl font-bold whitespace-nowrap">
+    <a href="/" class="text-xl font-bold whitespace-nowrap">       
       ElectroHub
     </a>
 
     <ul class="hidden md:flex items-center gap-1 text-sm font-medium text-gray-600 mx-auto">
-      <li><a href="/user/home" class="nav-link">Home</a></li>
+      <li><a href="/" class="nav-link">Home</a></li>
       <li><a href="/user/list" class="nav-link">Shop</a></li>
       <li class="relative group">
         <a href="/user/list" class="nav-link flex items-center gap-1">
@@ -115,7 +115,7 @@
           <% }) %>
         </div>
       </li>
-      <li><a href="/user/home#new-arrivals" class="nav-link">New Arrivals</a></li>
+      <li><a href="/#new-arrivals" class="nav-link">New Arrivals</a></li>
       <li><a href="/user/coupons" class="nav-link">Coupons</a></li>
     </ul>
 
@@ -157,7 +157,7 @@
         <i class="bi bi-three-dots-vertical"></i>
       </button>
       <div id="mobile-menu" class="hidden w-48 bg-white rounded-xl shadow-xl border border-gray-100 p-2">
-        <a href="/user/home" class="block px-3 py-2 rounded-lg text-sm hover:bg-red-50 hover:text-red-600">Home</a>
+        <a href="/" class="block px-3 py-2 rounded-lg text-sm hover:bg-red-50 hover:text-red-600">Home</a>
         <a href="/user/list" class="block px-3 py-2 rounded-lg text-sm hover:bg-red-50 hover:text-red-600">Shop</a>
         <a href="/user/coupons" class="block px-3 py-2 rounded-lg text-sm hover:bg-red-50 hover:text-red-600">Coupons</a>
       </div>

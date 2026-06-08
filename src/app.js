@@ -17,6 +17,7 @@ import checkoutRoutes from "./routes/user/checkoutRouter.js"
 import orderRouter from "./routes/user/orderRouter.js"
 import walletRouter from "./routes/user/walletRouter.js"
 import userCouponRouter from "./routes/user/couponRouter.js";
+import { loadHomePage } from "./controllers/user/homeController.js";
 
 const app = express();
 
@@ -52,6 +53,7 @@ app.use(checkUserBlocked);
 app.use(attachUserLocals); //keep user detsils in every page
 
 // Routes
+app.get("/", loadHomePage)
 app.use("/user", userRoutes);
 app.use("/admin", adminRoutes);
 app.use("/user", shopRoutes)

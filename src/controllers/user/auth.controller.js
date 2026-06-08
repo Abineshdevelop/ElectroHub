@@ -345,13 +345,13 @@ export async function loginUser(req, res, next) {
 
 export async function loadSignup(req, res) {
   if (req.session.user) {
-    return res.redirect("/user/home");
+    return res.redirect("/");
   }
-  res.render("user/auth/signup");
+  res.render("user/signup");
 }
 
 export async function loadSignupOtp(req, res) {
-  if (req.session.user) return res.redirect("/user/home");
+  if (req.session.user) return res.redirect("/");
 
   const userId = req.query.userId;
 
@@ -396,7 +396,7 @@ export async function loadForgotPasswordOtp(req, res) {
 
 export async function loadLogin(req, res) {
   if (req.session.user) {
-    return res.redirect("/user/home");
+    return res.redirect("/");
   }
 
   const flashError = req.session.flashError || null;
