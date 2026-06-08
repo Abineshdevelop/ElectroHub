@@ -18,7 +18,6 @@ async (accessToken, refreshToken, profile, done) => {
   try {
     
     const email = profile.emails[0].value;
-
     // 1️⃣ Check if user already exists by email
     let user = await User.findOne({ email });
 

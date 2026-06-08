@@ -347,7 +347,7 @@ export async function loadSignup(req, res) {
   if (req.session.user) {
     return res.redirect("/");
   }
-  res.render("user/signup");
+  res.render("user/auth/signup");
 }
 
 export async function loadSignupOtp(req, res) {
