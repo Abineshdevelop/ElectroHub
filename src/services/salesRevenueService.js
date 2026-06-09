@@ -156,10 +156,16 @@ export function resolveDateRange(query = {}) {
 
 export function getOrderListMatch(query = {}) {
   const range = resolveDateRange(query);
-  return {
+  const match = {
     ...range.mongoMatch,
     orderStatus: { $nin: ["expired"] },
   };
+
+  if (query.orderStatus && query.orderStatus !== "all") {
+    match.orderStatus = query.orderStatus;
+  }
+
+  return match;
 }
 
 function formatDateIN(d) {
@@ -417,16 +423,38 @@ export function buildSalesReportPayload(orders, options = {}) {
   };
 }
 
-export function buildChartSeriesFromOrders(orders) {
+export function buildChartSeriesFromOrders(orders, filterType = "monthly") {
   const trendMap = new Map();
-  for (const order of orders) {
-    const m = computeOrderMetrics(order);
-    const key = new Date(order.createdAt).toISOString().split("T")[0];
-    trendMap.set(key, (trendMap.get(key) || 0) + m.netRevenue);
+
+  if (filterType === "yearly") {
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    
+    // Initialize map with all 12 months set to 0 revenue
+    for (let i = 0; i < 12; i++) {
+      trendMap.set(monthNames[i], 0);
+    }
+    
+    for (const order of orders) {
+      const m = computeOrderMetrics(order);
+      const orderDate = new Date(order.createdAt);
+      const monthLabel = monthNames[orderDate.getMonth()];
+      trendMap.set(monthLabel, (trendMap.get(monthLabel) || 0) + m.netRevenue);
+    }
+    
+    return monthNames.map((month) => ({
+      _id: month,
+      revenue: trendMap.get(month),
+    }));
+  } else {
+    for (const order of orders) {
+      const m = computeOrderMetrics(order);
+      const key = new Date(order.createdAt).toISOString().split("T")[0];
+      trendMap.set(key, (trendMap.get(key) || 0) + m.netRevenue);
+    }
+    return [...trendMap.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([_id, revenue]) => ({ _id, revenue }));
   }
-  return [...trendMap.entries()]
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([_id, revenue]) => ({ _id, revenue }));
 }
 
 export function summarizeKpisFromOrders(orders) {

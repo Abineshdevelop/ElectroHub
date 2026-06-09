@@ -87,6 +87,9 @@ export const createCoupon = async (req, res) => {
 
     if (discountType === 'percentage') {
       const maxD = Number(maxDiscountAmount);
+      if(minPurchaseAmount<=maxD){
+         return res.status(400).json({success:false, message: "minimum purchase amount should be greater that max discount valueZ"})
+      }
       if (isNaN(maxD) || maxD <= 0)
         return res.status(400).json({ success: false, message: 'Max discount is required for percentage coupons.' });
       if (maxD > 100000)

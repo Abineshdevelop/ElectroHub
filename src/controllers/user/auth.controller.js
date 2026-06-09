@@ -174,7 +174,6 @@ export async function verifyOtp(req, res, next) {
     }
 
     // Wrong OTP
-    // Wrong OTP
     if (user.otp !== otp) {
       user.otpAttempts += 1;
     

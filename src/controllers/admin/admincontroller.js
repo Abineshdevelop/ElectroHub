@@ -158,7 +158,7 @@ export const adminDashboard = async (req, res) => {
     ]);
 
     const kpi = summarizeKpisFromOrders(ordersForKpi);
-    const chartData = buildChartSeriesFromOrders(ordersForKpi).slice(-12);
+    const chartData = buildChartSeriesFromOrders(ordersForKpi, filter).slice(-12);
     const statusCounts = {};
     statusCountsRaw.forEach((statusEntry) => {
       statusCounts[statusEntry._id] = statusEntry.count || 0;

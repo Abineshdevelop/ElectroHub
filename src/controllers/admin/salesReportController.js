@@ -95,7 +95,7 @@ export const getSalesReport = async (req, res) => {
     ]);
 
     const kpi = summarizeKpisFromOrders(orders);
-    const chartData = buildChartSeriesFromOrders(orders);
+    const chartData = buildChartSeriesFromOrders(orders, req.query.filterType || "monthly");
 
     const topCategories = topCategoriesRaw.map((category) => ({
       _id: category._id,

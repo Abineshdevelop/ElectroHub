@@ -256,6 +256,12 @@
             border-radius: 6px !important;
         }
 
+        .newArrivalsSwiper .swiper-slide,
+        .featuredProductsSwiper .swiper-slide,
+        .categorySwiper .swiper-slide {
+            height: auto;
+        }
+
         .hero-section {
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
             position: relative;
@@ -749,17 +755,17 @@
                     categories.forEach(cat => { 
                 %>
                     <div class="swiper-slide">
-                        <a href="/user/list?category=<%= cat._id %>" class="category-card flex flex-col items-center p-5 bg-white border border-gray-100 rounded-2xl shadow-sm hover:border-red-200 hover:shadow-md hover:-translate-y-1 transition-all duration-300 group text-center block h-full">
-                            <div class="w-24 h-24 rounded-xl overflow-hidden flex items-center justify-center bg-slate-50 mb-3 group-hover:scale-105 transition-transform duration-300">
+                        <a href="/user/list?category=<%= cat._id %>" class="category-card flex flex-col items-center p-3 md:p-5 bg-white border border-gray-100 rounded-2xl shadow-sm hover:border-red-200 hover:shadow-md hover:-translate-y-1 transition-all duration-300 group text-center block h-full">
+                            <div class="w-16 h-16 md:w-24 md:h-24 rounded-xl overflow-hidden flex items-center justify-center bg-slate-50 mb-3 group-hover:scale-105 transition-transform duration-300">
                                 <% if (cat.image) { %>
                                     <img src="<%= cat.image %>" alt="<%= cat.categoryName %>" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
                                 <% } else { %>
                                     <div class="w-full h-full flex items-center justify-center bg-slate-50 group-hover:bg-red-50 transition-colors">
-                                        <i class="bi bi-tag text-3xl text-gray-400 group-hover:text-red-500 transition-colors duration-300"></i>
+                                        <i class="bi bi-tag text-2xl md:text-3xl text-gray-400 group-hover:text-red-500 transition-colors duration-300"></i>
                                     </div>
                                 <% } %>
                             </div>
-                            <span class="font-semibold text-sm text-gray-800 group-hover:text-red-600 transition-colors duration-200"><%= cat.categoryName %></span>
+                            <span class="font-semibold text-xs md:text-sm text-gray-800 group-hover:text-red-600 transition-colors duration-200"><%= cat.categoryName %></span>
                         </a>
                     </div>
                 <% }) } %>

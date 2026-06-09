@@ -33,7 +33,7 @@
         <div>
           <h1 class="text-2xl font-bold text-gray-900 tracking-tight">Sales & Revenue Report</h1>
           <p class="text-gray-500 text-sm mt-1">Net revenue counts <strong>delivered items only</strong>; returns and refunds are deducted.</p>
-          <p class="text-xs text-gray-400 mt-1 font-mono">Period: <%= rangeLabel %> · <%= fromLabel %> – <%= toLabel %></p>
+          <p class="text-xs text-gray-400 mt-1 font-mono">Period: <%= rangeLabel %> · <%= fromLabel %> – <%= toLabel %><%= query.orderStatus && query.orderStatus !== 'all' ? ` · Status: ${query.orderStatus.replace(/_/g, ' ').toUpperCase()}` : '' %></p>
         </div>
         <div class="flex flex-wrap gap-2 no-print">
           <a href="/admin/sales-report/download/pdf?<%= qs %>" class="bg-white border hover:bg-gray-50 text-xs font-bold px-4 py-2.5 rounded-lg shadow-sm flex items-center gap-2 transition">
@@ -47,8 +47,8 @@
 
       <!-- Filters -->
       <div class="bg-white p-6 rounded-lg shadow-sm mb-6 border no-print">
-        <form id="salesReportFilterForm" action="/admin/sales-report" method="GET" novalidate class="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
-          <div class="space-y-1 md:col-span-2">
+        <form id="salesReportFilterForm" action="/admin/sales-report" method="GET" novalidate class="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
+          <div class="space-y-1">
             <label class="text-[10px] font-bold text-gray-400 uppercase">Period Filter</label>
             <select name="filterType" id="filterType" class="w-full bg-gray-50 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300">
               <option value="daily" <%= query.filterType==='daily'?'selected':'' %>>Today</option>
@@ -57,6 +57,22 @@
               <option value="calendar_month" <%= query.filterType==='calendar_month'?'selected':'' %>>This Month (Calendar)</option>
               <option value="yearly" <%= query.filterType==='yearly'?'selected':'' %>>This Year</option>
               <option value="custom" <%= (query.startDate&&query.endDate)?'selected':'' %>>Custom Date Range</option>
+            </select>
+          </div>
+          <div class="space-y-1">
+            <label class="text-[10px] font-bold text-gray-400 uppercase">Status Filter</label>
+            <select name="orderStatus" id="orderStatus" class="w-full bg-gray-50 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300">
+              <option value="all" <%= (!query.orderStatus||query.orderStatus==='all')?'selected':'' %>>All Statuses</option>
+              <option value="pending" <%= query.orderStatus==='pending'?'selected':'' %>>Pending</option>
+              <option value="confirmed" <%= query.orderStatus==='confirmed'?'selected':'' %>>Confirmed</option>
+              <option value="shipped" <%= query.orderStatus==='shipped'?'selected':'' %>>Shipped</option>
+              <option value="out_for_delivery" <%= query.orderStatus==='out_for_delivery'?'selected':'' %>>Out for Delivery</option>
+              <option value="delivered" <%= query.orderStatus==='delivered'?'selected':'' %>>Delivered</option>
+              <option value="cancelled" <%= query.orderStatus==='cancelled'?'selected':'' %>>Cancelled</option>
+              <option value="returned" <%= query.orderStatus==='returned'?'selected':'' %>>Returned</option>
+              <option value="return_requested" <%= query.orderStatus==='return_requested'?'selected':'' %>>Return Requested</option>
+              <option value="partially_cancelled" <%= query.orderStatus==='partially_cancelled'?'selected':'' %>>Partially Cancelled</option>
+              <option value="return_rejected" <%= query.orderStatus==='return_rejected'?'selected':'' %>>Return Rejected</option>
             </select>
           </div>
           <div class="space-y-1">

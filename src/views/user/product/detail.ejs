@@ -29,7 +29,7 @@
     /* Removed scale to keep zoom accurate */
     #mainImgWrap:hover #mainImg { transform: none }
     #zoomLens { display: none; position: fixed; z-index: 9998; width: 400px; height: 400px; border-radius: 24px; border: 1px solid rgba(0, 0, 0, 0.1); background: #fff; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); overflow: hidden; pointer-events: none; backdrop-filter: blur(4px); }
-    #zoomLens img { position: absolute; transition: none; }
+    #zoomLens img { position: absolute; transition: none; max-width: none !important; max-height: none !important; object-fit: contain; }
     .vopt { padding: 7px 16px; border-radius: 9px; font-size: 12px; font-weight: 600; border: 1.5px solid #e5e7eb; color: #6b7280; background: #fff; cursor: pointer; transition: all .18s; user-select: none; display: inline-block }
     .vopt:hover:not(.disabled):not(.unavailable):not(.on) { border-color: #fca5a5; color: #dc2626 }
     .vopt.on { background: #dc2626; color: #fff !important; border-color: #dc2626; box-shadow: 0 3px 10px rgba(220, 38, 38, .25) }
@@ -809,7 +809,9 @@
             const offsetX = -(fracX * zImgW - lens.offsetWidth / 2);
             const offsetY = -(fracY * zImgH - lens.offsetHeight / 2);
 
-            zImg.src = img.src;
+            if (zImg.src !== img.src) {
+              zImg.src = img.src;
+            }
             zImg.style.width = zImgW + 'px';
             zImg.style.height = zImgH + 'px';
             zImg.style.left = offsetX + 'px';
@@ -891,6 +893,13 @@
             }
             if (!currentVariant || currentVariant.isActive === false) { toast('This variant is currently unavailable', 'error'); return; }
             if (currentVariant.stock === 0) { toast('Please select an available variant', 'error'); return; }
+
+            const btn = document.getElementById('btnCart');
+            if (btn) {
+              btn.disabled = true;
+              btn.innerHTML = '<i class="bi bi-arrow-repeat spinr"></i> Adding...';
+            }
+
             fetch('/user/cart/add', {
               method: 'POST', headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ productId: PRODUCT_ID, variantId: currentVariant._id.toString(), quantity: qty })
@@ -910,9 +919,21 @@
                     }
                   }
                   if (wishlisted) { wishlisted = false; updateWishBtn(); }
-                } else { toast(d.message || 'Failed to add to cart', 'error'); }
+                } else {
+                  toast(d.message || 'Failed to add to cart', 'error');
+                  if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="bi bi-cart-plus"></i> Add to Cart';
+                  }
+                }
               })
-              .catch(() => toast('Something went wrong', 'error'));
+              .catch(() => {
+                toast('Something went wrong', 'error');
+                if (btn) {
+                  btn.disabled = false;
+                  btn.innerHTML = '<i class="bi bi-cart-plus"></i> Add to Cart';
+                }
+              });
           }
 
           window.addEventListener('beforeunload', stopQtySync);
