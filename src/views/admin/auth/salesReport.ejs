@@ -48,20 +48,21 @@
       <!-- Filters -->
       <div class="bg-white p-6 rounded-lg shadow-sm mb-6 border no-print">
         <form id="salesReportFilterForm" action="/admin/sales-report" method="GET" novalidate class="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
-          <div class="space-y-1">
+          <div class="space-y-1 md:col-span-2">
             <label class="text-[10px] font-bold text-gray-400 uppercase">Period Filter</label>
-            <select name="filterType" id="filterType" class="w-full bg-gray-50 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300">
-              <option value="daily" <%= query.filterType==='daily'?'selected':'' %>>Today</option>
-              <option value="weekly" <%= query.filterType==='weekly'?'selected':'' %>>Last 7 Days</option>
-              <option value="monthly" <%= (query.filterType==='monthly'||!query.filterType)?'selected':'' %>>Last 30 Days</option>
-              <option value="calendar_month" <%= query.filterType==='calendar_month'?'selected':'' %>>This Month (Calendar)</option>
-              <option value="yearly" <%= query.filterType==='yearly'?'selected':'' %>>This Year</option>
-              <option value="custom" <%= (query.startDate&&query.endDate)?'selected':'' %>>Custom Date Range</option>
+            <select name="filterType" id="filterType" class="w-full bg-gray-50 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 font-semibold text-gray-800">
+              <option value="monthly_last30" <%= (query.filterType==='monthly_last30'||!query.filterType)?'selected':'' %>>Last 30 Days (Default)</option>
+              <option value="weekly_last7" <%= query.filterType==='weekly_last7'?'selected':'' %>>Last 7 Days</option>
+              <option value="daily" <%= query.filterType==='daily'?'selected':'' %>>Today / Specific Day</option>
+              <option value="weekly" <%= query.filterType==='weekly'?'selected':'' %>>Specific Calendar Week</option>
+              <option value="monthly" <%= query.filterType==='monthly'?'selected':'' %>>Specific Calendar Month</option>
+              <option value="yearly" <%= query.filterType==='yearly'?'selected':'' %>>Specific Calendar Year</option>
+              <option value="custom" <%= query.filterType==='custom'?'selected':'' %>>Custom Date Range</option>
             </select>
           </div>
           <div class="space-y-1">
             <label class="text-[10px] font-bold text-gray-400 uppercase">Status Filter</label>
-            <select name="orderStatus" id="orderStatus" class="w-full bg-gray-50 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300">
+            <select name="orderStatus" id="orderStatus" class="w-full bg-gray-50 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 font-semibold text-gray-800">
               <option value="all" <%= (!query.orderStatus||query.orderStatus==='all')?'selected':'' %>>All Statuses</option>
               <option value="pending" <%= query.orderStatus==='pending'?'selected':'' %>>Pending</option>
               <option value="confirmed" <%= query.orderStatus==='confirmed'?'selected':'' %>>Confirmed</option>
@@ -75,16 +76,12 @@
               <option value="return_rejected" <%= query.orderStatus==='return_rejected'?'selected':'' %>>Return Rejected</option>
             </select>
           </div>
-          <div class="space-y-1">
-            <label class="text-[10px] font-bold text-gray-400 uppercase">Start Date</label>
-            <input type="date" name="startDate" value="<%= query.startDate || '' %>" class="w-full bg-gray-50 border rounded-lg px-3 py-2 text-sm">
+          <!-- Dynamic input container -->
+          <div id="dynamicInputs" class="md:col-span-2 grid grid-cols-2 gap-2">
+            <!-- Filled dynamically by JavaScript -->
           </div>
-          <div class="space-y-1">
-            <label class="text-[10px] font-bold text-gray-400 uppercase">End Date</label>
-            <input type="date" name="endDate" value="<%= query.endDate || '' %>" class="w-full bg-gray-50 border rounded-lg px-3 py-2 text-sm">
-          </div>
-          <button type="submit" class="bg-gray-800 text-white px-4 py-2.5 rounded-lg font-bold text-xs hover:bg-black transition">
-            <i class="bi bi-funnel mr-1"></i> Apply Filter
+          <button type="submit" class="bg-gray-800 hover:bg-black text-white px-4 py-2.5 rounded-lg font-bold text-xs transition flex items-center justify-center gap-2">
+            <i class="bi bi-funnel"></i> Apply Filter
           </button>
         </form>
         <p id="salesReportFilterHint" class="text-[10px] text-amber-600 mt-3 hidden"></p>
@@ -266,8 +263,10 @@
     const filterForm = document.getElementById('salesReportFilterForm');
     const filterHint = document.getElementById('salesReportFilterHint');
     const filterTypeEl = document.getElementById('filterType');
-    const startInput = filterForm?.querySelector('[name="startDate"]');
-    const endInput = filterForm?.querySelector('[name="endDate"]');
+    const dynamicInputsContainer = document.getElementById('dynamicInputs');
+
+    // Pre-rendered query object from Express
+    const query = <%- JSON.stringify(query || {}) %>;
 
     function showFilterHint(msg) {
       if (!filterHint) return;
@@ -275,30 +274,133 @@
       filterHint.classList.toggle('hidden', !msg);
     }
 
-    filterForm?.addEventListener('submit', function(e) {
-      const start = startInput?.value || '';
-      const end = endInput?.value || '';
-      const filterType = filterTypeEl?.value || 'monthly';
-
-      if (start && end && start > end) {
-        e.preventDefault();
-        showFilterHint('End date must be after start date.');
-        endInput?.focus();
-        return;
-      }
-
-      if (filterType === 'custom' && (!start || !end)) {
-        e.preventDefault();
-        showFilterHint('Please select both start and end dates for a custom range.');
-        (start ? endInput : startInput)?.focus();
-        return;
-      }
-
+    function renderDynamicInputs() {
+      const type = filterTypeEl.value;
+      dynamicInputsContainer.innerHTML = '';
       showFilterHint('');
-    });
 
-    [startInput, endInput, filterTypeEl].forEach(el => {
-      el?.addEventListener('change', () => showFilterHint(''));
+      if (type === 'daily') {
+        dynamicInputsContainer.className = "md:col-span-2";
+        dynamicInputsContainer.innerHTML = `
+          <div class="space-y-1">
+            <label class="text-[10px] font-bold text-gray-400 uppercase">Select Day</label>
+            <input type="date" name="dailyDate" value="${query.dailyDate || ''}" class="w-full bg-gray-50 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 font-semibold text-gray-800">
+          </div>
+        `;
+      } else if (type === 'weekly') {
+        dynamicInputsContainer.className = "md:col-span-2";
+        dynamicInputsContainer.innerHTML = `
+          <div class="space-y-1">
+            <label class="text-[10px] font-bold text-gray-400 uppercase">Select Date in Week</label>
+            <input type="date" name="weekDate" value="${query.weekDate || ''}" class="w-full bg-gray-50 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 font-semibold text-gray-800">
+          </div>
+        `;
+      } else if (type === 'monthly') {
+        dynamicInputsContainer.className = "md:col-span-2 grid grid-cols-2 gap-2";
+        
+        const months = [
+          { v: 1, n: 'January' }, { v: 2, n: 'February' }, { v: 3, n: 'March' },
+          { v: 4, n: 'April' }, { v: 5, n: 'May' }, { v: 6, n: 'June' },
+          { v: 7, n: 'July' }, { v: 8, n: 'August' }, { v: 9, n: 'September' },
+          { v: 10, n: 'October' }, { v: 11, n: 'November' }, { v: 12, n: 'December' }
+        ];
+        
+        const currentYear = new Date().getFullYear();
+        const selectedYear = parseInt(query.year) || currentYear;
+        const selectedMonth = parseInt(query.month) || (new Date().getMonth() + 1);
+        
+        let monthOpts = months.map(m => `<option value="${m.v}" ${m.v === selectedMonth ? 'selected' : ''}>${m.n}</option>`).join('');
+        let yearOpts = '';
+        for (let y = currentYear; y >= currentYear - 5; y--) {
+          yearOpts += `<option value="${y}" ${y === selectedYear ? 'selected' : ''}>${y}</option>`;
+        }
+        
+        dynamicInputsContainer.innerHTML = `
+          <div class="space-y-1">
+            <label class="text-[10px] font-bold text-gray-400 uppercase">Month</label>
+            <select name="month" class="w-full bg-gray-50 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 font-semibold text-gray-800">
+              ${monthOpts}
+            </select>
+          </div>
+          <div class="space-y-1">
+            <label class="text-[10px] font-bold text-gray-400 uppercase">Year</label>
+            <select name="year" class="w-full bg-gray-50 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 font-semibold text-gray-800">
+              ${yearOpts}
+            </select>
+          </div>
+        `;
+      } else if (type === 'yearly') {
+        dynamicInputsContainer.className = "md:col-span-2";
+        
+        const currentYear = new Date().getFullYear();
+        const selectedYear = parseInt(query.year) || currentYear;
+        
+        let yearOpts = '';
+        for (let y = currentYear; y >= currentYear - 5; y--) {
+          yearOpts += `<option value="${y}" ${y === selectedYear ? 'selected' : ''}>${y}</option>`;
+        }
+        
+        dynamicInputsContainer.innerHTML = `
+          <div class="space-y-1">
+            <label class="text-[10px] font-bold text-gray-400 uppercase">Select Year</label>
+            <select name="year" class="w-full bg-gray-50 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 font-semibold text-gray-800">
+              ${yearOpts}
+            </select>
+          </div>
+        `;
+      } else if (type === 'custom') {
+        dynamicInputsContainer.className = "md:col-span-2 grid grid-cols-2 gap-2";
+        dynamicInputsContainer.innerHTML = `
+          <div class="space-y-1">
+            <label class="text-[10px] font-bold text-gray-400 uppercase">Start Date</label>
+            <input type="date" name="startDate" value="${query.startDate || ''}" class="w-full bg-gray-50 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 font-semibold text-gray-800">
+          </div>
+          <div class="space-y-1">
+            <label class="text-[10px] font-bold text-gray-400 uppercase">End Date</label>
+            <input type="date" name="endDate" value="${query.endDate || ''}" class="w-full bg-gray-50 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 font-semibold text-gray-800">
+          </div>
+        `;
+      } else {
+        dynamicInputsContainer.className = "hidden";
+      }
+    }
+
+    filterTypeEl?.addEventListener('change', renderDynamicInputs);
+    renderDynamicInputs();
+
+    filterForm?.addEventListener('submit', function(e) {
+      const type = filterTypeEl.value;
+
+      if (type === 'custom') {
+        const start = filterForm.querySelector('[name="startDate"]')?.value || '';
+        const end = filterForm.querySelector('[name="endDate"]')?.value || '';
+
+        if (!start || !end) {
+          e.preventDefault();
+          showFilterHint('Please select both start and end dates.');
+          return;
+        }
+        if (start > end) {
+          e.preventDefault();
+          showFilterHint('Start date cannot be after end date.');
+          return;
+        }
+      } else if (type === 'daily') {
+        const dDate = filterForm.querySelector('[name="dailyDate"]')?.value || '';
+        if (!dDate) {
+          e.preventDefault();
+          showFilterHint('Please select a day.');
+          return;
+        }
+      } else if (type === 'weekly') {
+        const wDate = filterForm.querySelector('[name="weekDate"]')?.value || '';
+        if (!wDate) {
+          e.preventDefault();
+          showFilterHint('Please select a date in the target week.');
+          return;
+        }
+      }
+      showFilterHint('');
     });
   </script>
 </body>

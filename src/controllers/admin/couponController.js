@@ -161,15 +161,22 @@ export const editCoupon = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Minimum purchase must be greater than 0.' });
     if (minP > 1000000)
       return res.status(400).json({ success: false, message: 'Minimum purchase cannot exceed ₹10,00,000.' });
+      const maxD = Number(maxDiscountAmount);
+
 
     if (discountType === 'percentage') {
-      const maxD = Number(maxDiscountAmount);
+
       if (isNaN(maxD) || maxD <= 0)
         return res.status(400).json({ success: false, message: 'Max discount is required for percentage coupons.' });
       if (maxD > 100000)
         return res.status(400).json({ success: false, message: 'Max discount cannot exceed ₹1,00,000.' });
     }
-
+    
+    if(discountType=="flat"){
+      if(minP<discount){
+        return res.status(400).json({success:false, message:"Minimun purchase amount should be greater that max Discount amount"})
+      }
+    }
 
     //validation post coupon
     const start = new Date(startDate);

@@ -83,73 +83,93 @@ export function computeOrderMetrics(order) {
 }
 
 export function resolveDateRange(query = {}) {
-  const { startDate, endDate, filterType = "monthly" } = query;
+  const { startDate, endDate, filterType, year, month, weekDate, dailyDate } = query;
   const now = new Date();
+  
   let from;
   let to = new Date(now);
   to.setHours(23, 59, 59, 999);
+  
+  let finalFilterType = filterType || "monthly_last30"; // default to last 30 days
+  let label = "";
+  
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1; // 1-indexed
 
-  if (startDate && endDate) {
-    from = new Date(startDate);
+  if (finalFilterType === "yearly") {
+    const filterYear = parseInt(year) || currentYear;
+    from = new Date(filterYear, 0, 1, 0, 0, 0, 0);
+    to = new Date(filterYear, 11, 31, 23, 59, 59, 999);
+    label = `Year: ${filterYear}`;
+  } 
+  else if (finalFilterType === "monthly") {
+    const filterYear = parseInt(year) || currentYear;
+    const filterMonth = parseInt(month) || currentMonth;
+    from = new Date(filterYear, filterMonth - 1, 1, 0, 0, 0, 0);
+    to = new Date(filterYear, filterMonth, 0, 23, 59, 59, 999); // last day of that month
+    const monthName = from.toLocaleString('en-US', { month: 'long' });
+    label = `${monthName} ${filterYear}`;
+  } 
+  else if (finalFilterType === "weekly") {
+    let refDate = weekDate ? new Date(weekDate) : new Date(now);
+    if (isNaN(refDate.getTime())) {
+      refDate = new Date(now);
+    }
+    const day = refDate.getDay();
+    const diff = refDate.getDate() - day + (day === 0 ? -6 : 1); // Monday
+    from = new Date(refDate.setDate(diff));
     from.setHours(0, 0, 0, 0);
-    to = new Date(endDate);
+    
+    to = new Date(from);
+    to.setDate(from.getDate() + 6);
     to.setHours(23, 59, 59, 999);
-    return {
-      from,
-      to,
-      filterType: "custom",
-      label: "Custom Date Range",
-      mongoMatch: { createdAt: { $gte: from, $lte: to } },
-    };
-  }
-
-  if (filterType === "custom") {
-    from = new Date(now);
-    from.setDate(from.getDate() - 29);
+    label = `Week: ${from.toLocaleDateString('en-GB')} – ${to.toLocaleDateString('en-GB')}`;
+  } 
+  else if (finalFilterType === "daily") {
+    let refDate = dailyDate ? new Date(dailyDate) : new Date(now);
+    if (isNaN(refDate.getTime())) {
+      refDate = new Date(now);
+    }
+    from = new Date(refDate);
     from.setHours(0, 0, 0, 0);
-    return {
-      from,
-      to,
-      filterType: "custom",
-      label: "Custom Date Range (select dates)",
-      mongoMatch: { createdAt: { $gte: from, $lte: to } },
-    };
-  }
-
-  if (filterType === "daily") {
-    from = new Date(now);
-    from.setHours(0, 0, 0, 0);
-    return { from, to, filterType, label: "Today", mongoMatch: { createdAt: { $gte: from, $lte: to } } };
-  }
-
-  if (filterType === "weekly") {
+    to = new Date(refDate);
+    to.setHours(23, 59, 59, 999);
+    label = `Day: ${from.toLocaleDateString('en-GB')}`;
+  } 
+  else if (finalFilterType === "custom") {
+    if (startDate && endDate) {
+      from = new Date(startDate);
+      from.setHours(0, 0, 0, 0);
+      to = new Date(endDate);
+      to.setHours(23, 59, 59, 999);
+      label = `Custom Range: ${from.toLocaleDateString('en-GB')} – ${to.toLocaleDateString('en-GB')}`;
+    } else {
+      from = new Date(now);
+      from.setDate(from.getDate() - 29);
+      from.setHours(0, 0, 0, 0);
+      label = `Last 30 Days (Custom Select)`;
+    }
+  } 
+  else if (finalFilterType === "weekly_last7" || finalFilterType === "weekly") {
+    finalFilterType = "weekly_last7";
     from = new Date(now);
     from.setDate(from.getDate() - 6);
     from.setHours(0, 0, 0, 0);
-    return { from, to, filterType, label: "Last 7 Days", mongoMatch: { createdAt: { $gte: from, $lte: to } } };
-  }
-
-  if (filterType === "yearly") {
-    from = new Date(now.getFullYear(), 0, 1);
+    label = "Last 7 Days";
+  } 
+  else { // monthly_last30, monthly, or default
+    finalFilterType = "monthly_last30";
+    from = new Date(now);
+    from.setDate(from.getDate() - 29);
     from.setHours(0, 0, 0, 0);
-    return { from, to, filterType, label: "This Year", mongoMatch: { createdAt: { $gte: from, $lte: to } } };
+    label = "Last 30 Days";
   }
 
-  if (filterType === "calendar_month") {
-    from = new Date(now.getFullYear(), now.getMonth(), 1);
-    from.setHours(0, 0, 0, 0);
-    return { from, to, filterType, label: "This Month", mongoMatch: { createdAt: { $gte: from, $lte: to } } };
-  }
-
-  // monthly = last 30 days
-  from = new Date(now);
-  from.setDate(from.getDate() - 29);
-  from.setHours(0, 0, 0, 0);
   return {
     from,
     to,
-    filterType: "monthly",
-    label: "Last 30 Days",
+    filterType: finalFilterType,
+    label,
     mongoMatch: { createdAt: { $gte: from, $lte: to } },
   };
 }
@@ -423,37 +443,124 @@ export function buildSalesReportPayload(orders, options = {}) {
   };
 }
 
-export function buildChartSeriesFromOrders(orders, filterType = "monthly") {
+export function buildChartSeriesFromOrders(orders, filterType = "monthly_last30", query = {}) {
+  const range = resolveDateRange({ filterType, ...query });
+  const start = range.from;
+  const end = range.to;
+
   const trendMap = new Map();
 
-  if (filterType === "yearly") {
+  if (range.filterType === "yearly") {
     const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     
-    // Initialize map with all 12 months set to 0 revenue
+    // Initialize map with all 12 months
     for (let i = 0; i < 12; i++) {
-      trendMap.set(monthNames[i], 0);
+      trendMap.set(i, { label: monthNames[i], revenue: 0 });
     }
     
     for (const order of orders) {
       const m = computeOrderMetrics(order);
       const orderDate = new Date(order.createdAt);
-      const monthLabel = monthNames[orderDate.getMonth()];
-      trendMap.set(monthLabel, (trendMap.get(monthLabel) || 0) + m.netRevenue);
+      const monthIdx = orderDate.getMonth();
+      if (trendMap.has(monthIdx)) {
+        trendMap.get(monthIdx).revenue += m.netRevenue;
+      }
     }
     
-    return monthNames.map((month) => ({
-      _id: month,
-      revenue: trendMap.get(month),
+    return [...trendMap.values()].map(item => ({
+      _id: item.label,
+      revenue: item.revenue
     }));
-  } else {
+  } 
+  else if (range.filterType === "daily") {
+    // Hourly grouping
+    for (let h = 0; h < 24; h++) {
+      const hourLabel = h === 0 ? "12 AM" : h < 12 ? `${h} AM` : h === 12 ? "12 PM" : `${h - 12} PM`;
+      trendMap.set(h, { label: hourLabel, revenue: 0 });
+    }
+    
     for (const order of orders) {
       const m = computeOrderMetrics(order);
-      const key = new Date(order.createdAt).toISOString().split("T")[0];
-      trendMap.set(key, (trendMap.get(key) || 0) + m.netRevenue);
+      const orderDate = new Date(order.createdAt);
+      const hr = orderDate.getHours();
+      if (trendMap.has(hr)) {
+        trendMap.get(hr).revenue += m.netRevenue;
+      }
     }
-    return [...trendMap.entries()]
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([_id, revenue]) => ({ _id, revenue }));
+    
+    return [...trendMap.values()].map(item => ({
+      _id: item.label,
+      revenue: item.revenue
+    }));
+  } 
+  else {
+    // Group by day for custom, monthly, weekly, weekly_last7, monthly_last30
+    const temp = new Date(start);
+    const totalDays = Math.round((end - start) / (1000 * 60 * 60 * 24));
+    
+    if (totalDays > 366) {
+      // Group by year if span is more than a year
+      for (const order of orders) {
+        const m = computeOrderMetrics(order);
+        const y = new Date(order.createdAt).getFullYear();
+        trendMap.set(y, (trendMap.get(y) || 0) + m.netRevenue);
+      }
+      return [...trendMap.entries()]
+        .sort(([a], [b]) => a - b)
+        .map(([y, revenue]) => ({ _id: String(y), revenue }));
+    }
+    else if (totalDays > 31) {
+      // Group by month if span is more than a month (but <= a year)
+      const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      let curr = new Date(start);
+      while (curr <= end) {
+        const key = `${monthNames[curr.getMonth()]} ${curr.getFullYear()}`;
+        if (!trendMap.has(key)) {
+          trendMap.set(key, 0);
+        }
+        curr.setMonth(curr.getMonth() + 1);
+      }
+      const endKey = `${monthNames[end.getMonth()]} ${end.getFullYear()}`;
+      if (!trendMap.has(endKey)) {
+        trendMap.set(endKey, 0);
+      }
+
+      for (const order of orders) {
+        const m = computeOrderMetrics(order);
+        const orderDate = new Date(order.createdAt);
+        const key = `${monthNames[orderDate.getMonth()]} ${orderDate.getFullYear()}`;
+        if (trendMap.has(key)) {
+          trendMap.set(key, trendMap.get(key) + m.netRevenue);
+        }
+      }
+
+      return [...trendMap.entries()].map(([label, revenue]) => ({
+        _id: label,
+        revenue
+      }));
+    }
+    else {
+      // Group by day
+      while (temp <= end) {
+        const key = temp.toISOString().split("T")[0];
+        const label = temp.toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
+        trendMap.set(key, { label, revenue: 0 });
+        temp.setDate(temp.getDate() + 1);
+      }
+
+      for (const order of orders) {
+        const m = computeOrderMetrics(order);
+        const key = new Date(order.createdAt).toISOString().split("T")[0];
+        if (trendMap.has(key)) {
+          trendMap.get(key).revenue += m.netRevenue;
+        }
+      }
+
+      return [...trendMap.values()].map(item => ({
+        _id: item.label,
+        revenue: item.revenue
+      }));
+    }
   }
 }
 

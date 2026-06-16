@@ -14,12 +14,16 @@ import {
   generateSalesExcelReport,
 } from "../../services/salesReportExportService.js";
 
-const getDashboardMatch = (filter) => {
-  const range = resolveDateRange({ filterType: filter });
-  return {
+const getDashboardMatch = (query) => {
+  const range = resolveDateRange(query);
+  const match = {
     orderStatus: { $nin: ["expired"] },
     ...range.mongoMatch,
   };
+  if (query.orderStatus && query.orderStatus !== "all") {
+    match.orderStatus = query.orderStatus;
+  }
+  return match;
 };
 
 export const showLogin = (req, res) => {
@@ -65,8 +69,10 @@ export const adminDashboard = async (req, res) => {
   try {
     if (!req.session.admin) return res.redirect("/admin/login");
 
-    const filter = req.query.filter || "monthly";
-    const baseMatch = getDashboardMatch(filter);
+    const filter = req.query.filterType || req.query.filter || "monthly_last30";
+    const queryOpts = { ...req.query, filterType: filter, filter: filter };
+    const dateRange = resolveDateRange(queryOpts);
+    const baseMatch = getDashboardMatch(queryOpts);
 
     const ordersForKpiPromise = Order.find(baseMatch)
       .populate("userId", "firstName lastName email")
@@ -158,7 +164,7 @@ export const adminDashboard = async (req, res) => {
     ]);
 
     const kpi = summarizeKpisFromOrders(ordersForKpi);
-    const chartData = buildChartSeriesFromOrders(ordersForKpi, filter).slice(-12);
+    const chartData = buildChartSeriesFromOrders(ordersForKpi, dateRange.filterType, queryOpts).slice(-12);
     const statusCounts = {};
     statusCountsRaw.forEach((statusEntry) => {
       statusCounts[statusEntry._id] = statusEntry.count || 0;
@@ -187,7 +193,9 @@ export const adminDashboard = async (req, res) => {
       topCategories,
       topBrands,
       recentOrders: recentOrdersEnriched,
-      currentFilter: filter
+      currentFilter: filter,
+      dateRange,
+      query: queryOpts
     });
 
   } catch (error) {
@@ -207,12 +215,13 @@ export const logoutAdmin = (req, res) => {
 export const downloadPDF = async (req, res) => {
   try {
     const filter = req.query.filter || "monthly";
-    const match = getDashboardMatch(filter);
+    const queryOpts = { ...req.query, filterType: filter };
+    const match = getDashboardMatch(queryOpts);
     const orders = await Order.find(match)
       .populate("userId", "firstName lastName email")
       .sort({ createdAt: -1 })
       .lean();
-    const dateRange = resolveDateRange({ filterType: filter });
+    const dateRange = resolveDateRange(queryOpts);
     const payload = buildSalesReportPayload(orders, {
       dateRange,
       generatedBy: req.session.admin?.email || "Admin",
@@ -229,12 +238,13 @@ export const downloadPDF = async (req, res) => {
 export const downloadExcel = async (req, res) => {
   try {
     const filter = req.query.filter || "monthly";
-    const match = getDashboardMatch(filter);
+    const queryOpts = { ...req.query, filterType: filter };
+    const match = getDashboardMatch(queryOpts);
     const orders = await Order.find(match)
       .populate("userId", "firstName lastName email")
       .sort({ createdAt: -1 })
       .lean();
-    const dateRange = resolveDateRange({ filterType: filter });
+    const dateRange = resolveDateRange(queryOpts);
     const payload = buildSalesReportPayload(orders, {
       dateRange,
       generatedBy: req.session.admin?.email || "Admin",
