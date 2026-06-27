@@ -11,14 +11,31 @@ jobs:
 
     steps:
       - name: Deploy to EC2
-        uses: appleboy/ssh-action@v1.0.3
+        uses: appleboy/ssh-action@v1.2.0
 
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
+          timeout: 60s
+          command_timeout: 20m
+          debug: true
+
           script: |
+            set -e
+
+            echo "Connected to EC2"
+
             cd ~/ElectroHub
+
+            echo "Pulling latest code..."
             git pull origin main
+
+            echo "Installing dependencies..."
             npm install
+
+            echo "Restarting PM2..."
             pm2 restart electrohub
+
+            echo "Deployment completed successfully!"
