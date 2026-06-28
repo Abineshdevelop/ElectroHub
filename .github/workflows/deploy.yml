@@ -11,6 +11,7 @@ jobs:
       - name: Check SSH Secret
         run: |
           echo "${{ secrets.EC2_SSH_KEY }}" > key.pem
+          chmod 600 key.pem
 
           echo "First line:"
           head -1 key.pem
@@ -22,4 +23,4 @@ jobs:
           wc -l key.pem
 
           echo "Try parsing key:"
-          ssh-keygen -y -f key.pem || true
+          ssh-keygen -y -f key.pem
