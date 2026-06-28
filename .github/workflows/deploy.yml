@@ -1,35 +1,24 @@
-name: Test SSH Key
+name: Deploy ElectroHub
 
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - main
 
 jobs:
-  test:
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Inspect key
-        run: |
-          echo "${{ secrets.EC2_SSH_KEY }}" > key.pem
-          chmod 600 key.pem
-
-          echo "----- FIRST LINE -----"
-          head -1 key.pem
-
-          echo "----- LAST LINE -----"
-          tail -1 key.pem
-
-          echo "----- LINE COUNT -----"
-          wc -l key.pem
-
-          echo "----- FILE TYPE -----"
-          file key.pem
-
-          echo "----- HEX OF FIRST 32 BYTES -----"
-          xxd -l 32 key.pem
-
-          echo "----- HEX OF LAST 32 BYTES -----"
-          tail -c 32 key.pem | xxd
-
-          echo "----- PARSE -----"
-          ssh-keygen -y -f key.pem
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
+          script: |
+            cd ~/ElectroHub
+            git pull origin main
+            npm install
+            pm2 restart electrohub
