@@ -1,25 +1,25 @@
-name: Deploy ElectroHub
+name: Test SSH Key
 
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch:
 
 jobs:
-  deploy:
+  test:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Deploy to EC2
-        uses: appleboy/ssh-action@v1.2.0
+      - name: Check SSH Secret
+        run: |
+          echo "${{ secrets.EC2_SSH_KEY }}" > key.pem
 
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ubuntu
-          key: ${{ secrets.EC2_SSH_KEY }}
-          port: 22
-          script: |
-            cd ~/ElectroHub
-            git pull origin main
-            npm install
-            pm2 restart electrohub
+          echo "First line:"
+          head -1 key.pem
+
+          echo "Last line:"
+          tail -1 key.pem
+
+          echo "Line count:"
+          wc -l key.pem
+
+          echo "Try parsing key:"
+          ssh-keygen -y -f key.pem || true
