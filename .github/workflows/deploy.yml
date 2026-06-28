@@ -8,19 +8,28 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Check SSH Secret
+      - name: Inspect key
         run: |
           echo "${{ secrets.EC2_SSH_KEY }}" > key.pem
           chmod 600 key.pem
 
-          echo "First line:"
+          echo "----- FIRST LINE -----"
           head -1 key.pem
 
-          echo "Last line:"
+          echo "----- LAST LINE -----"
           tail -1 key.pem
 
-          echo "Line count:"
+          echo "----- LINE COUNT -----"
           wc -l key.pem
 
-          echo "Try parsing key:"
+          echo "----- FILE TYPE -----"
+          file key.pem
+
+          echo "----- HEX OF FIRST 32 BYTES -----"
+          xxd -l 32 key.pem
+
+          echo "----- HEX OF LAST 32 BYTES -----"
+          tail -c 32 key.pem | xxd
+
+          echo "----- PARSE -----"
           ssh-keygen -y -f key.pem
