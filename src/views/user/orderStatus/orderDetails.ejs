@@ -618,7 +618,7 @@
           }
 
           lastRazorpayData = data;
-          initiateRazorpay(res, btn, originalHTML);
+          initiateRazorpay(data, btn, originalHTML);
         } catch { showToast('Connection failed.', 'error'); btn.disabled = false; btn.innerHTML = originalHTML; }
       }
 
