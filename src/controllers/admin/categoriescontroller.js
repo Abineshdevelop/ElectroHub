@@ -194,9 +194,9 @@ function cleanVariants(variantOptions) {
 export const createCategory = async (req, res) => {
   try {
     let { categoryName, description, isActive, specificationsConfig, variantOptions } = req.body;
-
+    
     if (typeof specificationsConfig === 'string') {
-      specificationsConfig = JSON.parse(specificationsConfig);
+      specificationsConfig = JSON.parse(specificationsConfig);//[ { name: 'regergergre', required: false } ] JSON string to JS object
     }
     if (typeof variantOptions === 'string') {
       variantOptions = JSON.parse(variantOptions);

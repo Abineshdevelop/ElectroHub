@@ -35,6 +35,8 @@ app.use("/uploads", express.static(path.join(__dirname, "public/uploads")));
 app.set("view engine", "ejs");
 app.set("views", path.resolve(__dirname, "views"));
 
+
+
 // app.use(
 //   session({
 //     secret: process.env.SESSION_SECRET || "electrohub_secret_key",
@@ -75,7 +77,7 @@ app.use((req, res, next) => {
 app.use(passport.initialize());
 app.use(passport.session());
 app.use(checkUserBlocked);
-app.use(attachUserLocals); //keep user detsils in every page
+app.use(attachUserLocals); // keep user details on every page
 
 // Routes
 app.get("/", loadHomePage)
