@@ -11,14 +11,14 @@ import {
   generateSalesExcelReport,
 } from "../../services/salesReportExportService.js";
 
-const deliveredItemMatch = { "items.status": "delivered" };
+const DELIVERED_ITEM_MATCH = { "items.status": "delivered" };
 
 export const getSalesReport = async (req, res) => {
   try {
     if (!req.session.admin) return res.redirect("/admin/login");
 
     const dateRange = resolveDateRange(req.query);
-    const match = { ...getOrderListMatch(req.query) };
+    const match     = { ...getOrderListMatch(req.query) };
 
     const ordersPromise = Order.find(match)
       .sort({ createdAt: -1 })
@@ -28,7 +28,7 @@ export const getSalesReport = async (req, res) => {
     const topCategoriesPromise = Order.aggregate([
       { $match: match },
       { $unwind: "$items" },
-      { $match: deliveredItemMatch },
+      { $match: DELIVERED_ITEM_MATCH },
       {
         $lookup: {
           from: "products",
@@ -52,12 +52,7 @@ export const getSalesReport = async (req, res) => {
           _id: "$category.categoryName",
           count: { $sum: "$items.quantity" },
           revenue: {
-            $sum: {
-              $ifNull: [
-                "$items.finalAmount",
-                { $ifNull: ["$items.lineTotal", 0] },
-              ],
-            },
+            $sum: { $ifNull: ["$items.finalAmount", { $ifNull: ["$items.lineTotal", 0] }] },
           },
         },
       },
@@ -68,19 +63,14 @@ export const getSalesReport = async (req, res) => {
     const topProductsPromise = Order.aggregate([
       { $match: match },
       { $unwind: "$items" },
-      { $match: deliveredItemMatch },
+      { $match: DELIVERED_ITEM_MATCH },
       {
         $group: {
           _id: "$items.productId",
           name: { $first: "$items.productName" },
           count: { $sum: "$items.quantity" },
           revenue: {
-            $sum: {
-              $ifNull: [
-                "$items.finalAmount",
-                { $ifNull: ["$items.lineTotal", 0] },
-              ],
-            },
+            $sum: { $ifNull: ["$items.finalAmount", { $ifNull: ["$items.lineTotal", 0] }] },
           },
         },
       },
@@ -94,7 +84,7 @@ export const getSalesReport = async (req, res) => {
       topProductsPromise,
     ]);
 
-    const kpi = summarizeKpisFromOrders(orders);
+    const kpi       = summarizeKpisFromOrders(orders);
     const chartData = buildChartSeriesFromOrders(orders, dateRange.filterType, req.query);
 
     const topCategories = topCategoriesRaw.map((category) => ({
@@ -120,28 +110,27 @@ export const getSalesReport = async (req, res) => {
       query: req.query,
       dateRange,
     });
-  } catch (error) {
-    console.error("Sales Report error:", error);
-    res.status(500).send("Failed to generate sales report");
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Failed to generate sales report.");
   }
 };
 
 async function fetchReportPayload(req) {
-  const match = getOrderListMatch(req.query);
+  const match  = getOrderListMatch(req.query);
   const orders = await Order.find(match)
     .sort({ createdAt: -1 })
     .populate("userId", "firstName lastName email")
     .lean();
 
-  const dateRange = resolveDateRange(req.query);
+  const dateRange   = resolveDateRange(req.query);
   const generatedBy = req.session.admin?.email || "Admin";
-
-  const payload = buildSalesReportPayload(orders, { dateRange, generatedBy, query: req.query });
+  const payload     = buildSalesReportPayload(orders, { dateRange, generatedBy, query: req.query });
 
   const topCategoriesAgg = await Order.aggregate([
     { $match: match },
     { $unwind: "$items" },
-    { $match: deliveredItemMatch },
+    { $match: DELIVERED_ITEM_MATCH },
     {
       $lookup: {
         from: "products",
@@ -166,9 +155,7 @@ async function fetchReportPayload(req) {
         name: { $first: "$category.categoryName" },
         units: { $sum: "$items.quantity" },
         revenue: {
-          $sum: {
-            $ifNull: ["$items.finalAmount", { $ifNull: ["$items.lineTotal", 0] }],
-          },
+          $sum: { $ifNull: ["$items.finalAmount", { $ifNull: ["$items.lineTotal", 0] }] },
         },
       },
     },
@@ -190,21 +177,21 @@ async function fetchReportPayload(req) {
 export const downloadPDF = async (req, res) => {
   try {
     const payload = await fetchReportPayload(req);
-    const stamp = new Date().toISOString().split("T")[0];
+    const stamp   = new Date().toISOString().split("T")[0];
     generateSalesPDFReport(res, payload, `ElectroHub_Sales_Report_${stamp}`);
-  } catch (error) {
-    console.error("PDF Download error:", error);
-    res.status(500).send("Failed to generate PDF");
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Failed to generate PDF.");
   }
 };
 
 export const downloadExcel = async (req, res) => {
   try {
     const payload = await fetchReportPayload(req);
-    const stamp = new Date().toISOString().split("T")[0];
+    const stamp   = new Date().toISOString().split("T")[0];
     await generateSalesExcelReport(res, payload, `ElectroHub_Sales_Report_${stamp}`);
-  } catch (error) {
-    console.error("Excel Download error:", error);
-    res.status(500).send("Failed to generate Excel");
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Failed to generate Excel.");
   }
 };

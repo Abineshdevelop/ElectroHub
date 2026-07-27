@@ -16,6 +16,8 @@ async function getActiveOffers() {
   }).lean();
 }
 
+let offercount=0
+
 function findBestOffer(product, activeOffers) {
   let bestOffer = null;
 
@@ -30,9 +32,11 @@ function findBestOffer(product, activeOffers) {
     if (isProductOffer || isCategoryOffer) {
       if (!bestOffer || offer.offerPrecentage > bestOffer.offerPrecentage) {
         bestOffer = offer;
+        offercount++
+      
       }
     }
-  }
+  }console.log(offercount)
 
   return bestOffer;
 }
@@ -50,11 +54,14 @@ function getSalePrice(variant, product, activeOffers) {
   return { offerPrice, originalPrice, offerPercentage };
 }
 
+let offeris=false
+
 export async function getCart(req, res, next) {
   try {
     const userId = req.session.user._id;
 
     const cart = await Cart.findOne({ userId });
+
     const activeOffers = await getActiveOffers();
 
     const enrichedItems = [];
@@ -85,6 +92,12 @@ export async function getCart(req, res, next) {
         product,
         activeOffers,
       );
+
+      if(offerPercentage){
+        offeris=true
+      }
+
+
 
       const isAvailable =product.isActive &&!product.isDeleted &&variant.isActive !== false &&!variant.isDeleted;
 
@@ -184,7 +197,6 @@ export async function addToCart(req, res, next) {
     if (!cart) {
       cart = new Cart({ userId, items: [] });
     }
-
     const existingItemIndex = cart.items.findIndex(
       (item) =>
         item.productId.toString() === productId.toString() &&
@@ -243,6 +255,11 @@ export async function updateCart(req, res, next) {
     const { productId, variantId, quantity } = req.body;
     const requestedQuantity = Number(quantity);
 
+    // const offerforproduct = await Offer.countDocuments({refId:productId})
+    // console.log(offerforproduct)
+
+
+
     if (!Number.isInteger(requestedQuantity) || requestedQuantity < 1 || requestedQuantity > MAX_QTY) {
       return res.status(400).json({
         success: false,
@@ -270,6 +287,11 @@ export async function updateCart(req, res, next) {
         item.productId.toString() === productId.toString() &&
         item.variantId.toString() === variantId.toString(),
     );
+
+    if(offeris){
+      return res.status(400).json({success:false,message:"Only 2 offer allowed"});
+    }
+    console.log(offeris)
 
     if (!item) {
       return res

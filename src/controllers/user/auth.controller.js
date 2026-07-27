@@ -53,9 +53,7 @@ export async function signupUser(req, res, next) {
     if (referralCode && referralCode.trim()) {
       const trimmedCode = referralCode.trim().toUpperCase();
       
-      const referrer = await User.findOne({ 
-        referralToken: trimmedCode
-      });
+      const referrer = await User.findOne({referralToken: trimmedCode});
       
       if (referrer) {
         if (referrer.email === cleanEmail || referrer.phone === cleanPhone) {

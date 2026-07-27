@@ -18,6 +18,7 @@ import orderRouter from "./routes/user/orderRouter.js"
 import walletRouter from "./routes/user/walletRouter.js"
 import userCouponRouter from "./routes/user/couponRouter.js";
 import { loadHomePage } from "./controllers/user/homeController.js";
+import MongoStore from "connect-mongo";
 
 const app = express();
 
@@ -34,15 +35,34 @@ app.use("/uploads", express.static(path.join(__dirname, "public/uploads")));
 app.set("view engine", "ejs");
 app.set("views", path.resolve(__dirname, "views"));
 
+// app.use(
+//   session({
+//     secret: process.env.SESSION_SECRET || "electrohub_secret_key",
+//     resave: false,
+//     saveUninitialized: false,
+//     cookie: {
+//       secure: false,
+//       httpOnly: true,
+//       maxAge: 24 * 60 * 60 * 1000,
+//     },
+//   })
+// );
+
+// Store session in MongoDB
 app.use(
   session({
     secret: process.env.SESSION_SECRET || "electrohub_secret_key",
     resave: false,
     saveUninitialized: false,
+    store: MongoStore.create({
+      mongoUrl: process.env.MONGO_URI || process.env.MONGODB_URI,
+      collectionName: "sessions",
+      ttl: 7 * 24 * 60 * 60, // 7 days in seconds
+    }),
     cookie: {
-      secure: false,
       httpOnly: true,
-      maxAge: 24 * 60 * 60 * 1000,
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days in milliseconds
     },
   })
 );

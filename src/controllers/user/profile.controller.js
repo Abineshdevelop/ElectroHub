@@ -7,6 +7,7 @@ import sendMail from "../../services/mailService.js"
 import bcrypt from "bcryptjs"
 import { generateReferralToken } from "./auth.controller.js";
 import { fileURLToPath } from 'url';
+import { deleteFromCloudinary } from "../../services/cloudinaryService.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -256,14 +257,16 @@ export async function updateAvatar (req, res) {
     if (!req.file) return res.redirect("/user/profile");
     const user = await User.findById(req.session.user._id);
     if (user.profileImage) {
-      const publicDir = path.join(__dirname, "../../public");
-      // user.profileImage is like "/uploads/profile/filename.png"
-      // we remove the leading slash if present to join correctly
-      const relativePath = user.profileImage.startsWith('/') ? user.profileImage.substring(1) : user.profileImage;
-      const filePath = path.join(publicDir, relativePath);
-      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+      if (user.profileImage.startsWith("http://") || user.profileImage.startsWith("https://")) {
+        await deleteFromCloudinary(user.profileImage);
+      } else {
+        const publicDir = path.join(__dirname, "../../public");
+        const relativePath = user.profileImage.startsWith('/') ? user.profileImage.substring(1) : user.profileImage;
+        const filePath = path.join(publicDir, relativePath);
+        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+      }
     }
-    user.profileImage = `/uploads/profile/${req.file.filename}`;
+    user.profileImage = req.file.path || `/uploads/profile/${req.file.filename}`;
     await user.save();
     res.redirect("/user/profile");
   } catch (error) {
@@ -276,10 +279,14 @@ export async function updateAvatar (req, res) {
   try {
     const user = await User.findById(req.session.user._id);
     if (user.profileImage) {
-      const publicDir = path.join(__dirname, "../../public");
-      const relativePath = user.profileImage.startsWith('/') ? user.profileImage.substring(1) : user.profileImage;
-      const filePath = path.join(publicDir, relativePath);
-      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+      if (user.profileImage.startsWith("http://") || user.profileImage.startsWith("https://")) {
+        await deleteFromCloudinary(user.profileImage);
+      } else {
+        const publicDir = path.join(__dirname, "../../public");
+        const relativePath = user.profileImage.startsWith('/') ? user.profileImage.substring(1) : user.profileImage;
+        const filePath = path.join(publicDir, relativePath);
+        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+      }
     }
     user.profileImage = null;
     await user.save();
@@ -632,14 +639,16 @@ export async function updateAvatarAjax (req, res){
     if (!req.file) return res.json({ success: false, message: "No file uploaded" });
     const user = await User.findById(req.session.user._id);
     if (user.profileImage) {
-      const publicDir = path.join(__dirname, "../../public");
-      // user.profileImage is like "/uploads/profile/filename.png"
-      // we remove the leading slash if present to join correctly
-      const relativePath = user.profileImage.startsWith('/') ? user.profileImage.substring(1) : user.profileImage;
-      const filePath = path.join(publicDir, relativePath);
-      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+      if (user.profileImage.startsWith("http://") || user.profileImage.startsWith("https://")) {
+        await deleteFromCloudinary(user.profileImage);
+      } else {
+        const publicDir = path.join(__dirname, "../../public");
+        const relativePath = user.profileImage.startsWith('/') ? user.profileImage.substring(1) : user.profileImage;
+        const filePath = path.join(publicDir, relativePath);
+        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+      }
     }
-    user.profileImage = `/uploads/profile/${req.file.filename}`;
+    user.profileImage = req.file.path || `/uploads/profile/${req.file.filename}`;
     await user.save();
     return res.json({ success: true, profileImage: user.profileImage });
   } catch (error) {
@@ -652,10 +661,14 @@ export async function removeAvatarAjax (req, res){
   try {
     const user = await User.findById(req.session.user._id);
     if (user.profileImage) {
-      const publicDir = path.join(__dirname, "../../public");
-      const relativePath = user.profileImage.startsWith('/') ? user.profileImage.substring(1) : user.profileImage;
-      const filePath = path.join(publicDir, relativePath);
-      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+      if (user.profileImage.startsWith("http://") || user.profileImage.startsWith("https://")) {
+        await deleteFromCloudinary(user.profileImage);
+      } else {
+        const publicDir = path.join(__dirname, "../../public");
+        const relativePath = user.profileImage.startsWith('/') ? user.profileImage.substring(1) : user.profileImage;
+        const filePath = path.join(publicDir, relativePath);
+        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+      }
     }
     user.profileImage = null;
     await user.save();
