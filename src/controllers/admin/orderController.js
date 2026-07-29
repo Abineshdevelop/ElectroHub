@@ -5,6 +5,7 @@ import { buildItemCancellationSafety, validatePartialCancellation } from "../../
 import { refundItemsToWallet } from "../user/orderController.js";
 
 const PER_PAGE = 8;
+
 const FORWARD_TRANSITIONS = {
   pending:             ["confirmed", "shipped", "out_for_delivery", "delivered"],
   confirmed:           ["shipped", "out_for_delivery", "delivered"],
@@ -20,141 +21,200 @@ const FORWARD_TRANSITIONS = {
 
 export const getOrders = async (req, res) => {
   try {
-    const { q = "", sort = "desc", status = "all", page = 1, ajax } = req.query;
-    const currentPage = Math.max(1, Number(page));
-    const skip        = (currentPage - 1) * PER_PAGE;
-    const searchQuery = q.trim();
+    // Step 1: Read and parse query parameters
+    const searchQuery = (req.query.q || "").trim();
+    const sortOrderParam = req.query.sort || "desc";
+    const statusFilter = req.query.status || "all";
+    const requestedPage = Number(req.query.page) || 1;
+    const isAjaxRequest = req.query.ajax;
+
+    const currentPage = Math.max(1, requestedPage);
+    const itemsToSkip = (currentPage - 1) * PER_PAGE;
 
     const filter = {};
-    if (status !== "all") {
+
+    if (statusFilter !== "all") {
       const itemLevelStatuses = ["return_requested", "returned", "cancelled"];
-      if (itemLevelStatuses.includes(status)) {
-        filter["items.status"] = status;
+      if (itemLevelStatuses.includes(statusFilter)) {
+        filter["items.status"] = statusFilter;
       } else {
-        filter.orderStatus = status;
+        filter.orderStatus = statusFilter;
       }
     }
 
     if (searchQuery) {
       filter.$or = [
-        { orderId:                  { $regex: searchQuery, $options: "i" } },
+        { orderId: { $regex: searchQuery, $options: "i" } },
         { "shippingAddress.lastName": { $regex: searchQuery, $options: "i" } },
-        { "shippingAddress.email":    { $regex: searchQuery, $options: "i" } },
+        { "shippingAddress.email": { $regex: searchQuery, $options: "i" } },
       ];
     }
 
-    const sortOrder = sort === "asc" ? 1 : -1;
-    const [orders, totalOrders] = await Promise.all([
-      Order.find(filter).sort({ createdAt: sortOrder }).skip(skip).limit(PER_PAGE).lean(),
-      Order.countDocuments(filter),
-    ]);
+    const sortDirection = sortOrderParam === "asc" ? 1 : -1;
 
-    const totalPages  = Math.max(1, Math.ceil(totalOrders / PER_PAGE));
-    const showingFrom = totalOrders === 0 ? 0 : skip + 1;
-    const showingTo   = Math.min(skip + PER_PAGE, totalOrders);
+    const orders = await Order.find(filter)
+      .sort({ createdAt: sortDirection })
+      .skip(itemsToSkip)
+      .limit(PER_PAGE)
+      .lean();
 
-    if (ajax === "1") {
-      return res.json({ success: true, orders, total: totalOrders, currentPage, totalPages, showingFrom, showingTo });
+    const totalOrders = await Order.countDocuments(filter);
+
+    const totalPages = Math.max(1, Math.ceil(totalOrders / PER_PAGE));
+    const showingFrom = totalOrders === 0 ? 0 : itemsToSkip + 1;
+    const showingTo = Math.min(itemsToSkip + PER_PAGE, totalOrders);
+
+    if (isAjaxRequest) {//res send by ajax
+      return res.json({
+        success: true,
+        orders: orders,
+        total: totalOrders,
+        currentPage: currentPage,
+        totalPages: totalPages,
+        showingFrom: showingFrom,
+        showingTo: showingTo,
+      });
     }
 
-    res.render("admin/orders", {
-      orders,
+    return res.render("admin/orders", {
+      orders: orders,
       total: totalOrders,
-      currentPage,
-      totalPages,
-      showingFrom,
-      showingTo,
-      query: q,
-      sort,
-      statusFilter: status,
+      currentPage: currentPage,
+      totalPages: totalPages,
+      showingFrom: showingFrom,
+      showingTo: showingTo,
+      query: searchQuery,
+      sort: sortOrderParam,
+      statusFilter: statusFilter,
     });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, message: "Server error." });
+  } catch (error) {
+    console.error("Error fetching admin orders list:", error);
+    return res.status(500).json({ success: false, message: "Server error." });
   }
 };
 
+
 export const getOrderDetail = async (req, res) => {
   try {
-    const { id }   = req.params;
-    const { ajax } = req.query;
+    const orderId = req.params.id;
+    const isAjaxRequest = req.query.ajax === "1";
 
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      if (ajax === "1") return res.json({ success: false, message: "Invalid ID." });
+    if (!mongoose.Types.ObjectId.isValid(orderId)) {
+      if (isAjaxRequest) {
+        return res.json({ success: false, message: "Invalid ID." });
+      }
       return res.redirect("/admin/orders");
     }
 
-    const order = await Order.findById(id)
+    const order = await Order.findById(orderId)
       .populate("items.productId")
       .populate("items.variantId")
       .lean();
+
     if (!order) {
-      if (ajax === "1") return res.json({ success: false, message: "Order not found." });
+      if (isAjaxRequest) {
+        return res.json({ success: false, message: "Order not found." });
+      }
       return res.redirect("/admin/orders");
     }
 
     const itemCancellationSafety = await buildItemCancellationSafety(order);
-    if (ajax === "1") return res.json({ success: true, order, itemCancellationSafety });
 
-    res.render("admin/orders", { order, itemCancellationSafety });
-  } catch (err) {
-    console.error(err);
-    if (req.query.ajax === "1") return res.status(500).json({ success: false, message: "Server error." });
-    res.redirect("/admin/orders");
-  }
-};
-
-export const updateItemStatus = async (req, res) => {
-  try {
-    const { id, itemId } = req.params;
-    const { status }     = req.body;
-    const allowedStatuses = ["pending", "confirmed", "shipped", "out_for_delivery", "delivered", "cancelled", "returned"];
-
-    if (!allowedStatuses.includes(status))
-      return res.json({ success: false, message: "Invalid status." });
-
-    if (!mongoose.Types.ObjectId.isValid(id) || !mongoose.Types.ObjectId.isValid(itemId))
-      return res.json({ success: false, message: "Invalid ID." });
-
-    const order = await Order.findById(id);
-    if (!order) return res.json({ success: false, message: "Order not found." });
-
-    const item = order.items.find((orderItem) => orderItem._id.toString() === itemId);
-    if (!item) return res.json({ success: false, message: "Item not found." });
-
-    const currentItemStatus = item.status || order.orderStatus;
-    if (status === currentItemStatus)
-      return res.json({ success: true, message: "Status is already set to " + status });
-
-    const validItemNext = FORWARD_TRANSITIONS[currentItemStatus] || [];
-    if (!validItemNext.includes(status)) {
+    if (isAjaxRequest) {
       return res.json({
-        success: false,
-        message: `Cannot move item status from "${currentItemStatus}" to "${status}". Only forward transitions are allowed.`,
+        success: true,
+        order: order,
+        itemCancellationSafety: itemCancellationSafety,
       });
     }
 
-    const oldStatus = item.status;
-    if (["cancelled", "returned"].includes(status) && !["cancelled", "returned"].includes(oldStatus)) {
+    return res.render("admin/orders", {
+      order: order,
+      itemCancellationSafety: itemCancellationSafety,
+    });
+  } catch (error) {
+    console.error("Error fetching order details:", error);
+    if (req.query.ajax === "1") {
+      return res.status(500).json({ success: false, message: "Server error." });
+    }
+    return res.redirect("/admin/orders");
+  }
+};
+
+
+export const updateItemStatus = async (req, res) => {
+  try {
+    const { id: orderId, itemId } = req.params;
+    const { status: targetStatus } = req.body;
+
+    const allowedStatuses = [
+      "pending",
+      "confirmed",
+      "shipped",
+      "out_for_delivery",
+      "delivered",
+      "cancelled",
+      "returned",
+    ];
+
+    if (!allowedStatuses.includes(targetStatus)) {
+      return res.json({ success: false, message: "Invalid status." });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(orderId) || !mongoose.Types.ObjectId.isValid(itemId)) {
+      return res.json({ success: false, message: "Invalid ID." });
+    }
+
+    const order = await Order.findById(orderId);
+    if (!order) {
+      return res.json({ success: false, message: "Order not found." });
+    }
+
+    const item = order.items.find((orderItem) => orderItem._id.toString() === itemId);
+    if (!item) {
+      return res.json({ success: false, message: "Item not found." });
+    }
+
+    const currentItemStatus = item.status || order.orderStatus;
+    if (targetStatus === currentItemStatus) {
+      return res.json({ success: true, message: "Status is already set to " + targetStatus });
+    }
+
+    const validNextStatuses = FORWARD_TRANSITIONS[currentItemStatus] || [];
+    if (!validNextStatuses.includes(targetStatus)) {
+      return res.json({
+        success: false,
+        message: `Cannot move item status from "${currentItemStatus}" to "${targetStatus}". Only forward transitions are allowed.`,
+      });
+    }
+
+    const oldItemStatus = item.status;
+    const isNewCancellation = ["cancelled", "returned"].includes(targetStatus);
+    const belongedToCancellation = ["cancelled", "returned"].includes(oldItemStatus);
+
+    if (isNewCancellation && !belongedToCancellation) {
       const eligibility = await validatePartialCancellation(order, [item]);
       if (!eligibility.allowed) {
+        const customMessage = targetStatus === "returned"
+          ? "Partial return is not allowed because coupon eligibility will be lost. The remaining order value will fall below the coupon minimum purchase requirement."
+          : eligibility.message;
+
         return res.json({
           success: false,
-          message: status === "returned"
-            ? "Partial return is not allowed because coupon eligibility will be lost. The remaining order value will fall below the coupon minimum purchase requirement."
-            : eligibility.message,
+          message: customMessage,
           maxCancellableAmount: eligibility.maxCancellableAmount,
-          remainingSubtotal:    eligibility.remainingSubtotal,
-          minPurchaseAmount:    eligibility.minPurchaseAmount,
+          remainingSubtotal: eligibility.remainingSubtotal,
+          minPurchaseAmount: eligibility.minPurchaseAmount,
         });
       }
     }
 
-    item.status = status;
+    item.status = targetStatus;
 
-    if (["cancelled", "returned"].includes(status) && !["cancelled", "returned"].includes(oldStatus)) {
+    if (isNewCancellation && !belongedToCancellation) {
       const Variant = (await import("../../model/variantModel.js")).default;
-      const shouldRestoreStock = order.paymentMethod === "cod" || ["paid", "partially_refunded", "refunded", "adjusted"].includes(order.paymentStatus);
+      const validPaymentStatesForStock = ["paid", "partially_refunded", "refunded", "adjusted"];
+      const shouldRestoreStock = order.paymentMethod === "cod" || validPaymentStatesForStock.includes(order.paymentStatus);
 
       if (shouldRestoreStock) {
         await Variant.findByIdAndUpdate(item.variantId, { $inc: { stock: item.quantity } });
@@ -163,15 +223,15 @@ export const updateItemStatus = async (req, res) => {
       await refundItemsToWallet(
         order,
         [item],
-        `Refund for admin ${status} item "${item.productName}" in order #${order.orderId}`
+        `Refund for admin ${targetStatus} item "${item.productName}" in order #${order.orderId}`
       );
     }
 
-    order.items.forEach((orderItem) => {
+    for (const orderItem of order.items) {
       if (orderItem.finalAmount == null) {
         orderItem.finalAmount = orderItem.lineTotal ?? 0;
       }
-    });
+    }
 
     order.orderStatus = deriveOrderStatusFromItems(order.items);
     if (order.orderStatus === "delivered" && !["paid", "partially_refunded", "refunded"].includes(order.paymentStatus)) {
@@ -179,44 +239,54 @@ export const updateItemStatus = async (req, res) => {
     }
 
     await order.save();
-    res.json({ success: true, itemStatus: item.status, orderStatus: order.orderStatus });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, message: "Server error." });
+    return res.json({
+      success: true,
+      itemStatus: item.status,
+      orderStatus: order.orderStatus,
+    });
+  } catch (error) {
+    console.error("Error updating item status:", error);
+    return res.status(500).json({ success: false, message: "Server error." });
   }
 };
 
 export const deleteOrder = async (req, res) => {
   try {
-    const { id } = req.params;
-    if (!mongoose.Types.ObjectId.isValid(id))
+    const orderId = req.params.id;
+
+    if (!mongoose.Types.ObjectId.isValid(orderId)) {
       return res.json({ success: false, message: "Invalid ID." });
+    }
 
-    const order = await Order.findByIdAndDelete(id);
-    if (!order) return res.json({ success: false, message: "Order not found." });
+    const order = await Order.findByIdAndDelete(orderId);
+    if (!order) {
+      return res.json({ success: false, message: "Order not found." });
+    }
 
-    res.json({ success: true, message: "Order deleted successfully." });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, message: "Server error." });
+    return res.json({ success: true, message: "Order deleted successfully." });
+  } catch (error) {
+    console.error("Error deleting order:", error);
+    return res.status(500).json({ success: false, message: "Server error." });
   }
 };
 
 export const approveReturn = async (req, res) => {
   try {
-    const { id } = req.params;
-    if (!mongoose.Types.ObjectId.isValid(id))
-      return res.json({ success: false, message: "Invalid order ID." });
+    const orderId = req.params.id;
 
-    const order = await Order.findById(id);
-    if (!order) return res.json({ success: false, message: "Order not found." });
+    if (!mongoose.Types.ObjectId.isValid(orderId)) {
+      return res.json({ success: false, message: "Invalid order ID." });
+    }
+
+    const order = await Order.findById(orderId);
+    if (!order) {
+      return res.json({ success: false, message: "Order not found." });
+    }
 
     const returnItems = order.items.filter((item) => item.status === "return_requested");
-    if (returnItems.length === 0)
+    if (returnItems.length === 0) {
       return res.json({ success: false, message: "No pending return requests found." });
-
-    const now = new Date();
-    const Variant = (await import("../../model/variantModel.js")).default;
+    }
 
     const eligibility = await validatePartialCancellation(order, returnItems);
     if (!eligibility.allowed) {
@@ -224,14 +294,17 @@ export const approveReturn = async (req, res) => {
         success: false,
         message: "Return cannot be approved because coupon eligibility will be lost. The remaining order value will fall below the coupon minimum purchase requirement.",
         maxCancellableAmount: eligibility.maxCancellableAmount,
-        remainingSubtotal:    eligibility.remainingSubtotal,
-        minPurchaseAmount:    eligibility.minPurchaseAmount,
+        remainingSubtotal: eligibility.remainingSubtotal,
+        minPurchaseAmount: eligibility.minPurchaseAmount,
       });
     }
 
+    const currentDate = new Date();
+    const Variant = (await import("../../model/variantModel.js")).default;
+
     for (const item of returnItems) {
-      item.status           = "returned";
-      item.returnApprovedAt = now;
+      item.status = "returned";
+      item.returnApprovedAt = currentDate;
       await Variant.findByIdAndUpdate(item.variantId, { $inc: { stock: item.quantity } });
     }
 
@@ -241,61 +314,85 @@ export const approveReturn = async (req, res) => {
       `Refund for approved return on order #${order.orderId}`
     );
 
-    const statuses = order.items.map((item) => item.status);
-    const allDone  = statuses.every((status) => ["returned", "cancelled"].includes(status));
-    if (allDone) {
+    // Step 7: Recalculate overall order status
+    const allItemStatuses = order.items.map((item) => item.status);
+    const allItemsFinished = allItemStatuses.every((status) => ["returned", "cancelled"].includes(status));
+
+    if (allItemsFinished) {
       order.orderStatus = "returned";
     } else {
-      const anyActive = statuses.some((status) => !["returned", "cancelled"].includes(status));
-      order.orderStatus = anyActive ? order.orderStatus : "returned";
+      const hasActiveItems = allItemStatuses.some((status) => !["returned", "cancelled"].includes(status));
+      order.orderStatus = hasActiveItems ? order.orderStatus : "returned";
     }
 
+    // Step 8: Save updated order and return success response
     await order.save();
-    const message = refundedAmount > 0 ? "Return approved. Refund issued to customer wallet." : "Return approved.";
-    res.json({ success: true, message, orderStatus: order.orderStatus });
-  } catch (err) {
-    console.error("approveReturn error:", err);
-    res.status(500).json({ success: false, message: "Server error." });
+    const successMessage = refundedAmount > 0
+      ? "Return approved. Refund issued to customer wallet."
+      : "Return approved.";
+
+    return res.json({
+      success: true,
+      message: successMessage,
+      orderStatus: order.orderStatus,
+    });
+  } catch (error) {
+    console.error("Error in approveReturn:", error);
+    return res.status(500).json({ success: false, message: "Server error." });
   }
 };
 
 export const rejectReturn = async (req, res) => {
   try {
-    const { id }     = req.params;
-    const { reason } = req.body;
+    const orderId = req.params.id;
+    const rejectionReason = req.body.reason;
 
-    if (!reason?.trim())
+    if (!rejectionReason || !rejectionReason.trim()) {
       return res.json({ success: false, message: "Please provide a rejection reason." });
-
-    if (!mongoose.Types.ObjectId.isValid(id))
-      return res.json({ success: false, message: "Invalid order ID." });
-
-    const order = await Order.findById(id);
-    if (!order) return res.json({ success: false, message: "Order not found." });
-
-    const returnItems = order.items.filter((item) => item.status === "return_requested");
-    if (returnItems.length === 0)
-      return res.json({ success: false, message: "No pending return requests found." });
-
-    const now = new Date();
-    for (const item of returnItems) {
-      item.status                = "return_rejected";
-      item.returnRejectedAt      = now;
-      item.returnRejectionReason = reason.trim();
     }
 
-    const statuses  = order.items.map((item) => item.status);
-    const hasActive = statuses.some((status) => !["cancelled", "returned", "return_rejected", "delivered"].includes(status));
+    if (!mongoose.Types.ObjectId.isValid(orderId)) {
+      return res.json({ success: false, message: "Invalid order ID." });
+    }
 
-    if (!hasActive) {
-      const allRejected = statuses.every((status) => status === "return_rejected" || status === "cancelled");
-      order.orderStatus = allRejected ? "return_rejected" : "delivered";
+    const order = await Order.findById(orderId);
+    if (!order) {
+      return res.json({ success: false, message: "Order not found." });
+    }
+
+    const returnItems = order.items.filter((item) => item.status === "return_requested");
+    if (returnItems.length === 0) {
+      return res.json({ success: false, message: "No pending return requests found." });
+    }
+
+    const currentDate = new Date();
+    for (const item of returnItems) {
+      item.status = "return_rejected";
+      item.returnRejectedAt = currentDate;
+      item.returnRejectionReason = rejectionReason.trim();
+    }
+
+    const allItemStatuses = order.items.map((item) => item.status);
+    const hasActiveItems = allItemStatuses.some(
+      (status) => !["cancelled", "returned", "return_rejected", "delivered"].includes(status)
+    );
+
+    if (!hasActiveItems) {
+      const allRejectedOrCancelled = allItemStatuses.every(
+        (status) => status === "return_rejected" || status === "cancelled"
+      );
+      order.orderStatus = allRejectedOrCancelled ? "return_rejected" : "delivered";
     }
 
     await order.save();
-    res.json({ success: true, message: "Return request rejected.", orderStatus: order.orderStatus });
-  } catch (err) {
-    console.error("rejectReturn error:", err);
-    res.status(500).json({ success: false, message: "Server error." });
+
+    return res.json({
+      success: true,
+      message: "Return request rejected.",
+      orderStatus: order.orderStatus,
+    });
+  } catch (error) {
+    console.error("Error in rejectReturn:", error);
+    return res.status(500).json({ success: false, message: "Server error." });
   }
 };
