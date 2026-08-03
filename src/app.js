@@ -30,7 +30,6 @@ app.use(express.urlencoded({ extended: true, limit: "5mb" }));
 app.use(express.json({ limit: "5mb" }));
 
 app.use(express.static(path.join(__dirname, "public")));
-app.use("/uploads", express.static(path.join(__dirname, "public/uploads")));
 
 app.set("view engine", "ejs");
 app.set("views", path.resolve(__dirname, "views"));

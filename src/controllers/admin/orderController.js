@@ -21,7 +21,6 @@ const FORWARD_TRANSITIONS = {
 
 export const getOrders = async (req, res) => {
   try {
-    // Step 1: Read and parse query parameters
     const searchQuery = (req.query.q || "").trim();
     const sortOrderParam = req.query.sort || "desc";
     const statusFilter = req.query.status || "all";

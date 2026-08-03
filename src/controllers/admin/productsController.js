@@ -1,50 +1,35 @@
 import Product from "../../model/productModel.js";
 import Variant from "../../model/variantModel.js";
 import Category from "../../model/categoryModel.js";
-import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
 import { AppError } from "../../errors/appError.js";
 import { deleteFromCloudinary } from "../../services/cloudinaryService.js";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
+// Number of products displayed per page in admin products list
 const PER_PAGE = 8;
 
+// ==========================================
+// HELPER FUNCTIONS
+// ==========================================
+
+/**
+ * Helper function to delete an image file from Cloudinary.
+ */
 function deleteProductImage(imagePath) {
   if (!imagePath) return;
-
-  //Delete image if hosted from cloudnary
-  if (imagePath.startsWith("http://") || imagePath.startsWith("https://")) {
-    deleteFromCloudinary(imagePath);
-    return;
-  }
-
-  // Delete local file from public folder
-  const absolutePath = path.join(__dirname, "../../public", imagePath);
-  if (fs.existsSync(absolutePath)) {
-    fs.unlink(absolutePath, (error) => {
-      if (error && error.code !== "ENOENT") {
-        console.error("Error deleting local image file:", absolutePath, error.message);
-      }
-    });
-  }
+  deleteFromCloudinary(imagePath);
 }
 
 /**
- * Helper function to convert an uploaded file object into a public web image path.
+ * Helper function to convert an uploaded file object into a public Cloudinary web image path.
  */
 function getWebImagePath(file) {
   if (file.path && (file.path.startsWith("http://") || file.path.startsWith("https://"))) {
     return file.path;
   }
-  const normalizedPath = file.path ? file.path.replace(/\\/g, "/") : "";
-  const pathParts = normalizedPath.split("/public/");
-  if (pathParts.length >= 2) {
-    return "/" + pathParts[pathParts.length - 1];
+  if (file.filename && (file.filename.startsWith("http://") || file.filename.startsWith("https://"))) {
+    return file.filename;
   }
-  return `/uploads/product/${file.filename}`;
+  return file.path || "";
 }
 
 /**

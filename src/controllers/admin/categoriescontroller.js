@@ -215,10 +215,10 @@ export const createCategory = async (req, res) => {
       return res.status(409).json({ success: false, message: "Category already exists." });
     }
 
-    if (!req.file) {
+    if (!req.file || !req.file.path) {
       return res.status(400).json({ success: false, message: "Category image is required." });
     }
-    const imagePath = req.file.path || `/uploads/category/${req.file.filename}`;
+    const imagePath = req.file.path;
 
     const category = await Category.create({
       categoryName:         categoryName.trim(),
@@ -291,7 +291,7 @@ export const updateCategory = async (req, res) => {
     category.categoryName         = categoryName.trim();
     category.description          = (description || "").trim();
     if (req.file) {
-      category.image = req.file.path || `/uploads/category/${req.file.filename}`;
+      category.image = req.file.path;
     } else if (imageRemoved) {
       category.image = "";
     }

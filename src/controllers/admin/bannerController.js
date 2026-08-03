@@ -2,23 +2,13 @@ import Banner from "../../model/bannerModel.js";
 import Offer from "../../model/offersModel.js";
 import Product from "../../model/productModel.js";
 import Category from "../../model/categoryModel.js";
-import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
 import { deleteFromCloudinary } from "../../services/cloudinaryService.js";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname  = path.dirname(__filename);
 const PER_PAGE   = 10;
 
 function deleteImage(imagePath) {
   if (!imagePath) return;
-  if (imagePath.startsWith("http://") || imagePath.startsWith("https://")) {
-    deleteFromCloudinary(imagePath);
-    return;
-  }
-  const fullPath = path.join(__dirname, "../../public", imagePath);
-  if (fs.existsSync(fullPath)) fs.unlink(fullPath, () => {});
+  deleteFromCloudinary(imagePath);
 }
 
 function getFilter(tab) {
@@ -131,8 +121,8 @@ export const createBanner = async (req, res) => {
   try {
     const { type, title, subtitle, badgeText, offerText, countdownEnabled, countdownEndDate, status, offerId } = req.body;
 
-    if (!req.file) return res.status(400).json({ success: false, message: "Banner image is required." });
-    const newImagePath = req.file.path || `/uploads/banners/${req.file.filename}`;
+    if (!req.file || !req.file.path) return res.status(400).json({ success: false, message: "Banner image is required." });
+    const newImagePath = req.file.path;
 
     const validationError = getValidationError({ type, title, subtitle, badgeText, offerText, countdownEnabled, countdownEndDate, status });
     if (validationError) {
@@ -240,7 +230,7 @@ export const editBanner = async (req, res) => {
 
     if (req.file) {
       deleteImage(banner.image);
-      banner.image = req.file.path || `/uploads/banners/${req.file.filename}`;
+      banner.image = req.file.path;
     }
 
     let computedRedirectType = "product";
