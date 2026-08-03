@@ -6,18 +6,15 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname  = path.dirname(__filename);
 
-// ── helper: ensure folder exists ─────────────────────────────
 function ensureDir(dirPath) {
   if (!fs.existsSync(dirPath)) fs.mkdirSync(dirPath, { recursive: true });
 }
 
-// ── unique filename generator ─────────────────────────────────
 function uniqueFilename(file) {
   const unique = Date.now() + "-" + Math.round(Math.random() * 1e9);
   return unique + path.extname(file.originalname);
 }
 
-// ── file type filter ──────────────────────────────────────────
 const fileFilter = (req, file, cb) => {
   const allowed = ["image/png", "image/jpeg", "image/jpg", "image/webp"];
   if (allowed.includes(file.mimetype)) {
@@ -27,9 +24,6 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
-// ══════════════════════════════════════════════════════════════
-//  PROFILE upload  →  src/public/uploads/profile/
-// ══════════════════════════════════════════════════════════════
 const profilePath = path.join(__dirname, "../public/uploads/profile");
 ensureDir(profilePath);
 
