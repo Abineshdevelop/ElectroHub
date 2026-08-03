@@ -155,13 +155,7 @@ export const getOrderHistory = async (req, res) => {
       .sort({ createdAt: -1 })
       .lean();
 
-    const [
-      allCount,
-      pendingCount,
-      completedCount,
-      cancelledCount,
-      returnedCount,
-    ] = await Promise.all([
+    const [allCount,pendingCount,completedCount,cancelledCount,returnedCount,] = await Promise.all([
       Order.countDocuments({ userId }),
       Order.countDocuments({
         userId,

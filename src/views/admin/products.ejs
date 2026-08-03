@@ -950,13 +950,14 @@ function openForm(mode, id = null) {
         document.getElementById('descCount').textContent = (p.description || '').length;
         if (!p.isActive) document.getElementById('statusInactive').checked = true;
         const catId = p.category?._id || p.category;
-        if (catId) { document.getElementById('fCategory').value = String(catId); onCategoryChange(String(catId)); }
+        if (catId) { document.getElementById('fCategory').value = String(catId); onCategoryChange(String(catId), true); }
         _variants = (p.variants || []).map(v => ({
           _id: v._id ? String(v._id) : null, options: v.options || {},
           price: v.price || 0, stock: v.stock || 0, slots: buildSlots(v.images || []),
         }));
         _specValues = p.specifications || {};
-        setTimeout(() => { renderVariantRows(); renderSpecFields(_catSpecsConfig, _specValues); }, 200);
+        renderVariantRows();
+        renderSpecFields(_catSpecsConfig, _specValues);
       })
       .catch(() => showToast('Network error.', 'error'));
   }
@@ -971,13 +972,25 @@ function closeForm() {
   _editingId = null; _variants = []; _specValues = {};
 }
 
-function onCategoryChange(catId) {
+function getOptionValue(options, optName) {
+  if (!options) return '';
+  if (options[optName] !== undefined) return options[optName];
+  const lowerOpt = String(optName).toLowerCase();
+  for (const key of Object.keys(options)) {
+    if (key.toLowerCase() === lowerOpt) return options[key];
+  }
+  return '';
+}
+
+function onCategoryChange(catId, preserveVariants = false) {
   if (!catId) { _catSpecsConfig = []; _catVariantOpts = []; renderSpecFields([]); renderVariantRows(); return; }
   const opt = document.querySelector(`#fCategory option[value="${catId}"]`);
   if (!opt) return;
   try { _catSpecsConfig = JSON.parse(opt.dataset.specs    || '[]'); } catch { _catSpecsConfig = []; }
   try { _catVariantOpts = JSON.parse(opt.dataset.variants || '[]'); } catch { _catVariantOpts = []; }
-  _variants = [];
+  if (!preserveVariants) {
+    _variants = [];
+  }
   renderVariantRows();
   renderSpecFields(_catSpecsConfig, _specValues);
   document.getElementById('catErr').classList.add('hidden');
@@ -1106,7 +1119,7 @@ function renderVariantRows() {
   container.innerHTML = _variants.map((v, vi) => {
     if (!v.slots) v.slots = Array(5).fill(null).map(() => ({ type: null, url: null, file: null }));
     const optionFieldsHtml = _catVariantOpts.map(opt => {
-      const cur   = v.options[opt.variantName] || '';
+      const cur   = getOptionValue(v.options, opt.variantName);
       const label = escHtml(opt.variantName);
       if (!opt.usesSuffix) {
         const hasVals = opt.plainValues?.length > 0 && opt.plainValues.some(x => x.trim());
@@ -1122,7 +1135,7 @@ function renderVariantRows() {
         }
         return `<div><label class="block text-xs font-medium text-gray-600 mb-1">${label} <span class="text-red-500">*</span></label>
           <input type="text" value="${escHtml(cur)}" placeholder="Enter ${label}"
-            oninput="const u=this.value.toUpperCase();this.value=u;updateVariantOption(${vi},'${escHtml(opt.variantName)}',u)"
+            oninput="const s=this.selectionStart,e=this.selectionEnd,u=this.value.toUpperCase();if(this.value!==u){this.value=u;if(s!==null)this.setSelectionRange(s,e);}updateVariantOption(${vi},'${escHtml(opt.variantName)}',u)"
             style="text-transform:uppercase"
             class="w-full px-3 py-2 border border-gray-200 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gray-300 transition uppercase"/></div>`;
       } else {
@@ -1183,14 +1196,14 @@ function renderVariantRows() {
               <label class="block text-xs font-medium text-gray-600 mb-1">Price (₹) <span class="text-red-500">*</span></label>
               <input type="number" inputmode="numeric" min="0" value="${escHtml(String(v.price || ''))}" placeholder="55000"
                 onkeydown="numericOnly(event)"
-                oninput="this.value=this.value.replace(/[^0-9]/g,'');_variants[${vi}].price=parseInt(this.value)||0"
+                oninput="const val=this.value.replace(/[^0-9]/g,'');if(this.value!==val){const s=this.selectionStart;this.value=val;if(s!==null)this.setSelectionRange(s,s);}_variants[${vi}].price=parseInt(val)||0"
                 class="w-full px-3 py-2 border border-gray-200 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gray-300 transition"/>
             </div>
             <div>
               <label class="block text-xs font-medium text-gray-600 mb-1">Stock <span class="text-red-500">*</span></label>
               <input type="number" inputmode="numeric" min="0" value="${escHtml(String(v.stock || ''))}" placeholder="100"
                 onkeydown="numericOnly(event)"
-                oninput="this.value=this.value.replace(/[^0-9]/g,'');_variants[${vi}].stock=parseInt(this.value)||0"
+                oninput="const val=this.value.replace(/[^0-9]/g,'');if(this.value!==val){const s=this.selectionStart;this.value=val;if(s!==null)this.setSelectionRange(s,s);}_variants[${vi}].stock=parseInt(val)||0"
                 class="w-full px-3 py-2 border border-gray-200 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gray-300 transition"/>
             </div>
           </div>

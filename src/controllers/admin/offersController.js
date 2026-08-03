@@ -2,118 +2,140 @@ import Offer from "../../model/offersModel.js";
 import Product from "../../model/productModel.js";
 import Category from "../../model/categoryModel.js";
 
-const PAGE_SIZE_LIMIT = 10;
+const PER_PAGE = 10;
 
-function validateOfferBody({
-  offerName,
-  offerType,
-  refId,
-  offerPercentage,
-  startDate,
-  endDate,
-}) {
-  const errors = [];
+function validateOfferInput(data) {
+  const { offerName, offerType, refId, offerPercentage, startDate, endDate } = data;
 
-  if (!offerName || !offerName.trim()) {
-    errors.push("Offer name is required.");
-  } else if (offerName.trim().length < 3) {
-    errors.push("Offer name must be at least 3 characters.");
-  } else if (offerName.trim().length > 30) {
-    errors.push("Offer name must not exceed 30 characters.");
+  const cleanName = offerName ? offerName.trim() : "";
+  if (!cleanName) {
+    return "Offer name is required.";
+  }
+  if (cleanName.length < 3) {
+    return "Offer name must be at least 3 characters.";
+  }
+  if (cleanName.length > 30) {
+    return "Offer name must not exceed 30 characters.";
   }
 
   if (!offerType) {
-    errors.push("Offer type is required.");
-  } else if (!["product", "category"].includes(offerType)) {
-    errors.push("Offer type must be 'product' or 'category'.");
+    return "Offer type is required.";
+  }
+  if (offerType !== "product" && offerType !== "category") {
+    return "Offer type must be 'product' or 'category'.";
   }
 
   if (!refId || !String(refId).trim()) {
-    errors.push("Please select a valid product or category.");
+    return "Please select a valid product or category.";
+  }
+  if (offerPercentage === undefined || offerPercentage === null || offerPercentage === "") {
+    return "Offer percentage is required.";
   }
 
   const numericPercentage = Number(offerPercentage);
-  if (
-    offerPercentage === undefined ||
-    offerPercentage === null ||
-    offerPercentage === ""
-  ) {
-    errors.push("Offer percentage is required.");
-  } else if (isNaN(numericPercentage)) {
-    errors.push("Offer percentage must be a number.");
-  } else if (numericPercentage < 1) {
-    errors.push("Offer percentage must be at least 1%.");
-  } else if (numericPercentage > 100) {
-    errors.push("Offer percentage cannot exceed 100%.");
-  } else if (!Number.isInteger(numericPercentage)) {
-    errors.push("Offer percentage must be a whole number.");
+  if (isNaN(numericPercentage)) {
+    return "Offer percentage must be a number.";
   }
-
+  if (numericPercentage < 1) {
+    return "Offer percentage must be at least 1%.";
+  }
+  if (numericPercentage > 100) {
+    return "Offer percentage cannot exceed 100%.";
+  }
+  if (!Number.isInteger(numericPercentage)) {
+    return "Offer percentage must be a whole number.";
+  }
   if (!startDate) {
-    errors.push("Start date is required.");
-  } else if (isNaN(new Date(startDate).getTime())) {
-    errors.push("Start date is invalid.");
+    return "Start date is required.";
   }
-
+  const parsedStartDate = new Date(startDate);
+  if (isNaN(parsedStartDate.getTime())) {
+    return "Start date is invalid.";
+  }
   if (!endDate) {
-    errors.push("Expiry date is required.");
-  } else if (isNaN(new Date(endDate).getTime())) {
-    errors.push("Expiry date is invalid.");
-  } else if (startDate && new Date(endDate) <= new Date(startDate)) {
-    errors.push("Expiry date must be after the start date.");
+    return "Expiry date is required.";
   }
-
-  return errors;
+  const parsedEndDate = new Date(endDate);
+  if (isNaN(parsedEndDate.getTime())) {
+    return "Expiry date is invalid.";
+  }
+  if (parsedEndDate <= parsedStartDate) {
+    return "Expiry date must be after the start date.";
+  }
+  return null;
 }
 
-async function populateOfferRef(offer) {
-  const plainOffer = offer.toObject ? offer.toObject() : { ...offer };
+
+ //function to attach Product or Category details to an offer object.
+async function populateOfferReference(offer) {
+  // Convert Mongoose document to a simple Javascript object if needed
+  const offerObject = offer.toObject ? offer.toObject() : { ...offer };
+
   try {
-    if (plainOffer.offerType === "product") {
-      const product = await Product.findById(plainOffer.refId)
-        .select("productName")
-        .lean();
-      plainOffer.refId = product
-        ? { _id: product._id, productName: product.productName }
-        : null;
-    } else if (plainOffer.offerType === "category") {
-      const category = await Category.findById(plainOffer.refId)
-        .select("categoryName")
-        .lean();
-      plainOffer.refId = category
-        ? { _id: category._id, categoryName: category.categoryName }
-        : null;
+    if (offerObject.offerType === "product") {
+      const product = await Product.findById(offerObject.refId).select("productName").lean();
+      if (product) {
+        offerObject.refId = {
+          _id: product._id,
+          productName: product.productName,
+        };
+      } else {
+        offerObject.refId = null;
+      }
+    } else if (offerObject.offerType === "category") {
+      // Look up category name by ID
+      const category = await Category.findById(offerObject.refId).select("categoryName").lean();
+      if (category) {
+        offerObject.refId = {
+          _id: category._id,
+          categoryName: category.categoryName,
+        };
+      } else {
+        offerObject.refId = null;
+      }
     }
-  } catch {
-    plainOffer.refId = null;
+  } catch (error) {
+    offerObject.refId = null;
   }
-  return plainOffer;
+
+  return offerObject;
 }
 
+//Applies offer percentage discount to all variants of a product.
 async function applyOfferToProduct(productId, percentage) {
   const product = await Product.findById(productId);
   if (!product) return;
-  product.variants.forEach((variant) => {
-    variant.salePrice = Math.round(variant.price - (variant.price * percentage) / 100);
-  });
+
+  // Update salePrice for each variant
+  for (const variant of product.variants) {
+    const discountAmount = (variant.price * percentage) / 100;
+    variant.salePrice = Math.round(variant.price - discountAmount);
+  }
+
   await product.save();
 }
 
+
+//Removes discount sale prices from all variants of a product.
 async function removeOfferFromProduct(productId) {
   const product = await Product.findById(productId);
   if (!product) return;
-  product.variants.forEach((variant) => {
+
+  // Reset salePrice to null for each variant
+  for (const variant of product.variants) {
     variant.salePrice = null;
-  });
+  }
+
   await product.save();
 }
 
 async function applyOfferToCategory(categoryId, percentage) {
   const products = await Product.find({
-    categoryId,
+    categoryId: categoryId,
     isActive: true,
     isDeleted: false,
   });
+
   for (const product of products) {
     await applyOfferToProduct(product._id, percentage);
   }
@@ -121,10 +143,11 @@ async function applyOfferToCategory(categoryId, percentage) {
 
 async function removeOfferFromCategory(categoryId) {
   const products = await Product.find({
-    categoryId,
+    categoryId: categoryId,
     isActive: true,
     isDeleted: false,
   });
+
   for (const product of products) {
     await removeOfferFromProduct(product._id);
   }
@@ -133,39 +156,49 @@ async function removeOfferFromCategory(categoryId) {
 function getTabFilter(tab) {
   const now = new Date();
   const baseFilter = { isDeleted: false };
-
   if (tab === "active") return { ...baseFilter, isActive: true, endDate: { $gte: now } };
   if (tab === "inactive") return { ...baseFilter, isActive: false, endDate: { $gte: now } };
   if (tab === "expired") return { ...baseFilter, endDate: { $lt: now } };
-
   return baseFilter;
 }
 
+
 export const getOffersPage = async (req, res) => {
   try {
+
     const validTabs = ["all", "active", "inactive", "expired"];
     const activeTab = validTabs.includes(req.query.tab) ? req.query.tab : "all";
-    const page = Math.max(1, Number(req.query.page) || 1);
-    const isAjax = req.query.ajax === "1";
+
+    const requestedPage = parseInt(req.query.page, 10) || 1;
+    const page = Math.max(1, requestedPage);
+    const isAjaxRequest = req.query.ajax === "1";
 
     const filter = getTabFilter(activeTab);
 
     const totalOffers = await Offer.countDocuments(filter);
-    const totalPages = Math.max(1, Math.ceil(totalOffers / PAGE_SIZE_LIMIT));
+    const totalPages = Math.max(1, Math.ceil(totalOffers / PER_PAGE));
     const currentPage = Math.min(page, totalPages);
+    const skipItems = (currentPage - 1) * PER_PAGE;
 
-    const skip = (currentPage - 1) * PAGE_SIZE_LIMIT;
-    const showingFrom = totalOffers ? skip + 1 : 0;
-    const showingTo = Math.min(skip + PAGE_SIZE_LIMIT, totalOffers);
+    const showingFrom = totalOffers > 0 ? skipItems + 1 : 0;
+    const showingTo = Math.min(skipItems + PER_PAGE, totalOffers);
 
     const rawOffers = await Offer.find(filter)
       .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(PAGE_SIZE_LIMIT)
+      .skip(skipItems)
+      .limit(PER_PAGE)
       .lean();
 
-    const populatedOffers = await Promise.all(rawOffers.map(populateOfferRef));
+    //replace referance id into actual offer or category 
+    //in offers collection
+    const populatedOffers = [];
+    for (const offer of rawOffers) {
+      const populated = await populateOfferReference(offer);
+      populatedOffers.push(populated);
+    }
 
+
+    //final response object
     const responseData = {
       offers: populatedOffers,
       tab: activeTab,
@@ -176,53 +209,56 @@ export const getOffersPage = async (req, res) => {
       showingTo,
     };
 
-    if (isAjax) {
-      return res.json({ success: true, ...responseData });
-    }
-
-    res.render("admin/offers", responseData);
-  } catch (error) {
-    console.error("getOffersPage:", error);
-
-    if (req.query.ajax === "1") {
-      return res.status(500).json({
-        success: false,
-        message: "Server error",
+    // Step 7: Send JSON for AJAX call or render EJS page
+    if (isAjaxRequest) {
+      return res.json({
+        success: true,
+        ...responseData,
       });
     }
 
-    res.status(500).render("error", {
-      message: "Failed to load offers",
-    });
+    return res.render("admin/offers", responseData);
+  } catch (error) {
+    console.error("Error loading offers page:", error);
+    if (req.query.ajax === "1") {
+      return res.status(500).json({ success: false, message: "Server error." });
+    }
+    return res.status(500).render("error", { message: "Failed to load offers." });
   }
 };
 
+
 export const getOfferById = async (req, res) => {
   try {
-    if (!req.params.id.match(/^[0-9a-fA-F]{24}$/)) {
-      return res.status(400).json({ success: false, message: "Invalid offer ID" });
+    const offerId = req.params.id;
+
+    const isValidObjectId = /^[0-9a-fA-F]{24}$/.test(offerId);
+    if (!isValidObjectId) {
+      return res.status(400).json({ success: false, message: "Invalid offer ID." });
     }
-    const rawOffer = await Offer.findOne({
-      _id: req.params.id,
-      isDeleted: false,
-    }).lean();
+
+    const rawOffer = await Offer.findOne({ _id: offerId, isDeleted: false }).lean();
     if (!rawOffer) {
-      return res.status(404).json({ success: false, message: "Offer not found" });
+      return res.status(404).json({ success: false, message: "Offer not found." });
     }
-    const populatedOffer = await populateOfferRef(rawOffer);
-    res.json({ success: true, offer: populatedOffer });
+
+    const populatedOffer = await populateOfferReference(rawOffer);
+    return res.json({ success: true, offer: populatedOffer });
   } catch (error) {
-    console.error("getOfferById:", error);
-    res.status(500).json({ success: false, message: "Server error" });
+    console.error("Error fetching offer by ID:", error);
+    return res.status(500).json({ success: false, message: "Server error." });
   }
 };
 
 export const searchProducts = async (req, res) => {
   try {
     const searchQuery = (req.query.q || "").trim();
-    if (!searchQuery) return res.json({ results: [] });
+
+    if (!searchQuery) {
+      return res.json({ results: [] });
+    }
     if (searchQuery.length > 100) {
-      return res.status(400).json({ results: [], message: "Query too long" });
+      return res.status(400).json({ results: [], message: "Query too long." });
     }
 
     const products = await Product.find({
@@ -234,21 +270,27 @@ export const searchProducts = async (req, res) => {
       .limit(10)
       .lean();
 
-    res.json({
-      results: products.map((product) => ({ _id: product._id, name: product.productName })),
-    });
+    const formattedResults = products.map((product) => ({
+      _id: product._id,
+      name: product.productName,
+    }));
+
+    return res.json({ results: formattedResults });
   } catch (error) {
-    console.error("searchProducts:", error);
-    res.status(500).json({ results: [] });
+    console.error("Error searching products:", error);
+    return res.status(500).json({ results: [] });
   }
 };
 
 export const searchCategories = async (req, res) => {
   try {
     const searchQuery = (req.query.q || "").trim();
-    if (!searchQuery) return res.json({ results: [] });
+
+    if (!searchQuery) {
+      return res.json({ results: [] });
+    }
     if (searchQuery.length > 100) {
-      return res.status(400).json({ results: [], message: "Query too long" });
+      return res.status(400).json({ results: [], message: "Query too long." });
     }
 
     const categories = await Category.find({
@@ -259,28 +301,23 @@ export const searchCategories = async (req, res) => {
       .limit(10)
       .lean();
 
-    res.json({
-      results: categories.map((category) => ({ _id: category._id, name: category.categoryName })),
-    });
+    const formattedResults = categories.map((category) => ({
+      _id: category._id,
+      name: category.categoryName,
+    }));
+
+    return res.json({ results: formattedResults });
   } catch (error) {
-    console.error("searchCategories:", error);
-    res.status(500).json({ results: [] });
+    console.error("Error searching categories:", error);
+    return res.status(500).json({ results: [] });
   }
 };
 
 export const createOffer = async (req, res) => {
   try {
-    const {
-      offerName,
-      offerType,
-      refId,
-      offerPrecentage,
-      startDate,
-      endDate,
-      isActive,
-    } = req.body;
+    const { offerName, offerType, refId, offerPrecentage, startDate, endDate, isActive } = req.body;
 
-    const validationErrors = validateOfferBody({
+    const validationError = validateOfferInput({
       offerName,
       offerType,
       refId,
@@ -288,38 +325,31 @@ export const createOffer = async (req, res) => {
       startDate,
       endDate,
     });
-    if (validationErrors.length) {
-      return res.status(400).json({ success: false, message: validationErrors[0] });
+
+    if (validationError) {
+      return res.status(400).json({ success: false, message: validationError });
     }
 
     if (offerType === "product") {
-      const exists = await Product.findOne({
-        _id: refId,
-        isActive: true,
-        isDeleted: false,
-      });
-      if (!exists) {
-        return res.status(400).json({
-          success: false,
-          message: "Selected product not found or inactive",
-        });
+      const productExists = await Product.findOne({ _id: refId, isActive: true, isDeleted: false });
+      if (!productExists) {
+        return res.status(400).json({ success: false, message: "Selected product not found or inactive." });
       }
-    } else {
-      const exists = await Category.findOne({ _id: refId, isDeleted: false });
-      if (!exists) {
-        return res.status(400).json({
-          success: false,
-          message: "Selected category not found",
-        });
+    } else if (offerType === "category") {
+      const categoryExists = await Category.findOne({ _id: refId, isDeleted: false });
+      if (!categoryExists) {
+        return res.status(400).json({ success: false, message: "Selected category not found." });
       }
     }
 
+    const currentDate = new Date();
     const duplicateOffer = await Offer.findOne({
-      refId,
-      offerType,
+      refId: refId,
+      offerType: offerType,
       isDeleted: false,
-      endDate: { $gte: new Date() },
+      endDate: { $gte: currentDate },
     });
+
     if (duplicateOffer) {
       return res.status(409).json({
         success: false,
@@ -328,48 +358,54 @@ export const createOffer = async (req, res) => {
     }
 
     const percentage = Number(offerPrecentage);
-    const offer = await Offer.create({
+    const parsedStartDate = new Date(startDate);
+    const parsedEndDate = new Date(endDate + "T23:59:59");
+    const isOfferActive = isActive === true || isActive === "true";
+
+    const newOffer = await Offer.create({
       offerName: offerName.trim(),
-      offerType,
-      refId,
+      offerType: offerType,
+      refId: refId,
       offerPrecentage: percentage,
-      startDate: new Date(startDate),
-      endDate: new Date(endDate + "T23:59:59"),
-      isActive: isActive === true || isActive === "true",
+      startDate: parsedStartDate,
+      endDate: parsedEndDate,
+      isActive: isOfferActive,
     });
 
-    if (offer.isActive && new Date(offer.endDate) >= new Date()) {
-      if (offerType === "product") await applyOfferToProduct(refId, percentage);
-      if (offerType === "category") await applyOfferToCategory(refId, percentage);
+    if (newOffer.isActive && new Date(newOffer.endDate) >= new Date()) {
+      if (offerType === "product") {
+        await applyOfferToProduct(refId, percentage);
+      } else if (offerType === "category") {
+        await applyOfferToCategory(refId, percentage);
+      }
     }
 
-    res.status(201).json({ success: true, message: "Offer created successfully", offer });
+    return res.status(201).json({
+      success: true,
+      message: "Offer created successfully.",
+      offer: newOffer,
+    });
   } catch (error) {
-    console.error("createOffer:", error);
+    console.error("Error creating offer:", error);
     if (error.name === "CastError") {
-      return res.status(400).json({ success: false, message: "Invalid product or category ID" });
+      return res.status(400).json({ success: false, message: "Invalid product or category ID." });
     }
-    res.status(500).json({ success: false, message: "Failed to create offer" });
+    return res.status(500).json({ success: false, message: "Failed to create offer." });
   }
 };
 
 export const editOffer = async (req, res) => {
   try {
-    if (!req.params.id.match(/^[0-9a-fA-F]{24}$/)) {
-      return res.status(400).json({ success: false, message: "Invalid offer ID" });
+    const offerId = req.params.id;
+
+    const isValidObjectId = /^[0-9a-fA-F]{24}$/.test(offerId);
+    if (!isValidObjectId) {
+      return res.status(400).json({ success: false, message: "Invalid offer ID." });
     }
 
-    const {
-      offerName,
-      offerType,
-      refId,
-      offerPrecentage,
-      startDate,
-      endDate,
-      isActive,
-    } = req.body;
+    const { offerName, offerType, refId, offerPrecentage, startDate, endDate, isActive } = req.body;
 
-    const validationErrors = validateOfferBody({
+    const validationError = validateOfferInput({
       offerName,
       offerType,
       refId,
@@ -377,44 +413,37 @@ export const editOffer = async (req, res) => {
       startDate,
       endDate,
     });
-    if (validationErrors.length) {
-      return res.status(400).json({ success: false, message: validationErrors[0] });
+
+    if (validationError) {
+      return res.status(400).json({ success: false, message: validationError });
     }
 
-    const offer = await Offer.findOne({ _id: req.params.id, isDeleted: false });
+    const offer = await Offer.findOne({ _id: offerId, isDeleted: false });
     if (!offer) {
-      return res.status(404).json({ success: false, message: "Offer not found" });
+      return res.status(404).json({ success: false, message: "Offer not found." });
     }
 
     if (offerType === "product") {
-      const exists = await Product.findOne({
-        _id: refId,
-        isActive: true,
-        isDeleted: false,
-      });
-      if (!exists) {
-        return res.status(400).json({
-          success: false,
-          message: "Selected product not found or inactive",
-        });
+      const productExists = await Product.findOne({ _id: refId, isActive: true, isDeleted: false });
+      if (!productExists) {
+        return res.status(400).json({ success: false, message: "Selected product not found or inactive." });
       }
-    } else {
-      const exists = await Category.findOne({ _id: refId, isDeleted: false });
-      if (!exists) {
-        return res.status(400).json({
-          success: false,
-          message: "Selected category not found",
-        });
+    } else if (offerType === "category") {
+      const categoryExists = await Category.findOne({ _id: refId, isDeleted: false });
+      if (!categoryExists) {
+        return res.status(400).json({ success: false, message: "Selected category not found." });
       }
     }
 
+    const currentDate = new Date();
     const duplicateOffer = await Offer.findOne({
-      _id: { $ne: req.params.id },
-      refId,
-      offerType,
+      _id: { $ne: offerId },
+      refId: refId,
+      offerType: offerType,
       isDeleted: false,
-      endDate: { $gte: new Date() },
+      endDate: { $gte: currentDate },
     });
+
     if (duplicateOffer) {
       return res.status(409).json({
         success: false,
@@ -425,8 +454,7 @@ export const editOffer = async (req, res) => {
     if (offer.isActive) {
       if (offer.offerType === "product") {
         await removeOfferFromProduct(offer.refId);
-      }
-      if (offer.offerType === "category") {
+      } else if (offer.offerType === "category") {
         await removeOfferFromCategory(offer.refId);
       }
     }
@@ -439,36 +467,48 @@ export const editOffer = async (req, res) => {
     offer.startDate = new Date(startDate);
     offer.endDate = new Date(endDate + "T23:59:59");
     offer.isActive = isActive === true || isActive === "true";
+
     await offer.save();
 
     if (offer.isActive && new Date(offer.endDate) >= new Date()) {
-      if (offerType === "product") await applyOfferToProduct(refId, percentage);
-      if (offerType === "category") await applyOfferToCategory(refId, percentage);
+      if (offerType === "product") {
+        await applyOfferToProduct(refId, percentage);
+      } else if (offerType === "category") {
+        await applyOfferToCategory(refId, percentage);
+      }
     }
 
-    res.json({ success: true, message: "Offer updated successfully", offer });
+    return res.json({
+      success: true,
+      message: "Offer updated successfully.",
+      offer: offer,
+    });
   } catch (error) {
-    console.error("editOffer:", error);
+    console.error("Error editing offer:", error);
     if (error.name === "CastError") {
-      return res.status(400).json({ success: false, message: "Invalid ID provided" });
+      return res.status(400).json({ success: false, message: "Invalid ID provided." });
     }
-    res.status(500).json({ success: false, message: "Failed to update offer" });
+    return res.status(500).json({ success: false, message: "Failed to update offer." });
   }
 };
 
 export const toggleOffer = async (req, res) => {
   try {
-    if (!req.params.id.match(/^[0-9a-fA-F]{24}$/)) {
-      return res.status(400).json({ success: false, message: "Invalid offer ID" });
+    const offerId = req.params.id;
+
+    const isValidObjectId = /^[0-9a-fA-F]{24}$/.test(offerId);
+    if (!isValidObjectId) {
+      return res.status(400).json({ success: false, message: "Invalid offer ID." });
     }
 
-    const offer = await Offer.findOne({ _id: req.params.id, isDeleted: false });
+    const offer = await Offer.findOne({ _id: offerId, isDeleted: false });
     if (!offer) {
-      return res.status(404).json({ success: false, message: "Offer not found" });
+      return res.status(404).json({ success: false, message: "Offer not found." });
     }
 
-    if (new Date(offer.endDate) < new Date()) {
-      return res.status(400).json({ success: false, message: "Cannot toggle an expired offer" });
+    const currentDate = new Date();
+    if (new Date(offer.endDate) < currentDate) {
+      return res.status(400).json({ success: false, message: "Cannot toggle an expired offer." });
     }
 
     offer.isActive = !offer.isActive;
@@ -477,48 +517,50 @@ export const toggleOffer = async (req, res) => {
     if (offer.isActive) {
       if (offer.offerType === "product") {
         await applyOfferToProduct(offer.refId, offer.offerPrecentage);
-      }
-      if (offer.offerType === "category") {
+      } else if (offer.offerType === "category") {
         await applyOfferToCategory(offer.refId, offer.offerPrecentage);
       }
     } else {
       if (offer.offerType === "product") {
         await removeOfferFromProduct(offer.refId);
-      }
-      if (offer.offerType === "category") {
+      } else if (offer.offerType === "category") {
         await removeOfferFromCategory(offer.refId);
       }
     }
 
-    res.json({
+    //Return success response
+    const statusText = offer.isActive ? "enabled" : "disabled";
+    return res.json({
       success: true,
-      message: `Offer ${offer.isActive ? "enabled" : "disabled"} successfully`,
+      message: `Offer ${statusText} successfully.`,
       isActive: offer.isActive,
       offerName: offer.offerName,
       endDate: offer.endDate,
     });
   } catch (error) {
-    console.error("toggleOffer:", error);
-    res.status(500).json({ success: false, message: "Failed to toggle offer" });
+    console.error("Error toggling offer status:", error);
+    return res.status(500).json({ success: false, message: "Failed to toggle offer." });
   }
 };
 
 export const deleteOffer = async (req, res) => {
   try {
-    if (!req.params.id.match(/^[0-9a-fA-F]{24}$/)) {
-      return res.status(400).json({ success: false, message: "Invalid offer ID" });
+    const offerId = req.params.id;
+
+    const isValidObjectId = /^[0-9a-fA-F]{24}$/.test(offerId);
+    if (!isValidObjectId) {
+      return res.status(400).json({ success: false, message: "Invalid offer ID." });
     }
 
-    const offer = await Offer.findOne({ _id: req.params.id, isDeleted: false });
+    const offer = await Offer.findOne({ _id: offerId, isDeleted: false });
     if (!offer) {
-      return res.status(404).json({ success: false, message: "Offer not found" });
+      return res.status(404).json({ success: false, message: "Offer not found." });
     }
 
     if (offer.isActive) {
       if (offer.offerType === "product") {
         await removeOfferFromProduct(offer.refId);
-      }
-      if (offer.offerType === "category") {
+      } else if (offer.offerType === "category") {
         await removeOfferFromCategory(offer.refId);
       }
     }
@@ -527,9 +569,9 @@ export const deleteOffer = async (req, res) => {
     offer.isActive = false;
     await offer.save();
 
-    res.json({ success: true, message: "Offer deleted successfully" });
+    return res.json({ success: true, message: "Offer deleted successfully." });
   } catch (error) {
-    console.error("deleteOffer:", error);
-    res.status(500).json({ success: false, message: "Failed to delete offer" });
+    console.error("Error deleting offer:", error);
+    return res.status(500).json({ success: false, message: "Failed to delete offer." });
   }
 };

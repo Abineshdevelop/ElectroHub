@@ -3,7 +3,7 @@ import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import User from "./model/usermodel.js";
 
 
-console.log("process env ", process.env)
+// console.log("process env ", process.env)
 if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
   throw new Error("Google OAuth credentials not configured");
 }

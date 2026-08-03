@@ -276,7 +276,14 @@ export const getProductListingPage = async (req, res, next) => {
       const productId = String(product._id);
       const categoryId = String(product.categoryId);
 
-      const applicableOffer = productOfferMap.get(productId) || categoryOfferMap.get(categoryId) || null;
+      const pOffer = productOfferMap.get(productId);
+      const cOffer = categoryOfferMap.get(categoryId);
+      let applicableOffer = null;
+      if (pOffer && cOffer) {
+        applicableOffer = Number(pOffer.offerPrecentage) >= Number(cOffer.offerPrecentage) ? pOffer : cOffer;
+      } else {
+        applicableOffer = pOffer || cOffer || null;
+      }
       const offerPercentage = applicableOffer ? Number(applicableOffer.offerPrecentage) : 0;
 
       let variants = (product.variants || []).map(variant => {

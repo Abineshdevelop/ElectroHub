@@ -1,29 +1,40 @@
-///login, signup, logout, otp, forgot password
-
-import User from "../../model/usermodel.js"
+import User from "../../model/usermodel.js";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import sendMail from "../../services/mailService.js";
 import { AppError } from "../../errors/appError.js";
 import { creditWallet } from "./walletController.js";
 
+// Constants for OTP security rules
 const MAX_RESENDS = 3;
 const MAX_ATTEMPTS = 5;
 
+/**
+ * Helper function to generate a unique random uppercase referral code.
+ * Example output: "A1B2C3D4"
+ */
 export async function generateReferralToken() {
-  let token;
-  let isUnique = false;
-  while (!isUnique) {
+  let token = crypto.randomBytes(4).toString("hex").toUpperCase();
+  let existingUser = await User.findOne({ referralToken: token });
+
+  // Keep generating a new token until a unique one is found
+  while (existingUser) {
     token = crypto.randomBytes(4).toString("hex").toUpperCase();
-    const existing = await User.findOne({ referralToken: token });
-    if (!existing) isUnique = true;
+    existingUser = await User.findOne({ referralToken: token });
   }
+
   return token;
 }
 
+/**
+ * Helper function to generate a 4-digit OTP, save it to the user, and send an email.
+ */
 export async function generateAndSendOtp(user) {
+  // Step 1: Generate a random 4-digit OTP
   const otp = Math.floor(1000 + Math.random() * 9000).toString();
-  console.log(`Email send OTP is :  ${otp}`)
+  console.log(`[OTP Sent] Email: ${user.email} -> OTP: ${otp}`);
+
+  // Step 2: Attach OTP details and set 2-minute expiration
   user.otp = otp;
   user.otpExpiresAt = new Date(Date.now() + 2 * 60 * 1000);
   user.otpAttempts = 0;
@@ -31,6 +42,7 @@ export async function generateAndSendOtp(user) {
 
   await user.save();
 
+  // Step 3: Send OTP email to the user
   await sendMail(
     user.email,
     "Your OTP for ElectroHub",
@@ -38,10 +50,14 @@ export async function generateAndSendOtp(user) {
   );
 }
 
+/**
+ * Step-by-step User Signup Handler
+ */
 export async function signupUser(req, res, next) {
   try {
     const { firstName, lastName, email, phone, password, referralCode } = req.body;
 
+    // Step 1: Validate required input fields
     if (!firstName || !lastName || !email || !phone || !password) {
       throw new AppError(400, "All fields are required");
     }
@@ -49,24 +65,7 @@ export async function signupUser(req, res, next) {
     const cleanEmail = email.trim().toLowerCase();
     const cleanPhone = phone.trim();
 
-    let referredBy = null;
-    if (referralCode && referralCode.trim()) {
-      const trimmedCode = referralCode.trim().toUpperCase();
-      
-      const referrer = await User.findOne({ 
-        referralToken: trimmedCode
-      });
-      
-      if (referrer) {
-        if (referrer.email === cleanEmail || referrer.phone === cleanPhone) {
-           throw new AppError(400, "You cannot refer yourself");
-        }
-        referredBy = referrer._id;
-      } else {
-        throw new AppError(400, "Invalid referral code");
-      }
-    }
-
+    // Step 2: Validate email, phone, and password formats
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const phoneRegex = /^\d{10}$/;
     const strongPasswordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$/;
@@ -83,38 +82,48 @@ export async function signupUser(req, res, next) {
       throw new AppError(400, "Password must contain 8+ characters, uppercase, lowercase, number and special character");
     }
 
-    const [existingUserWithEmail, existingUserWithPhone] = await Promise.all([
-      User.findOne({ email: cleanEmail }),
-      User.findOne({ phone: cleanPhone })
-    ]);
+    // Step 3: Validate optional referral code
+    let referredBy = null;
+    if (referralCode && referralCode.trim()) {
+      const trimmedCode = referralCode.trim().toUpperCase();
+      const referrer = await User.findOne({ referralToken: trimmedCode });
 
-    if (existingUserWithEmail && existingUserWithPhone) {
-      if (existingUserWithEmail?.status == "active" && existingUserWithPhone?.status == "active") {
-        throw new AppError(400, "User Already Exist");
+      if (!referrer) {
+        throw new AppError(400, "Invalid referral code");
       }
+
+      if (referrer.email === cleanEmail || referrer.phone === cleanPhone) {
+        throw new AppError(400, "You cannot refer yourself");
+      }
+
+      referredBy = referrer._id;
     }
 
-    if (existingUserWithPhone && existingUserWithPhone?.status != "pending") {
-      throw new AppError(400, "Phone Number Already exist");
-    }
-
-    if (existingUserWithEmail && existingUserWithEmail?.status != "pending") {
+    // Step 4: Check if an active account already uses this email or phone
+    const existingEmailUser = await User.findOne({ email: cleanEmail });
+    if (existingEmailUser && existingEmailUser.status !== "pending") {
       throw new AppError(400, "Email Already exist");
     }
 
-    if (existingUserWithEmail?.status == "pending") {
-      await User.deleteOne({ email: cleanEmail });
+    const existingPhoneUser = await User.findOne({ phone: cleanPhone });
+    if (existingPhoneUser && existingPhoneUser.status !== "pending") {
+      throw new AppError(400, "Phone Number Already exist");
     }
 
-    if (!existingUserWithEmail && existingUserWithPhone?.status == "pending") {
+    // Step 5: Remove old pending accounts with matching email or phone
+    if (existingEmailUser && existingEmailUser.status === "pending") {
+      await User.deleteOne({ email: cleanEmail });
+    }
+    if (existingPhoneUser && existingPhoneUser.status === "pending") {
       await User.deleteOne({ phone: cleanPhone });
     }
 
+    // Step 6: Hash the password and create the pending user record
     const passwordHash = await bcrypt.hash(password, 10);
 
-    const user = await User.create({
-      firstName,
-      lastName,
+    const newUser = await User.create({
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
       email: cleanEmail,
       phone: cleanPhone,
       password: passwordHash,
@@ -123,13 +132,15 @@ export async function signupUser(req, res, next) {
       referredBy: referredBy
     });
 
-    await generateAndSendOtp(user);
-    req.session.allowSignupOtp = user._id.toString();
+    // Step 7: Generate OTP and authorize OTP page access in session
+    await generateAndSendOtp(newUser);
+    req.session.allowSignupOtp = newUser._id.toString();
 
+    // Step 8: Return success response
     res.status(201).json({
       success: true,
       message: "OTP sent",
-      userId: user._id
+      userId: newUser._id
     });
 
   } catch (err) {
@@ -137,17 +148,22 @@ export async function signupUser(req, res, next) {
   }
 }
 
+/**
+ * Step-by-step OTP Verification for Signup
+ */
 export async function verifyOtp(req, res, next) {
   try {
     const { userId, otp } = req.body;
-    const user = await User.findById(userId);
 
+    // Step 1: Find user by ID
+    const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({ success: false, message: "User not found" });
     }
 
-    // Locked until expiry
-    if (user.otpLockedUntil && user.otpLockedUntil > new Date()) {
+    // Step 2: Check if OTP attempts are currently locked
+    const now = new Date();
+    if (user.otpLockedUntil && user.otpLockedUntil > now) {
       return res.status(429).json({
         success: false,
         code: "LOCKED",
@@ -155,8 +171,8 @@ export async function verifyOtp(req, res, next) {
       });
     }
 
-    // OTP expired
-    if (!user.otp || user.otpExpiresAt < new Date()) {
+    // Step 3: Check if OTP is missing or expired
+    if (!user.otp || !user.otpExpiresAt || user.otpExpiresAt < now) {
       if (user.otpResendCount >= MAX_RESENDS) {
         await User.deleteOne({ _id: user._id });
         return res.status(403).json({
@@ -173,16 +189,15 @@ export async function verifyOtp(req, res, next) {
       });
     }
 
-    // Wrong OTP
+    // Step 4: Handle wrong OTP code
     if (user.otp !== otp) {
       user.otpAttempts += 1;
-    
       const attemptsLeft = Math.max(0, MAX_ATTEMPTS - user.otpAttempts);
-    
+
       if (user.otpAttempts >= MAX_ATTEMPTS) {
         user.otpLockedUntil = user.otpExpiresAt;
         await user.save();
-    
+
         if (user.otpResendCount >= MAX_RESENDS) {
           await User.deleteOne({ _id: user._id });
           return res.status(403).json({
@@ -191,24 +206,23 @@ export async function verifyOtp(req, res, next) {
             message: "Too many failed attempts. Please sign up again."
           });
         }
-    
+
         return res.status(400).json({
           success: false,
-          code: "LOCKED",     //disable button locaked when wrong otp
+          code: "LOCKED",
           attemptsLeft: 0
         });
       }
-    
+
       await user.save();
-    
       return res.status(400).json({
         success: false,
         code: "WRONG_OTP",
-        attemptsLeft           
+        attemptsLeft: attemptsLeft
       });
     }
 
-    // SUCCESS
+    // Step 5: OTP is Correct! Activate user account
     user.status = "active";
     user.otp = null;
     user.otpExpiresAt = null;
@@ -218,14 +232,15 @@ export async function verifyOtp(req, res, next) {
 
     user.referralToken = await generateReferralToken();
 
+    // Reward both users if signed up via referral link
     if (user.referredBy) {
-        // Reward both
-        await creditWallet(user._id, 1000, "Signup referral bonus", "referral_bonus");
-        await creditWallet(user.referredBy, 1000, "Friend referral reward", "referral_reward");
+      await creditWallet(user._id, 1000, "Signup referral bonus", "referral_bonus");
+      await creditWallet(user.referredBy, 1000, "Friend referral reward", "referral_reward");
     }
 
     await user.save();
 
+    // Step 6: Create user session and return redirect URL
     req.session.user = {
       _id: user._id,
       email: user.email,
@@ -239,6 +254,9 @@ export async function verifyOtp(req, res, next) {
   }
 }
 
+/**
+ * Resend OTP for Signup
+ */
 export async function resendOtp(req, res) {
   try {
     const { userId } = req.body;
@@ -248,6 +266,7 @@ export async function resendOtp(req, res) {
       return res.status(404).json({ success: false });
     }
 
+    // Prevent resending if max resend count is reached
     if (user.otpResendCount >= MAX_RESENDS) {
       return res.json({
         success: false,
@@ -255,9 +274,10 @@ export async function resendOtp(req, res) {
       });
     }
 
-    // Prevent resend before expiry
-    if (user.otpExpiresAt && user.otpExpiresAt > new Date()) {
-      const secondsLeft = Math.ceil((user.otpExpiresAt - new Date()) / 1000);
+    // Prevent resending before current OTP expires
+    const now = new Date();
+    if (user.otpExpiresAt && user.otpExpiresAt > now) {
+      const secondsLeft = Math.ceil((user.otpExpiresAt - now) / 1000);
       return res.status(429).json({
         success: false,
         message: `Please wait ${secondsLeft} seconds`
@@ -279,14 +299,19 @@ export async function resendOtp(req, res) {
   }
 }
 
+/**
+ * Step-by-step User Login Handler
+ */
 export async function loginUser(req, res, next) {
   try {
     const { identifier, password } = req.body;
 
+    // Step 1: Check required fields
     if (!identifier || !password) {
       throw new AppError(400, "All fields are required");
     }
 
+    // Step 2: Find user by email or phone number
     const user = await User.findOne({
       $or: [{ email: identifier }, { phone: identifier }]
     });
@@ -298,6 +323,7 @@ export async function loginUser(req, res, next) {
       });
     }
 
+    // Step 3: Check if account is blocked by admin
     if (user.status === "blocked") {
       return res.json({
         success: false,
@@ -306,6 +332,7 @@ export async function loginUser(req, res, next) {
       });
     }
 
+    // Step 4: Check if account was created with Google login
     if (user.authType === "google") {
       return res.json({
         success: false,
@@ -314,8 +341,8 @@ export async function loginUser(req, res, next) {
       });
     }
 
+    // Step 5: Compare password with hashed password in database
     const isMatch = await bcrypt.compare(password, user.password);
-
     if (!isMatch) {
       return res.json({
         success: false,
@@ -323,6 +350,7 @@ export async function loginUser(req, res, next) {
       });
     }
 
+    // Step 6: Create user session
     req.session.user = {
       _id: user._id,
       email: user.email,
@@ -332,6 +360,7 @@ export async function loginUser(req, res, next) {
       isAdmin: user.isAdmin,
       status: user.status
     };
+
     req.session.save((err) => {
       if (err) console.error("Session save error during user login:", err);
       return res.json({ success: true });
@@ -341,6 +370,10 @@ export async function loginUser(req, res, next) {
     next(err);
   }
 }
+
+/**
+ * Auth Page Loaders
+ */
 
 export async function loadSignup(req, res) {
   if (req.session.user) {
@@ -416,15 +449,18 @@ export async function logoutUser(req, res) {
   });
 }
 
-
 export async function loadForgotPassword(req, res) {
   res.render("user/auth/forgot-password");
 }
 
+/**
+ * Handle Forgot Password Request
+ */
 export async function forgotPassword(req, res) {
   try {
     const { email } = req.body;
 
+    // Step 1: Validate email
     if (!email || !email.trim()) {
       return res.json({ success: false, message: "Email is required" });
     }
@@ -436,12 +472,13 @@ export async function forgotPassword(req, res) {
       return res.json({ success: false, message: "Enter a valid email address" });
     }
 
+    // Step 2: Find user by email
     const user = await User.findOne({ email: cleanEmail });
-
     if (!user) {
       return res.json({ success: false, message: "No account found with this email" });
     }
 
+    // Step 3: Check if Google login account
     if (user.authType === "google") {
       return res.json({
         success: false,
@@ -450,6 +487,7 @@ export async function forgotPassword(req, res) {
       });
     }
 
+    // Step 4: Reset OTP metrics and send OTP email
     user.otpResendCount = 0;
     user.otpAttempts = 0;
     user.otpLockedUntil = null;
@@ -461,26 +499,31 @@ export async function forgotPassword(req, res) {
     return res.json({ success: true, userId: user._id });
 
   } catch (err) {
-    console.error(err);
+    console.error("Forgot password error:", err);
     return res.json({ success: false, message: "Something went wrong" });
   }
 }
 
+/**
+ * Verify OTP for Forgot Password
+ */
 export async function verifyForgotOtp(req, res) {
   try {
     const { userId, otp } = req.body;
-    const user = await User.findById(userId);
 
+    // Step 1: Find user by ID
+    const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({ success: false });
     }
 
-    // OTP expired
-    if (!user.otpExpiresAt || user.otpExpiresAt < new Date()) {
+    // Step 2: Check if OTP is expired
+    const now = new Date();
+    if (!user.otpExpiresAt || user.otpExpiresAt < now) {
       return res.json({ success: false, code: "OTP_EXPIRED" });
     }
 
-    // Wrong OTP
+    // Step 3: Check if OTP is wrong
     if (user.otp !== otp) {
       user.otpAttempts += 1;
       await user.save();
@@ -499,7 +542,7 @@ export async function verifyForgotOtp(req, res) {
       });
     }
 
-    // SUCCESS — clear OTP fields
+    // Step 4: OTP Verified! Clear OTP details and set password reset permission
     user.otp = null;
     user.otpExpiresAt = null;
     user.otpAttempts = 0;
@@ -518,6 +561,9 @@ export async function verifyForgotOtp(req, res) {
   }
 }
 
+/**
+ * Resend OTP for Forgot Password
+ */
 export async function resendForgotOtp(req, res) {
   try {
     const { userId } = req.body;
@@ -528,8 +574,9 @@ export async function resendForgotOtp(req, res) {
     }
 
     // Prevent resend before expiry
-    if (user.otpExpiresAt && user.otpExpiresAt > new Date()) {
-      const secondsLeft = Math.ceil((user.otpExpiresAt - new Date()) / 1000);
+    const now = new Date();
+    if (user.otpExpiresAt && user.otpExpiresAt > now) {
+      const secondsLeft = Math.ceil((user.otpExpiresAt - now) / 1000);
       return res.status(429).json({
         success: false,
         message: `Please wait ${secondsLeft} seconds`
@@ -555,11 +602,14 @@ export async function resendForgotOtp(req, res) {
     });
 
   } catch (err) {
-    console.error(err);
+    console.error("Resend forgot OTP error:", err);
     return res.status(500).json({ success: false, message: "Resend failed" });
   }
 }
 
+/**
+ * Load Reset Password Page
+ */
 export async function loadResetPassword(req, res) {
   try {
     const userId = req.query.userId;
@@ -570,7 +620,6 @@ export async function loadResetPassword(req, res) {
 
     const user = await User.findById(userId);
 
-    // otp must be null — meaning OTP was successfully verified
     if (!user || user.otp !== null) {
       return res.redirect("/user/forgot-password");
     }
@@ -584,16 +633,19 @@ export async function loadResetPassword(req, res) {
   }
 }
 
+/**
+ * Step-by-step Reset Password Handler
+ */
 export async function resetPassword(req, res) {
   try {
     const { userId, password, confirmPassword } = req.body;
 
+    // Step 1: Validate input presence
     if (!userId) {
       return res.status(400).json({ success: false, message: "Invalid request" });
     }
 
     const user = await User.findById(userId);
-
     if (!user) {
       return res.status(404).json({ success: false, message: "User not found" });
     }
@@ -606,6 +658,7 @@ export async function resetPassword(req, res) {
       });
     }
 
+    // Step 2: Validate password strength and matching confirmation
     const strongPasswordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$/;
 
     if (!strongPasswordRegex.test(password)) {
@@ -619,13 +672,14 @@ export async function resetPassword(req, res) {
       return res.status(400).json({ success: false, message: "Passwords do not match" });
     }
 
+    // Step 3: Hash new password & save to user account
     const hashedPassword = await bcrypt.hash(password, 10);
-
     user.password = hashedPassword;
     user.otp = null;
     user.otpExpiresAt = null;
     await user.save();
 
+    // Step 4: Return success response
     return res.json({
       success: true,
       message: "Password reset successful",
@@ -633,20 +687,23 @@ export async function resetPassword(req, res) {
     });
 
   } catch (err) {
-    console.error(err);
+    console.error("Reset password error:", err);
     return res.status(500).json({ success: false, message: "Reset failed" });
   }
 }
 
+/**
+ * Validate Referral Code via Ajax
+ */
 export async function validateReferralCode(req, res) {
   try {
     const { code } = req.body;
     if (!code) return res.json({ success: false, message: "No code provided" });
 
-    const referrer = await User.findOne({ 
-      referralToken: code.trim().toUpperCase() 
+    const referrer = await User.findOne({
+      referralToken: code.trim().toUpperCase()
     });
-    
+
     if (referrer) {
       return res.json({ success: true, message: "Valid referral code!" });
     } else {

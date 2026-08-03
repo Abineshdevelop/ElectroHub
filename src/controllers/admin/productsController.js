@@ -1,120 +1,151 @@
 import Product from "../../model/productModel.js";
 import Variant from "../../model/variantModel.js";
 import Category from "../../model/categoryModel.js";
-import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
 import { AppError } from "../../errors/appError.js";
+import { deleteFromCloudinary } from "../../services/cloudinaryService.js";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// Number of products displayed per page in admin products list
+const PER_PAGE = 8;
 
-function deleteImageFile(imagePath) {
+// ==========================================
+// HELPER FUNCTIONS
+// ==========================================
+
+/**
+ * Helper function to delete an image file from Cloudinary.
+ */
+function deleteProductImage(imagePath) {
   if (!imagePath) return;
-  const absolutePath = path.join(__dirname, "../../public", imagePath);
-  fs.unlink(absolutePath, (error) => {
-    if (error && error.code !== "ENOENT") {
-      console.error("Delete error:", absolutePath, error.message);
-    }
-  });
+  deleteFromCloudinary(imagePath);
 }
 
-function getWebPath(file) {
-  const normalizedPath = file.path.replace(/\\/g, "/");
-  const parts = normalizedPath.split("/public/");
-  if (parts.length >= 2) {
-    return "/" + parts[parts.length - 1];
+/**
+ * Helper function to convert an uploaded file object into a public Cloudinary web image path.
+ */
+function getWebImagePath(file) {
+  if (file.path && (file.path.startsWith("http://") || file.path.startsWith("https://"))) {
+    return file.path;
   }
-  return `/uploads/product/${file.filename}`;
+  if (file.filename && (file.filename.startsWith("http://") || file.filename.startsWith("https://"))) {
+    return file.filename;
+  }
+  return file.path || "";
 }
 
-function normalizeVariant(variant) {
+/**
+ * Helper function to convert variant options Map/Object into a plain JavaScript Object.
+ */
+function normalizeVariantOptions(variant) {
+  let optionsObject = {};
+  if (variant.options instanceof Map) {
+    optionsObject = Object.fromEntries(variant.options);
+  } else if (variant.options && typeof variant.options === "object") {
+    optionsObject = variant.options;
+  }
+
   return {
     ...variant,
-    options:
-      variant.options instanceof Map
-        ? Object.fromEntries(variant.options)
-        : variant.options && typeof variant.options === "object"
-          ? variant.options
-          : {},
+    options: optionsObject,
   };
 }
 
-function normalizeSpecs(specifications) {
+/**
+ * Helper function to normalize product specifications map/object into a plain Object.
+ */
+function normalizeProductSpecifications(specifications) {
   if (!specifications) return {};
   if (specifications instanceof Map) return Object.fromEntries(specifications);
   if (typeof specifications === "object") return specifications;
   return {};
 }
 
-function parseSpecs(rawSpecifications) {
+/**
+ * Helper function to safely parse specifications JSON string into a key-value object.
+ */
+function parseSpecificationsInput(rawSpecifications) {
   const result = {};
   try {
-    const obj = typeof rawSpecifications === "string"
+    const parsedObject = typeof rawSpecifications === "string"
       ? JSON.parse(rawSpecifications || "{}")
       : rawSpecifications;
-    if (obj && typeof obj === "object" && !Array.isArray(obj)) {
-      Object.entries(obj).forEach(([key, value]) => {
+
+    if (parsedObject && typeof parsedObject === "object" && !Array.isArray(parsedObject)) {
+      Object.entries(parsedObject).forEach(([key, value]) => {
         if (typeof value === "string" || typeof value === "number") {
           result[String(key).trim()] = String(value);
         }
       });
     }
-  } catch {
-    /* ignore */
+  } catch (error) {
+    // Return empty object on JSON parse failure
   }
   return result;
 }
 
-function buildFileMap(files) {
+/**
+ * Helper function to index uploaded variant images by variantIndex and imageIndex.
+ */
+function buildUploadedFilesMap(files) {
   const fileMap = {};
   (files || []).forEach((file) => {
     const match = file.fieldname.match(/^variantImages_(\d+)_(\d+)$/);
     if (match) {
-      fileMap[`${match[1]}_${match[2]}`] = file;
+      const key = `${match[1]}_${match[2]}`;
+      fileMap[key] = file;
     }
   });
   return fileMap;
 }
 
-function cleanupFileMap(fileMap) {
+/**
+ * Helper function to clean up / delete uploaded files when validation fails.
+ */
+function cleanupUploadedFiles(fileMap) {
   Object.values(fileMap).forEach((file) => {
-    fs.unlink(file.path, () => {});
+    if (file.path && (file.path.startsWith("http://") || file.path.startsWith("https://"))) {
+      deleteFromCloudinary(file.path);
+    } else if (file.path && fs.existsSync(file.path)) {
+      fs.unlink(file.path, () => {});
+    }
   });
 }
 
-function buildVariantImages(variantIndex, variantMeta, fileMap) {
-  const images = [];
+/**
+ * Helper function to compile an array of 5 image paths for a variant.
+ */
+function buildVariantImagesList(variantIndex, variantMeta, fileMap) {
+  const imagePaths = [];
   for (let imageIndex = 0; imageIndex < 5; imageIndex++) {
-    const newFile = fileMap[`${variantIndex}_${imageIndex}`];
-    const existingUrl = variantMeta.existingImages?.[imageIndex];
-    if (newFile) {
-      images.push(getWebPath(newFile));
-    } else if (existingUrl) {
-      images.push(existingUrl);
+    const newUploadedFile = fileMap[`${variantIndex}_${imageIndex}`];
+    const existingImageUrl = variantMeta.existingImages?.[imageIndex];
+
+    if (newUploadedFile) {
+      imagePaths.push(getWebImagePath(newUploadedFile));
+    } else if (existingImageUrl) {
+      imagePaths.push(existingImageUrl);
     }
   }
-  return images;
+  return imagePaths;
 }
 
-function findDuplicateVariant(parsedVariants) {
+/**
+ * Helper function to check if any two variants have identical option combinations.
+ */
+function checkForDuplicateVariants(parsedVariants) {
   for (let i = 0; i < parsedVariants.length; i++) {
     for (let j = i + 1; j < parsedVariants.length; j++) {
       const optionsI = parsedVariants[i].options || {};
       const optionsJ = parsedVariants[j].options || {};
-      const keys = Object.keys(optionsI);
-      if (keys.length === 0) continue;
-      const isDuplicate = keys.every(
-        (key) =>
-          String(optionsI[key] || "")
-            .trim()
-            .toUpperCase() ===
-          String(optionsJ[key] || "")
-            .trim()
-            .toUpperCase(),
+      const optionKeys = Object.keys(optionsI);
+
+      if (optionKeys.length === 0) continue;
+
+      const isDuplicate = optionKeys.every(
+        (key) => String(optionsI[key] || "").trim().toUpperCase() === String(optionsJ[key] || "").trim().toUpperCase()
       );
+
       if (isDuplicate) {
-        const optionCombo = keys.map((key) => `${key}: ${optionsI[key]}`).join(", ");
+        const optionCombo = optionKeys.map((key) => `${key}: ${optionsI[key]}`).join(", ");
         return `Duplicate variant found: Variants ${i + 1} and ${j + 1} have identical options (${optionCombo}).`;
       }
     }
@@ -122,147 +153,163 @@ function findDuplicateVariant(parsedVariants) {
   return null;
 }
 
+// ==========================================
+// CONTROLLER EXPORTS
+// ==========================================
+
+// 1. GET PRODUCTS LIST (Admin View / API)
 export const getProducts = async (req, res) => {
   try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = 8;
-    const searchQuery = req.query.q?.trim() || "";
+    // Step 1: Read query parameters
+    const requestedPage = parseInt(req.query.page, 10) || 1;
+    const currentPage = Math.max(1, requestedPage);
+    const searchQuery = (req.query.q || "").trim();
     const activeCategory = req.query.cat || "";
-    const sortOrder = req.query.sort === "asc" ? 1 : -1;
-    const isAjax = req.query.ajax === "1";
+    const sortOrderParam = req.query.sort || "desc";
+    const sortDirection = sortOrderParam === "asc" ? 1 : -1;
+    const isAjaxRequest = req.query.ajax === "1";
 
+    // Step 2: Construct database filter
     const filter = {
       isDeleted: false,
       ...(searchQuery && { productName: { $regex: searchQuery, $options: "i" } }),
       ...(activeCategory && { categoryId: activeCategory }),
     };
 
+    // Step 3: Fetch products, categories, and total product count concurrently
+    const itemsToSkip = (currentPage - 1) * PER_PAGE;
+
     const [products, categories, totalProducts] = await Promise.all([
       Product.find(filter)
         .populate("categoryId", "categoryName")
-        .sort({ createdAt: sortOrder })
-        .skip((page - 1) * limit)
-        .limit(limit)
+        .sort({ createdAt: sortDirection })
+        .skip(itemsToSkip)
+        .limit(PER_PAGE)
         .lean(),
       Category.find({ isDeleted: false, isActive: true }).lean(),
       Product.countDocuments(filter),
     ]);
 
+    // Step 4: Fetch variants for the fetched products
     const productIds = products.map((product) => product._id);
     const allVariants = await Variant.find({
       productId: { $in: productIds },
       isDeleted: false,
     }).lean();
 
+    // Step 5: Group variants by product ID
     const variantsByProduct = {};
     allVariants.forEach((variant) => {
       const productIdString = String(variant.productId);
       if (!variantsByProduct[productIdString]) {
         variantsByProduct[productIdString] = [];
       }
-      variantsByProduct[productIdString].push(normalizeVariant(variant));
+      variantsByProduct[productIdString].push(normalizeVariantOptions(variant));
     });
 
-    const totalPages = Math.ceil(totalProducts / limit) || 1;
-    const showingFrom = totalProducts === 0 ? 0 : (page - 1) * limit + 1;
-    const showingTo = Math.min(page * limit, totalProducts);
-
+    // Step 6: Enrich products with minimum price, total stock, and variants array
     const enrichedProducts = products.map((product) => {
-      const variants = variantsByProduct[String(product._id)] || [];
-      const minPrice = variants.length
-        ? Math.min(...variants.map((variant) => variant.price || 0))
+      const productVariants = variantsByProduct[String(product._id)] || [];
+      const minPrice = productVariants.length
+        ? Math.min(...productVariants.map((v) => v.price || 0))
         : 0;
-      const totalStock = variants.reduce((accumulatedStock, variant) => accumulatedStock + (variant.stock || 0), 0);
-      return { ...product, category: product.categoryId, variants, minPrice, totalStock };
+      const totalStock = productVariants.reduce((total, v) => total + (v.stock || 0), 0);
+
+      return {
+        ...product,
+        category: product.categoryId,
+        variants: productVariants,
+        minPrice: minPrice,
+        totalStock: totalStock,
+      };
     });
 
-    if (isAjax) {
+    // Step 7: Calculate pagination bounds
+    const totalPages = Math.max(1, Math.ceil(totalProducts / PER_PAGE));
+    const showingFrom = totalProducts === 0 ? 0 : itemsToSkip + 1;
+    const showingTo = Math.min(itemsToSkip + PER_PAGE, totalProducts);
+
+    // Step 8: Return response (JSON for AJAX or render EJS view)
+    if (isAjaxRequest) {
       return res.json({
         success: true,
         products: enrichedProducts,
         total: totalProducts,
-        currentPage: page,
-        totalPages,
-        showingFrom,
-        showingTo,
+        currentPage: currentPage,
+        totalPages: totalPages,
+        showingFrom: showingFrom,
+        showingTo: showingTo,
       });
     }
 
-    res.render("admin/products", {
+    return res.render("admin/products", {
       products: enrichedProducts,
-      categories,
+      categories: categories,
       total: totalProducts,
-      currentPage: page,
-      totalPages,
-      showingFrom,
-      showingTo,
+      currentPage: currentPage,
+      totalPages: totalPages,
+      showingFrom: showingFrom,
+      showingTo: showingTo,
       query: searchQuery,
-      sort: req.query.sort || "desc",
+      sort: sortOrderParam,
       activeCat: activeCategory,
     });
   } catch (error) {
-    console.error("getProducts:", error);
-    res.status(500).json({ success: false, message: "Server error" });
+    console.error("Error loading products list:", error);
+    return res.status(500).json({ success: false, message: "Server error." });
   }
 };
 
+// 2. GET SINGLE PRODUCT BY ID
 export const getProductById = async (req, res) => {
   try {
-    const product = await Product.findOne({
-      _id: req.params.id,
-      isDeleted: false,
-    })
-      .populate(
-        "categoryId",
-        "categoryName specificationsConfig variantOptions",
-      )
+    const productId = req.params.id;
+
+    // Step 1: Find product with populated category details
+    const product = await Product.findOne({ _id: productId, isDeleted: false })
+      .populate("categoryId", "categoryName specificationsConfig variantOptions")
       .lean();
+
     if (!product) {
       return res.status(404).json({ success: false, message: "Product not found." });
     }
 
-    const variants = await Variant.find({
-      productId: req.params.id,
-      isDeleted: false,
-    }).lean();
+    // Step 2: Fetch non-deleted variants for product
+    const variants = await Variant.find({ productId: productId, isDeleted: false }).lean();
 
-    res.json({
+    // Step 3: Format specifications and variants, then return JSON
+    return res.json({
       success: true,
       product: {
         ...product,
         category: product.categoryId,
-        specifications: normalizeSpecs(product.specifications),
-        variants: variants.map(normalizeVariant),
+        specifications: normalizeProductSpecifications(product.specifications),
+        variants: variants.map(normalizeVariantOptions),
       },
     });
   } catch (error) {
-    console.error("getProductById:", error);
-    res.status(500).json({ success: false, message: "Server error" });
+    console.error("Error fetching product by ID:", error);
+    return res.status(500).json({ success: false, message: "Server error." });
   }
 };
 
+// 3. CREATE NEW PRODUCT
 export const createProduct = async (req, res) => {
-  const fileMap = buildFileMap(req.files);
+  const fileMap = buildUploadedFilesMap(req.files);
   try {
-    const {
-      productName,
-      brandName,
-      category,
-      description,
-      isActive,
-      specifications,
-      variantsMeta,
-    } = req.body;
+    const { productName, brandName, category, description, isActive, specifications, variantsMeta } = req.body;
 
-    if (!productName?.trim()) {
-      cleanupFileMap(fileMap);
+    // Step 1: Validate required basic fields
+    if (!productName || !productName.trim()) {
+      cleanupUploadedFiles(fileMap);
       return res.status(400).json({ success: false, message: "Product name is required." });
     }
     if (!category) {
-      cleanupFileMap(fileMap);
+      cleanupUploadedFiles(fileMap);
       return res.status(400).json({ success: false, message: "Category is required." });
     }
 
+    // Step 2: Parse variants JSON data
     let parsedVariants = [];
     try {
       parsedVariants = JSON.parse(variantsMeta || "[]");
@@ -271,75 +318,77 @@ export const createProduct = async (req, res) => {
     }
 
     if (parsedVariants.length === 0) {
-      cleanupFileMap(fileMap);
+      cleanupUploadedFiles(fileMap);
       return res.status(400).json({ success: false, message: "At least one variant is required." });
     }
 
-    const duplicateMessage = findDuplicateVariant(parsedVariants);
+    // Step 3: Check for duplicate variant option combinations
+    const duplicateMessage = checkForDuplicateVariants(parsedVariants);
     if (duplicateMessage) {
-      cleanupFileMap(fileMap);
+      cleanupUploadedFiles(fileMap);
       return res.status(400).json({ success: false, message: duplicateMessage });
     }
 
+    // Step 4: Verify that each variant has all 5 compulsory images
     for (let variantIndex = 0; variantIndex < parsedVariants.length; variantIndex++) {
-      const images = buildVariantImages(variantIndex, parsedVariants[variantIndex], fileMap);
-      if (images.length < 5) {
-        cleanupFileMap(fileMap);
+      const variantImages = buildVariantImagesList(variantIndex, parsedVariants[variantIndex], fileMap);
+      if (variantImages.length < 5) {
+        cleanupUploadedFiles(fileMap);
         return res.status(400).json({
           success: false,
-          message: `Variant ${variantIndex + 1}: All 5 images are compulsory (got ${images.length}).`,
+          message: `Variant ${variantIndex + 1}: All 5 images are compulsory (got ${variantImages.length}).`,
         });
       }
     }
 
+    // Step 5: Create main product record in database
     const product = await Product.create({
       productName: productName.trim(),
       brandName: (brandName || "").trim(),
       categoryId: category,
       description: (description || "").trim(),
       isActive: isActive !== "false" && isActive !== false,
-      specifications: parseSpecs(specifications),
+      specifications: parseSpecificationsInput(specifications),
     });
 
-    const variantDocs = parsedVariants.map((variant, variantIndex) => ({
+    // Step 6: Create variant records in database
+    const variantDocuments = parsedVariants.map((variant, variantIndex) => ({
       productId: product._id,
       options: variant.options || {},
       price: Number(variant.price) || 0,
       stock: Number(variant.stock) || 0,
-      images: buildVariantImages(variantIndex, variant, fileMap),
+      images: buildVariantImagesList(variantIndex, variant, fileMap),
     }));
 
-    await Variant.insertMany(variantDocs);
-    res.status(201).json({ success: true, message: "Product created successfully." });
+    await Variant.insertMany(variantDocuments);
+
+    // Step 7: Return success response
+    return res.status(201).json({ success: true, message: "Product created successfully." });
   } catch (error) {
-    cleanupFileMap(fileMap);
-    console.error("createProduct:", error);
-    res.status(500).json({ success: false, message: error.message || "Server error" });
+    cleanupUploadedFiles(fileMap);
+    console.error("Error creating product:", error);
+    return res.status(500).json({ success: false, message: error.message || "Server error." });
   }
 };
 
+// 4. UPDATE EXISTING PRODUCT
 export const updateProduct = async (req, res) => {
-  const fileMap = buildFileMap(req.files);
+  const fileMap = buildUploadedFilesMap(req.files);
   try {
-    const {
-      productName,
-      brandName,
-      category,
-      description,
-      isActive,
-      specifications,
-      variantsMeta,
-    } = req.body;
+    const productId = req.params.id;
+    const { productName, brandName, category, description, isActive, specifications, variantsMeta } = req.body;
 
-    if (!productName?.trim()) {
-      cleanupFileMap(fileMap);
+    // Step 1: Validate required basic fields
+    if (!productName || !productName.trim()) {
+      cleanupUploadedFiles(fileMap);
       return res.status(400).json({ success: false, message: "Product name is required." });
     }
     if (!category) {
-      cleanupFileMap(fileMap);
+      cleanupUploadedFiles(fileMap);
       return res.status(400).json({ success: false, message: "Category is required." });
     }
 
+    // Step 2: Parse variants JSON data
     let parsedVariants = [];
     try {
       parsedVariants = JSON.parse(variantsMeta || "[]");
@@ -348,142 +397,146 @@ export const updateProduct = async (req, res) => {
     }
 
     if (parsedVariants.length === 0) {
-      cleanupFileMap(fileMap);
+      cleanupUploadedFiles(fileMap);
       return res.status(400).json({ success: false, message: "At least one variant is required." });
     }
 
-    const duplicateMessage = findDuplicateVariant(parsedVariants);
+    // Step 3: Check for duplicate variant option combinations
+    const duplicateMessage = checkForDuplicateVariants(parsedVariants);
     if (duplicateMessage) {
-      cleanupFileMap(fileMap);
+      cleanupUploadedFiles(fileMap);
       return res.status(400).json({ success: false, message: duplicateMessage });
     }
 
+    // Step 4: Verify compulsory 5 images per variant
     for (let variantIndex = 0; variantIndex < parsedVariants.length; variantIndex++) {
-      const images = buildVariantImages(variantIndex, parsedVariants[variantIndex], fileMap);
-      if (images.length < 5) {
-        cleanupFileMap(fileMap);
+      const variantImages = buildVariantImagesList(variantIndex, parsedVariants[variantIndex], fileMap);
+      if (variantImages.length < 5) {
+        cleanupUploadedFiles(fileMap);
         return res.status(400).json({
           success: false,
-          message: `Variant ${variantIndex + 1}: All 5 images are compulsory (got ${images.length}).`,
+          message: `Variant ${variantIndex + 1}: All 5 images are compulsory (got ${variantImages.length}).`,
         });
       }
     }
 
-    const product = await Product.findOne({
-      _id: req.params.id,
-      isDeleted: false,
-    });
+    // Step 5: Find existing product in database
+    const product = await Product.findOne({ _id: productId, isDeleted: false });
     if (!product) {
-      cleanupFileMap(fileMap);
+      cleanupUploadedFiles(fileMap);
       return res.status(404).json({ success: false, message: "Product not found." });
     }
 
-    const oldVariants = await Variant.find({
-      productId: req.params.id,
-      isDeleted: false,
-    }).lean();
-    const oldImages = oldVariants.flatMap((variant) => variant.images || []);
+    // Step 6: Identify removed images and delete unused files from disk / Cloudinary
+    const oldVariants = await Variant.find({ productId: productId, isDeleted: false }).lean();
+    const oldImages = oldVariants.flatMap((v) => v.images || []);
     const keptImages = new Set(
-      parsedVariants.flatMap((variant) => (variant.existingImages || []).filter(Boolean)),
+      parsedVariants.flatMap((v) => (v.existingImages || []).filter(Boolean))
     );
+
     oldImages.forEach((imagePath) => {
       if (!keptImages.has(imagePath)) {
-        deleteImageFile(imagePath);
+        deleteProductImage(imagePath);
       }
     });
 
+    // Step 7: Update main product fields and save
     product.productName = productName.trim();
     product.brandName = (brandName || "").trim();
     product.categoryId = category;
     product.description = (description || "").trim();
     product.isActive = isActive !== "false" && isActive !== false;
-    product.specifications = parseSpecs(specifications);
+    product.specifications = parseSpecificationsInput(specifications);
     await product.save();
 
-    const incomingIds = parsedVariants.map((variant) => variant._id).filter(Boolean);
+    // Step 8: Soft-delete variants that were removed in the edit form
+    const incomingVariantIds = parsedVariants.map((v) => v._id).filter(Boolean);
 
     await Variant.updateMany(
       {
-        productId: req.params.id,
+        productId: productId,
         isDeleted: false,
-        ...(incomingIds.length > 0 && { _id: { $nin: incomingIds } }),
+        ...(incomingVariantIds.length > 0 && { _id: { $nin: incomingVariantIds } }),
       },
-      { $set: { isDeleted: true } },
+      { $set: { isDeleted: true } }
     );
 
+    // Step 9: Update existing variants or insert new variants
     for (let variantIndex = 0; variantIndex < parsedVariants.length; variantIndex++) {
       const variant = parsedVariants[variantIndex];
-      const images = buildVariantImages(variantIndex, variant, fileMap);
-      const data = {
+      const variantImages = buildVariantImagesList(variantIndex, variant, fileMap);
+      const variantData = {
         options: variant.options || {},
         price: Number(variant.price) || 0,
         stock: Number(variant.stock) || 0,
-        images,
+        images: variantImages,
         isDeleted: false,
       };
 
       if (variant._id) {
-        await Variant.updateOne(
-          { _id: variant._id, productId: req.params.id },
-          { $set: data },
-        );
+        await Variant.updateOne({ _id: variant._id, productId: productId }, { $set: variantData });
       } else {
-        await Variant.create({ productId: product._id, ...data });
+        await Variant.create({ productId: product._id, ...variantData });
       }
     }
 
-    res.json({ success: true, message: "Product updated successfully." });
+    // Step 10: Return success response
+    return res.json({ success: true, message: "Product updated successfully." });
   } catch (error) {
-    cleanupFileMap(fileMap);
-    console.error("updateProduct:", error);
-    res.status(500).json({ success: false, message: error.message || "Server error" });
+    cleanupUploadedFiles(fileMap);
+    console.error("Error updating product:", error);
+    return res.status(500).json({ success: false, message: error.message || "Server error." });
   }
 };
 
+// 5. DELETE PRODUCT (Soft Delete)
 export const deleteProduct = async (req, res) => {
   try {
-    const product = await Product.findOne({
-      _id: req.params.id,
-      isDeleted: false,
-    });
+    const productId = req.params.id;
+
+    // Step 1: Find product in database
+    const product = await Product.findOne({ _id: productId, isDeleted: false });
     if (!product) {
       return res.status(404).json({ success: false, message: "Product not found." });
     }
 
-    const variants = await Variant.find({
-      productId: req.params.id,
-      isDeleted: false,
-    }).lean();
-    variants.forEach((variant) => (variant.images || []).forEach(deleteImageFile));
+    // Step 2: Delete image files associated with product variants
+    const variants = await Variant.find({ productId: productId, isDeleted: false }).lean();
+    variants.forEach((variant) => {
+      (variant.images || []).forEach(deleteProductImage);
+    });
 
+    // Step 3: Soft delete product and variants by setting isDeleted = true
     await Promise.all([
-      Product.updateOne({ _id: req.params.id }, { $set: { isDeleted: true } }),
-      Variant.updateMany(
-        { productId: req.params.id },
-        { $set: { isDeleted: true } },
-      ),
+      Product.updateOne({ _id: productId }, { $set: { isDeleted: true } }),
+      Variant.updateMany({ productId: productId }, { $set: { isDeleted: true } }),
     ]);
 
-    res.json({ success: true, message: "Product deleted successfully." });
+    // Step 4: Return success response
+    return res.json({ success: true, message: "Product deleted successfully." });
   } catch (error) {
-    console.error("deleteProduct:", error);
-    res.status(500).json({ success: false, message: "Server error" });
+    console.error("Error deleting product:", error);
+    return res.status(500).json({ success: false, message: "Server error." });
   }
 };
 
+// 6. TOGGLE PRODUCT STATUS (Activate / Block)
 export const toggleProductStatus = async (req, res, next) => {
   try {
-    const product = await Product.findOne({
-      _id: req.params.id,
-      isDeleted: false,
-    });
+    const productId = req.params.id;
+
+    // Step 1: Find product in database
+    const product = await Product.findOne({ _id: productId, isDeleted: false });
     if (!product) {
       throw new AppError(400, "Product not found");
     }
+
+    // Step 2: Toggle isActive state
     product.isActive = !product.isActive;
     await product.save();
 
-    res.json({
+    // Step 3: Return success response
+    return res.json({
       success: true,
       isActive: product.isActive,
       productName: product.productName,
@@ -494,19 +547,22 @@ export const toggleProductStatus = async (req, res, next) => {
   }
 };
 
+// 7. TOGGLE VARIANT STATUS (Activate / Block)
 export const toggleVariantStatus = async (req, res, next) => {
   try {
-    const variant = await Variant.findOne({
-      _id: req.params.vid,
-      productId: req.params.id,
-      isDeleted: false,
-    });
+    const { id: productId, vid: variantId } = req.params;
+
+    // Step 1: Find variant in database
+    const variant = await Variant.findOne({ _id: variantId, productId: productId, isDeleted: false });
     if (!variant) {
       throw new AppError(404, "Variant not found");
     }
+
+    // Step 2: Toggle isActive state
     variant.isActive = !variant.isActive;
     await variant.save();
 
+    // Step 3: Return success response
     return res.json({
       success: true,
       isActive: variant.isActive,

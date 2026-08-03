@@ -16,8 +16,7 @@ import {
 
 const getDashboardMatch = (query) => {
   const range = resolveDateRange(query);
-  const match = {
-    orderStatus: { $nin: ["expired"] },
+  const match = {orderStatus: { $nin: ["expired"] },
     ...range.mongoMatch,
   };
   if (query.orderStatus && query.orderStatus !== "all") {

@@ -108,6 +108,9 @@ export const createCoupon = async (req, res) => {
     if (existing)
       return res.status(400).json({ success: false, message: `Coupon code "${cleanCode}" already exists.` });
 
+    const fiveActive=await Coupon.countDocuments({status:"active"})
+    console.log(fiveActive)
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const resolvedStatus = end < today ? 'expired' : (status || 'active');
@@ -144,7 +147,7 @@ export const editCoupon = async (req, res) => {
     if (!couponName || !code || !discountValue || !startDate || !endDate)
       return res.status(400).json({ success: false, message: 'All required fields must be filled.' });
 
-    const cleanCode = code.trim().toUpperCase();
+    const cleanCode = code.trim().toUpperCase();//coupon code 
     if (!/^[A-Z0-9]+$/.test(cleanCode))
       return res.status(400).json({ success: false, message: 'Code must contain only letters and numbers.' });
     if (cleanCode.length > 12)
