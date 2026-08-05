@@ -3,6 +3,7 @@ import Offer from "../../model/offersModel.js";
 import Product from "../../model/productModel.js";
 import Category from "../../model/categoryModel.js";
 import { deleteFromCloudinary } from "../../services/cloudinaryService.js";
+import { formatImagePath } from "../../utils/imageUtils.js";
 
 const PER_PAGE   = 10;
 
@@ -160,7 +161,7 @@ export const createBanner = async (req, res) => {
       subtitle:         subtitle?.trim() || "",
       badgeText:        badgeText?.trim() || "",
       offerText:        offerText?.trim() || "",
-      image:            newImagePath,
+      image:            formatImagePath(newImagePath, "banners"),
       countdownEnabled: isCountdownOn,
       countdownEndDate: isCountdownOn ? new Date(countdownEndDate) : null,
       status:           status || "active",
@@ -230,7 +231,7 @@ export const editBanner = async (req, res) => {
 
     if (req.file) {
       deleteImage(banner.image);
-      banner.image = req.file.path;
+      banner.image = formatImagePath(req.file.path, "banners");
     }
 
     let computedRedirectType = "product";

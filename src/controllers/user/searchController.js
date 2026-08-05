@@ -5,7 +5,6 @@ import Cart         from "../../model/cartModel.js";
 import Wishlist     from "../../model/wishlistModel.js";
 import WishlistItem from "../../model/wishlistItemModel.js";
 
-// ── GET /user/nav-counts ──────────────────────────────────────────────────
 export const getNavCounts = async (req, res) => {
   try {
     const userId = req.session.user?._id;
@@ -30,7 +29,6 @@ export const getNavCounts = async (req, res) => {
   }
 };
 
-// ── GET /user/search-suggestions ─────────────────────────────────────────
 export const getSearchSuggestions = async (req, res) => {
   try {
     const searchQuery = (req.query.q || '').trim();

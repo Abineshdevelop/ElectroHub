@@ -4,6 +4,7 @@ import Variant from "../../model/variantModel.js";
 import { buildItemCancellationSafety, getActiveItems, getItemsSubtotal, getMaximumCancellableAmount, validatePartialCancellation } from "../../services/cancellationEligibilityService.js";
 import Coupon from "../../model/couponModel.js";
 import { creditWallet } from "./walletController.js";
+import { formatImagePath } from "../../utils/imageUtils.js";
 
 const TERMINAL_ITEM_STATUSES = ["cancelled", "returned"];
 const REFUNDABLE_PAYMENT_STATUSES = ["paid", "partially_refunded", "adjusted"];
@@ -155,6 +156,12 @@ export const getOrderHistory = async (req, res) => {
       .sort({ createdAt: -1 })
       .lean();
 
+    orders.forEach((o) => {
+      (o.items || []).forEach((item) => {
+        item.productImage = formatImagePath(item.productImage || item.variantId?.images?.[0] || item.productId?.images?.[0] || "", "product");
+      });
+    });
+
     const [allCount,pendingCount,completedCount,cancelledCount,returnedCount,] = await Promise.all([
       Order.countDocuments({ userId }),
       Order.countDocuments({
@@ -162,10 +169,7 @@ export const getOrderHistory = async (req, res) => {
         orderStatus: { $in: ["confirmed"] },
       }),
       Order.countDocuments({ userId, orderStatus: "delivered" }),
-      Order.countDocuments({
-        userId,
-        orderStatus: { $in: ["cancelled", "partially_cancelled"] },
-      }),
+      Order.countDocuments({userId,orderStatus: { $in: ["cancelled", "partially_cancelled"] },}),
       Order.countDocuments({ userId, orderStatus: "returned" }),
     ]);
 
@@ -205,6 +209,10 @@ export const getOrderDetails = async (req, res) => {
 
     // Redirect to orders page if the order is not found
     if (!orderDetails) return res.redirect("/user/orders");
+
+    (orderDetails.items || []).forEach((item) => {
+      item.productImage = formatImagePath(item.productImage || item.variantId?.images?.[0] || item.productId?.images?.[0] || "", "product");
+    });
 
     // Calculate the subtotal of currently active items (not cancelled/returned)
     const currentActiveSubtotal = getItemsSubtotal(getActiveItems(orderDetails));

@@ -4,6 +4,7 @@ import Cart from "../../model/cartModel.js";
 import Wishlist from "../../model/wishlistModel.js";
 import WishlistItem from "../../model/wishlistItemModel.js";
 import Offer from "../../model/offersModel.js";
+import { formatImagePath } from "../../utils/imageUtils.js";
 
 function buildPipeline({ excludeProductId, excludeVariantId, categoryId, brandName }) {
   return [
@@ -300,9 +301,9 @@ export const getProductDetailPage = async (req, res, next) => {
       variant.productId = variant.productId.toString();
       variant.price     = Number(variant.price) || 0;
       variant.mrp       = Number(variant.mrp)   || 0;
+      variant.images    = (variant.images || []).map(img => formatImagePath(img, "product"));
     });
 
-    // ── Apply offers to detail page variants ──
     const now = new Date();
     const activeOffers = await Offer.find({
       isActive:  true,
@@ -336,7 +337,6 @@ export const getProductDetailPage = async (req, res, next) => {
     }
     const offerPercentage = applicableOffer ? Number(applicableOffer.offerPrecentage) : 0;
 
-    // Mutate variants to inject offer pricing
     variants.forEach(variant => {
       const originalPrice = variant.price;
       variant.originalPrice     = originalPrice;

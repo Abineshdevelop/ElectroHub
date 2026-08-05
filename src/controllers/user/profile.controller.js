@@ -5,6 +5,7 @@ import sendMail from "../../services/mailService.js"
 import bcrypt from "bcryptjs"
 import { generateReferralToken } from "./auth.controller.js";
 import { deleteFromCloudinary } from "../../services/cloudinaryService.js";
+import { formatImagePath } from "../../utils/imageUtils.js";
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -24,7 +25,7 @@ export async function loadDashboard (req, res){
     
     if (!user) return res.redirect("/user/login");
 
-    // Generate token for existing users who don't have one
+    // Generate token for existing users who dont have one
     if (!user.referralToken) {
       user.referralToken = await generateReferralToken();
       await user.save();
@@ -33,7 +34,6 @@ export async function loadDashboard (req, res){
     const userObj = user.toObject();
     const defaultAddress = await Address.findOne({ userId, isDefault: true }).lean();
 
-    // Fetch Real Stats
     const totalOrders = await Order.countDocuments({ userId });
     const pendingOrders = await Order.countDocuments({ 
         userId, 
@@ -46,7 +46,6 @@ export async function loadDashboard (req, res){
 
     const stats = { totalOrders, pendingOrders, completedOrders };
 
-    // Fetch Last Order for Tracking Banner
     const lastOrder = await Order.findOne({ userId }).sort({ createdAt: -1 }).lean();
     const recentOrder = lastOrder ? {
         id: lastOrder.orderId,
@@ -54,7 +53,7 @@ export async function loadDashboard (req, res){
         status: lastOrder.orderStatus.replace(/_/g, " ").toUpperCase()
     } : { id: "N/A", status: "No recent orders" };
 
-    const wishlist = []; // Wishlist logic skipped as not requested
+    const wishlist = [];
 
     return res.render("user/userProfile/dashboard", {
       user: userObj,
@@ -253,7 +252,7 @@ export async function updateAvatar (req, res) {
     if (user.profileImage) {
       await deleteFromCloudinary(user.profileImage);
     }
-    user.profileImage = req.file.path;
+    user.profileImage = formatImagePath(req.file.path, "profile");
     await user.save();
     res.redirect("/user/profile");
   } catch (error) {
@@ -411,7 +410,6 @@ export async function verifyEmailChangeOtp(req, res){
   }
 };
 
-// ── Update Profile Details ─────────────────────────────────────
 export async function updateProfileDetails(req, res){
   try {
     const userId = req.session.user._id;
@@ -435,7 +433,6 @@ export async function updateProfileDetails(req, res){
   }
 };
 
-// ── Request OTP for Password Change ───────────────────────────
 export async function requestPasswordChangeOtp (req, res){
   try {
     if (!req.session?.user?._id) {
@@ -457,7 +454,6 @@ export async function requestPasswordChangeOtp (req, res){
       });
     }
 
-    // 🔹 Block Google-auth users
     if (user.authType === "google") {
       return res.status(403).json({
         success: false,
@@ -465,7 +461,6 @@ export async function requestPasswordChangeOtp (req, res){
       });
     }
 
-    // 🔹 Ensure password exists
     if (!user.password) {
       return res.status(400).json({
         success: false,
@@ -474,7 +469,6 @@ export async function requestPasswordChangeOtp (req, res){
     }
 
     if (isResend) {
-      // 🔹 On resend, skip validations but ensure pending password exists
       if (!user.pendingPassword) {
         return res.status(400).json({
           success: false,
@@ -482,7 +476,6 @@ export async function requestPasswordChangeOtp (req, res){
         });
       }
     } else {
-      // 🔹 First request validations
 
       if (!currentPassword || !newPassword) {
         return res.status(400).json({
@@ -507,7 +500,6 @@ export async function requestPasswordChangeOtp (req, res){
         });
       }
 
-      // 🔹 Prevent duplicate OTP before expiry
       if (
         user.passwordChangeOtp &&
         user.passwordChangeOtpExpires &&
@@ -520,14 +512,12 @@ export async function requestPasswordChangeOtp (req, res){
       }
     }
 
-    // 🔹 Generate OTP
     const otp = generateOtp();
 
     user.passwordChangeOtp = otp;
     user.passwordChangeOtpExpires = new Date(Date.now() + 2 * 60 * 1000);
     user.passwordChangeOtpAttempts = 0;
 
-    // 🔹 Hash new password only on first request
     if (!isResend) {
       user.pendingPassword = await bcrypt.hash(newPassword, 10);
     }
@@ -621,7 +611,7 @@ export async function updateAvatarAjax (req, res){
     if (user.profileImage) {
       await deleteFromCloudinary(user.profileImage);
     }
-    user.profileImage = req.file.path;
+    user.profileImage = formatImagePath(req.file.path, "profile");
     await user.save();
     return res.json({ success: true, profileImage: user.profileImage });
   } catch (error) {

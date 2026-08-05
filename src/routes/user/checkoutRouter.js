@@ -1,10 +1,11 @@
 import express from "express";
-import { getCheckoutPage, applyCoupon, removeCoupon, placeOrder, saveAddress, getAvailableCoupons, verifyPayment, handlePaymentFailure, retryPayment, renderPaymentSuccess, renderPaymentFailed } from "../../controllers/user/checkoutController.js";
+import { getCheckoutPage, validateCheckout, applyCoupon, removeCoupon, placeOrder, saveAddress, getAvailableCoupons, verifyPayment, handlePaymentFailure, retryPayment, renderPaymentSuccess, renderPaymentFailed } from "../../controllers/user/checkoutController.js";
 import { isUserLoggedIn } from "../../middlewares/userMiddleware.js";
 
 const router = express.Router();
 
 router.get("/checkout", isUserLoggedIn, getCheckoutPage);
+router.get("/checkout/validate", isUserLoggedIn, validateCheckout);
 router.post("/checkout/save-address", isUserLoggedIn, saveAddress);
 router.post("/checkout/apply-coupon", isUserLoggedIn, applyCoupon);
 router.post("/checkout/remove-coupon", isUserLoggedIn, removeCoupon);

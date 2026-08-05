@@ -1,4 +1,5 @@
 import Category from "../../model/categoryModel.js";
+import { formatImagePath } from "../../utils/imageUtils.js";
 
 export const getCategories = async (req, res) => {
   try {
@@ -218,7 +219,7 @@ export const createCategory = async (req, res) => {
     if (!req.file || !req.file.path) {
       return res.status(400).json({ success: false, message: "Category image is required." });
     }
-    const imagePath = req.file.path;
+    const imagePath = formatImagePath(req.file.path, "category");
 
     const category = await Category.create({
       categoryName:         categoryName.trim(),
@@ -291,7 +292,7 @@ export const updateCategory = async (req, res) => {
     category.categoryName         = categoryName.trim();
     category.description          = (description || "").trim();
     if (req.file) {
-      category.image = req.file.path;
+      category.image = formatImagePath(req.file.path, "category");
     } else if (imageRemoved) {
       category.image = "";
     }

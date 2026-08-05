@@ -248,7 +248,6 @@ export const getProductListingPage = async (req, res, next) => {
       }
     }
 
-    //Fetch all active offers
     const now = new Date();
     const activeOffers = await Offer.find({
       isActive:  true,
@@ -257,7 +256,6 @@ export const getProductListingPage = async (req, res, next) => {
       endDate:   { $gte: now },
     }).lean();
 
-    // ── Build offer maps: key = string of refId ──
     const productOfferMap  = new Map();
     const categoryOfferMap = new Map();
     activeOffers.forEach(offer => {
@@ -272,7 +270,6 @@ export const getProductListingPage = async (req, res, next) => {
     });
 
     const productsWithWishlist = products.map(product => {
-      //convert both to string for reliable comparison
       const productId = String(product._id);
       const categoryId = String(product.categoryId);
 

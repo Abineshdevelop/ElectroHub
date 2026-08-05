@@ -2,6 +2,7 @@ import Cart from "../../model/cartModel.js";
 import Product from "../../model/productModel.js";
 import Variant from "../../model/variantModel.js";
 import Offer from "../../model/offersModel.js";
+import { formatImagePath } from "../../utils/imageUtils.js";
 
 const MAX_QTY = 10;
 const CART_LIMIT = 20;
@@ -32,12 +33,9 @@ function findBestOffer(product, activeOffers) {
     if (isProductOffer || isCategoryOffer) {
       if (!bestOffer || offer.offerPrecentage > bestOffer.offerPrecentage) {
         bestOffer = offer;
-        offercount++
-      
       }
     }
-  }console.log(offercount)
-
+  }
   return bestOffer;
 }
 
@@ -97,8 +95,6 @@ export async function getCart(req, res, next) {
         offeris=true
       }
 
-
-
       const isAvailable =product.isActive &&!product.isDeleted &&variant.isActive !== false &&!variant.isDeleted;
 
       enrichedItems.push({
@@ -109,7 +105,7 @@ export async function getCart(req, res, next) {
         price: offerPrice,
         originalPrice,
         offerPct: offerPercentage,
-        image: variant.images?.[0] || "/images/placeholder.png",
+        image: formatImagePath(variant.images?.[0] || product.images?.[0] || "", "product") || "/images/placeholder.svg",
         stock: variant.stock,
         isAvailable,
         totalPrice: offerPrice * cartItem.quantity,
@@ -255,16 +251,8 @@ export async function updateCart(req, res, next) {
     const { productId, variantId, quantity } = req.body;
     const requestedQuantity = Number(quantity);
 
-    // const offerforproduct = await Offer.countDocuments({refId:productId})
-    // console.log(offerforproduct)
-
-
-
     if (!Number.isInteger(requestedQuantity) || requestedQuantity < 1 || requestedQuantity > MAX_QTY) {
-      return res.status(400).json({
-        success: false,
-        message: `Quantity must be between 1 and ${MAX_QTY}`,
-      });
+      return res.status(400).json({success: false,message: `Quantity must be between 1 and ${MAX_QTY}`,});
     }
 
     const variant = await Variant.findById(variantId).select("stock isActive isDeleted").lean();
@@ -277,9 +265,7 @@ export async function updateCart(req, res, next) {
     const cart = await Cart.findOne({ userId });
 
     if (!cart) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Cart not found" });
+      return res.status(404).json({ success: false, message: "Cart not found" });
     }
 
     const item = cart.items.find(
@@ -288,22 +274,12 @@ export async function updateCart(req, res, next) {
         item.variantId.toString() === variantId.toString(),
     );
 
-    if(offeris){
-      return res.status(400).json({success:false,message:"Only 2 offer allowed"});
-    }
-    console.log(offeris)
-
     if (!item) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Item not in cart" });
+      return res.status(404).json({ success: false, message: "Item not in cart" });
     }
 
     if (requestedQuantity > variant.stock) {
-      return res.json({
-        success: false,
-        message: `Only ${variant.stock} units in stock`,
-      });
+      return res.json({success: false,message: `Only ${variant.stock} units in stock`,});
     }
 
     item.quantity = requestedQuantity;

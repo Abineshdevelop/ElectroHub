@@ -8,6 +8,7 @@ import Offer from "../../model/offersModel.js";
 import Razorpay from "razorpay";
 import crypto from "crypto";
 import { getOrCreateWallet, debitWallet } from "./walletController.js";
+import { formatImagePath } from "../../utils/imageUtils.js";
 
 // Initialize Razorpay instance
 const razorpay = new Razorpay({
@@ -15,43 +16,60 @@ const razorpay = new Razorpay({
   key_secret: process.env.RAZORPAY_KEY_SECRET,
 });
 
-/**
- * Helper: Calculate coupon discount amount based on type (percentage vs flat)
- */
 function calculateCouponDiscount(coupon, subtotal) {
   let discount = 0;
 
   if (coupon.discountType === "percentage") {
     discount = (subtotal * coupon.discountValue) / 100;
-    // Cap at max discount if specified
     if (coupon.maxDiscountAmount) {
       discount = Math.min(discount, coupon.maxDiscountAmount);
     }
   } else {
-    // Flat discount capped at subtotal
     discount = Math.min(coupon.discountValue, subtotal);
   }
 
   return Math.round(discount);
 }
 
-/**
- * Load Checkout Page
- */
+export const validateCheckout = async (req, res) => {
+  try {
+    const userId = req.session.user._id;
+    const cart = await Cart.findOne({ userId });
+    if (!cart || cart.items.length === 0) {
+      return res.status(400).json({ success: false, message: "Your cart is empty" });
+    }
+
+    const cartItems = await getCartItems(cart);
+
+    //out of stock items
+    const unavailableItems = cartItems.filter((item) => {
+      if (!item.product?.isActive || item.product?.isDeleted) return true;
+      if (item.variant?.isDeleted || item.variant?.isActive === false) return true;
+      if (item.variant.stock < item.quantity) return true;
+      return false;
+    });
+    if (unavailableItems.length > 0) {
+      return res.status(400).json({ success: false, message: "Some items in your cart are unavailable or out of stock" });
+    }
+
+    const subtotal = cartItems.reduce((total, item) => total + item.lineTotal, 0);
+
+    return res.json({ success: true });
+  } catch (error) {
+    console.error("validateCheckout error:", error);
+    res.status(500).json({ success: false, message: "Validation failed. Please try again." });
+  }
+};
+
 export const getCheckoutPage = async (req, res) => {
   try {
     const userId = req.session.user._id;
-
-    // Step 1: Find user cart
     const cart = await Cart.findOne({ userId });
     if (!cart || cart.items.length === 0) {
       return res.redirect("/user/cart");
     }
-
-    // Step 2: Fetch full details for cart items
     const cartItems = await getCartItems(cart);
 
-    // Step 3: Check if any item in cart is inactive, deleted, or out of stock
     const unavailableItems = cartItems.filter((item) => {
       if (!item.product?.isActive || item.product?.isDeleted) return true;
       if (item.variant?.isDeleted || item.variant?.isActive === false) return true;
@@ -63,7 +81,6 @@ export const getCheckoutPage = async (req, res) => {
       return res.redirect("/user/cart");
     }
 
-    // Step 4: Calculate subtotal
     const subtotal = cartItems.reduce((total, item) => total + item.lineTotal, 0);
 
     // Step 5: Check applied coupon validity if any exists in session
@@ -112,9 +129,7 @@ export const getCheckoutPage = async (req, res) => {
   }
 };
 
-/**
- * Save New Address from Checkout Modal
- */
+
 export const saveAddress = async (req, res) => {
   try {
     const userId = req.session.user._id;
@@ -135,6 +150,7 @@ export const saveAddress = async (req, res) => {
     }
 
     // Step 3: Create address in database
+    const existingCount = await Address.countDocuments({ userId });
     const newAddress = await Address.create({
       userId,
       firstName: firstName.trim(),
@@ -146,7 +162,7 @@ export const saveAddress = async (req, res) => {
       state: state.trim(),
       country: country.trim(),
       pincode: pincode.trim(),
-      isDefault: false,
+      isDefault: existingCount === 0,
     });
 
     return res.json({ success: true, message: "Address saved", address: newAddress });
@@ -157,9 +173,9 @@ export const saveAddress = async (req, res) => {
   }
 };
 
-/**
- * Apply Coupon Code to Checkout Session
- */
+
+//Apply Coupon Code to Checkout Session
+
 export const applyCoupon = async (req, res) => {
   try {
     const userId = req.session.user._id;
@@ -259,9 +275,6 @@ export const applyCoupon = async (req, res) => {
   }
 };
 
-/**
- * Remove Applied Coupon from Session
- */
 export const removeCoupon = async (req, res) => {
   try {
     delete req.session.appliedCoupon;
@@ -274,9 +287,7 @@ export const removeCoupon = async (req, res) => {
   }
 };
 
-/**
- * Fetch List of Available Active Coupons for User
- */
+
 export const getAvailableCoupons = async (req, res) => {
   try {
     const now = new Date();
@@ -294,9 +305,8 @@ export const getAvailableCoupons = async (req, res) => {
   }
 };
 
-/**
- * Step-by-step Order Placement Handler (COD, Wallet, Razorpay)
- */
+//Step-by-step Order Placement Handler (COD, Wallet, Razorpay)
+
 export const placeOrder = async (req, res) => {
   try {
     const userId = req.session.user._id;
@@ -558,9 +568,7 @@ export const placeOrder = async (req, res) => {
   }
 };
 
-/**
- * Verify Razorpay Online Payment Signature
- */
+
 export const verifyPayment = async (req, res) => {
   try {
     const userId = req.session.user._id;
@@ -645,9 +653,6 @@ export const verifyPayment = async (req, res) => {
   }
 };
 
-/**
- * Handle Failed Payment Status
- */
 export const handlePaymentFailure = async (req, res) => {
   try {
     const userId = req.session.user._id;
@@ -675,9 +680,8 @@ export const handlePaymentFailure = async (req, res) => {
   }
 };
 
-/**
- * Retry Failed Payment (Wallet or Razorpay)
- */
+// Retry Failed Payment (Wallet or Razorpay)
+
 export const retryPayment = async (req, res) => {
   try {
     const userId = req.session.user._id;
@@ -697,7 +701,7 @@ export const retryPayment = async (req, res) => {
       return res.json({ success: false, message: "Stock is not available" });
     }
 
-    // Step 1: If info mode, return balance info
+    //If info mode, return balance info
     if (!paymentMethod) {
       const wallet = await getOrCreateWallet(userId);
       return res.json({
@@ -708,7 +712,7 @@ export const retryPayment = async (req, res) => {
       });
     }
 
-    // Step 2: Handle Wallet Retry
+    // Handle Wallet Retry
     if (paymentMethod === "wallet") {
       const wallet = await getOrCreateWallet(userId);
       if (wallet.balance < order.totalAmount) {
@@ -772,9 +776,7 @@ export const retryPayment = async (req, res) => {
   }
 };
 
-/**
- * Render Payment Success View
- */
+
 export const renderPaymentSuccess = async (req, res) => {
   try {
     const { orderId } = req.query;
@@ -799,9 +801,9 @@ export const renderPaymentSuccess = async (req, res) => {
   }
 };
 
-/**
- * Render Payment Failed View
- */
+
+//Render Payment Failed View
+
 export const renderPaymentFailed = async (req, res) => {
   try {
     const { orderId } = req.query;
@@ -821,11 +823,7 @@ export const renderPaymentFailed = async (req, res) => {
   }
 };
 
-// ── Helper Functions ──────────────────────────────────────────────────────────
 
-/**
- * Fetch all currently active offers
- */
 async function getActiveOffers() {
   const now = new Date();
   return await Offer.find({
@@ -836,9 +834,8 @@ async function getActiveOffers() {
   }).lean();
 }
 
-/**
- * Find highest applicable percentage offer for product or category
- */
+//Find highest applicable percentage offer for product or category
+ 
 function findBestOffer(product, activeOffers) {
   let bestOffer = null;
 
@@ -856,9 +853,7 @@ function findBestOffer(product, activeOffers) {
   return bestOffer;
 }
 
-/**
- * Fetch and format cart items with offer pricing calculations
- */
+//Fetch and format cart items with offer pricing calculations
 async function getCartItems(cart) {
   const activeOffers = await getActiveOffers();
   const enrichedItems = [];
@@ -880,13 +875,16 @@ async function getCartItems(cart) {
       ? Math.round(basePrice * (1 - discountPercentage / 100))
       : basePrice;
 
+    const rawImage = variant.images?.[0] ?? product.images?.[0] ?? "";
+    const image = formatImagePath(rawImage, "product");
+
     enrichedItems.push({
       productId: cartItem.productId,
       variantId: cartItem.variantId,
       quantity: cartItem.quantity,
       product: { ...product, name: product.productName },
       variant,
-      image: variant.images?.[0] ?? product.images?.[0] ?? "",
+      image,
       unitPrice: salePrice,
       originalPrice: basePrice,
       offerPct: discountPercentage,
@@ -897,9 +895,9 @@ async function getCartItems(cart) {
   return enrichedItems;
 }
 
-/**
- * Check if all requested variant quantities are in stock
- */
+
+//Check if all requested variant quantities are in stock
+
 async function checkStock(items) {
   for (const item of items) {
     const variant = await Variant.findById(item.variantId);
@@ -910,9 +908,9 @@ async function checkStock(items) {
   return { ok: true };
 }
 
-/**
- * Deduct stock from database for placed order, with automatic rollback if failed
- */
+
+//Deduct stock from database for placed order, with automatic rollback if failed
+ 
 async function deductStock(items) {
   const deductedItems = [];
 
@@ -939,9 +937,9 @@ async function deductStock(items) {
   return { success: true };
 }
 
-/**
- * Format address object for Order model
- */
+
+//Format address object for Order model
+
 function formatAddress(address) {
   return {
     firstName: address.firstName,
@@ -956,9 +954,6 @@ function formatAddress(address) {
   };
 }
 
-/**
- * Build order item objects and distribute coupon discount across items
- */
 function buildOrderItems(cartItems, subtotal, totalCouponDiscount) {
   const orderItems = cartItems.map((item) => {
     const couponShare = subtotal > 0
@@ -969,7 +964,7 @@ function buildOrderItems(cartItems, subtotal, totalCouponDiscount) {
       productId: item.productId,
       variantId: item.variantId,
       productName: item.product.name,
-      productImage: item.image || "",
+      productImage: formatImagePath(item.image, "product") || "",
       variantAttributes: item.variant.options,
       quantity: item.quantity,
       unitPrice: item.unitPrice,

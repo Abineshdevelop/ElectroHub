@@ -3,38 +3,29 @@ import Variant from "../../model/variantModel.js";
 import Category from "../../model/categoryModel.js";
 import { AppError } from "../../errors/appError.js";
 import { deleteFromCloudinary } from "../../services/cloudinaryService.js";
+import { formatImagePath } from "../../utils/imageUtils.js";
 
 // Number of products displayed per page in admin products list
 const PER_PAGE = 8;
 
-// ==========================================
-// HELPER FUNCTIONS
-// ==========================================
-
-/**
- * Helper function to delete an image file from Cloudinary.
- */
 function deleteProductImage(imagePath) {
   if (!imagePath) return;
   deleteFromCloudinary(imagePath);
 }
 
-/**
- * Helper function to convert an uploaded file object into a public Cloudinary web image path.
- */
+
 function getWebImagePath(file) {
-  if (file.path && (file.path.startsWith("http://") || file.path.startsWith("https://"))) {
-    return file.path;
+  if (!file) return "";
+  if (file.path) {
+    return formatImagePath(file.path, "product");
   }
-  if (file.filename && (file.filename.startsWith("http://") || file.filename.startsWith("https://"))) {
-    return file.filename;
+  if (file.filename) {
+    return formatImagePath(file.filename, "product");
   }
-  return file.path || "";
+  return "";
 }
 
-/**
- * Helper function to convert variant options Map/Object into a plain JavaScript Object.
- */
+
 function normalizeVariantOptions(variant) {
   let optionsObject = {};
   if (variant.options instanceof Map) {
@@ -49,9 +40,7 @@ function normalizeVariantOptions(variant) {
   };
 }
 
-/**
- * Helper function to normalize product specifications map/object into a plain Object.
- */
+
 function normalizeProductSpecifications(specifications) {
   if (!specifications) return {};
   if (specifications instanceof Map) return Object.fromEntries(specifications);
@@ -59,9 +48,7 @@ function normalizeProductSpecifications(specifications) {
   return {};
 }
 
-/**
- * Helper function to safely parse specifications JSON string into a key-value object.
- */
+
 function parseSpecificationsInput(rawSpecifications) {
   const result = {};
   try {
@@ -82,9 +69,7 @@ function parseSpecificationsInput(rawSpecifications) {
   return result;
 }
 
-/**
- * Helper function to index uploaded variant images by variantIndex and imageIndex.
- */
+
 function buildUploadedFilesMap(files) {
   const fileMap = {};
   (files || []).forEach((file) => {
@@ -97,9 +82,7 @@ function buildUploadedFilesMap(files) {
   return fileMap;
 }
 
-/**
- * Helper function to clean up / delete uploaded files when validation fails.
- */
+
 function cleanupUploadedFiles(fileMap) {
   Object.values(fileMap).forEach((file) => {
     if (file.path && (file.path.startsWith("http://") || file.path.startsWith("https://"))) {
@@ -110,9 +93,7 @@ function cleanupUploadedFiles(fileMap) {
   });
 }
 
-/**
- * Helper function to compile an array of 5 image paths for a variant.
- */
+
 function buildVariantImagesList(variantIndex, variantMeta, fileMap) {
   const imagePaths = [];
   for (let imageIndex = 0; imageIndex < 5; imageIndex++) {
@@ -128,9 +109,7 @@ function buildVariantImagesList(variantIndex, variantMeta, fileMap) {
   return imagePaths;
 }
 
-/**
- * Helper function to check if any two variants have identical option combinations.
- */
+
 function checkForDuplicateVariants(parsedVariants) {
   for (let i = 0; i < parsedVariants.length; i++) {
     for (let j = i + 1; j < parsedVariants.length; j++) {
@@ -152,10 +131,6 @@ function checkForDuplicateVariants(parsedVariants) {
   }
   return null;
 }
-
-// ==========================================
-// CONTROLLER EXPORTS
-// ==========================================
 
 // 1. GET PRODUCTS LIST (Admin View / API)
 export const getProducts = async (req, res) => {

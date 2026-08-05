@@ -9,10 +9,7 @@ import { creditWallet } from "./walletController.js";
 const MAX_RESENDS = 3;
 const MAX_ATTEMPTS = 5;
 
-/**
- * Helper function to generate a unique random uppercase referral code.
- * Example output: "A1B2C3D4"
- */
+
 export async function generateReferralToken() {
   let token = crypto.randomBytes(4).toString("hex").toUpperCase();
   let existingUser = await User.findOne({ referralToken: token });
@@ -26,9 +23,7 @@ export async function generateReferralToken() {
   return token;
 }
 
-/**
- * Helper function to generate a 4-digit OTP, save it to the user, and send an email.
- */
+
 export async function generateAndSendOtp(user) {
   // Step 1: Generate a random 4-digit OTP
   const otp = Math.floor(1000 + Math.random() * 9000).toString();
@@ -50,9 +45,7 @@ export async function generateAndSendOtp(user) {
   );
 }
 
-/**
- * Step-by-step User Signup Handler
- */
+
 export async function signupUser(req, res, next) {
   try {
     const { firstName, lastName, email, phone, password, referralCode } = req.body;
@@ -148,9 +141,7 @@ export async function signupUser(req, res, next) {
   }
 }
 
-/**
- * Step-by-step OTP Verification for Signup
- */
+
 export async function verifyOtp(req, res, next) {
   try {
     const { userId, otp } = req.body;
@@ -254,9 +245,7 @@ export async function verifyOtp(req, res, next) {
   }
 }
 
-/**
- * Resend OTP for Signup
- */
+
 export async function resendOtp(req, res) {
   try {
     const { userId } = req.body;
@@ -299,9 +288,7 @@ export async function resendOtp(req, res) {
   }
 }
 
-/**
- * Step-by-step User Login Handler
- */
+
 export async function loginUser(req, res, next) {
   try {
     const { identifier, password } = req.body;
@@ -371,9 +358,7 @@ export async function loginUser(req, res, next) {
   }
 }
 
-/**
- * Auth Page Loaders
- */
+
 
 export async function loadSignup(req, res) {
   if (req.session.user) {
@@ -453,9 +438,7 @@ export async function loadForgotPassword(req, res) {
   res.render("user/auth/forgot-password");
 }
 
-/**
- * Handle Forgot Password Request
- */
+
 export async function forgotPassword(req, res) {
   try {
     const { email } = req.body;
@@ -504,9 +487,7 @@ export async function forgotPassword(req, res) {
   }
 }
 
-/**
- * Verify OTP for Forgot Password
- */
+
 export async function verifyForgotOtp(req, res) {
   try {
     const { userId, otp } = req.body;
@@ -561,9 +542,7 @@ export async function verifyForgotOtp(req, res) {
   }
 }
 
-/**
- * Resend OTP for Forgot Password
- */
+
 export async function resendForgotOtp(req, res) {
   try {
     const { userId } = req.body;
@@ -607,9 +586,7 @@ export async function resendForgotOtp(req, res) {
   }
 }
 
-/**
- * Load Reset Password Page
- */
+
 export async function loadResetPassword(req, res) {
   try {
     const userId = req.query.userId;
@@ -633,9 +610,7 @@ export async function loadResetPassword(req, res) {
   }
 }
 
-/**
- * Step-by-step Reset Password Handler
- */
+
 export async function resetPassword(req, res) {
   try {
     const { userId, password, confirmPassword } = req.body;
@@ -692,9 +667,7 @@ export async function resetPassword(req, res) {
   }
 }
 
-/**
- * Validate Referral Code via Ajax
- */
+
 export async function validateReferralCode(req, res) {
   try {
     const { code } = req.body;

@@ -138,7 +138,7 @@
             </div>
 
             <% if (addresses && addresses.length > 0) { %>
-              <% const defaultAddr = addresses.find(a => a.isDefault) || null; %>
+              <% const defaultAddr = addresses.find(a => a.isDefault) || addresses[0]; %>
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 
                 <div id="selected-address-slot">
@@ -683,7 +683,7 @@
     });
 
     // ── SELECTED ADDRESS STATE ─────────────────────────────────────────
-    <% const defaultAddr = addresses && addresses.find(a => a.isDefault); %>
+    <% const defaultAddr = (addresses && addresses.length > 0) ? (addresses.find(a => a.isDefault) || addresses[0]) : null; %>
     let selectedAddressId = '<%= defaultAddr ? defaultAddr._id : "" %>' || null;
 
     function renderSelectedSlot(data) {

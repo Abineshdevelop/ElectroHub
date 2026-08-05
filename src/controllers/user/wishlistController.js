@@ -3,6 +3,7 @@ import Wishlist from "../../model/wishlistModel.js";
 import WishlistItem from "../../model/wishlistItemModel.js";
 import Product from "../../model/productModel.js";
 import Cart from "../../model/cartModel.js";
+import { formatImagePath } from "../../utils/imageUtils.js";
 
 const toObjectId = (id) => new mongoose.Types.ObjectId(String(id));
 
@@ -26,7 +27,7 @@ const getVariant = async (variantId, productId) => {
     price: Number(rawVariant.price) || 0,
     mrp: Number(rawVariant.mrp) || 0,
     stock: Number(rawVariant.stock) || 0,
-    images: Array.isArray(rawVariant.images) ? rawVariant.images.map(String) : [],
+    images: Array.isArray(rawVariant.images) ? rawVariant.images.map(img => formatImagePath(String(img), "product")) : [],
     options: rawVariant.options ? JSON.parse(JSON.stringify(rawVariant.options)) : {},
   };
 };

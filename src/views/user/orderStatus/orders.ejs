@@ -171,6 +171,7 @@
                   return_rejected: { label:'Return Rejected', dot:'bg-red-600', cls:'bg-red-600' },
                   };
                   const itemStatusMap = {
+                  pending: { label:'Pending', cls:'bg-gray-400' },
                   confirmed: { label:'Confirmed', cls:'bg-blue-600' },
                   shipped: { label:'Shipped', cls:'bg-indigo-600' },
                   delivered: { label:'Delivered', cls:'bg-green-600' },
@@ -233,7 +234,7 @@
                             class="w-14 h-14 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0 flex items-center justify-center">
                             <% if (item.productImage) { %>
                               <img src="<%= item.productImage %>" alt="<%= item.productName %>"
-                                class="w-full h-full object-cover" onerror="this.style.display='none'" />
+                                class="w-full h-full object-cover" onerror="this.onerror=null; this.src='/images/placeholder.svg'" />
                               <% } else { %>
                                 <i class="bi bi-image text-xl text-gray-300"></i>
                                 <% } %>

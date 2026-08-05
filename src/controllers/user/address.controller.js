@@ -68,6 +68,7 @@ export async function addAddress(req, res, next) {
       throw new AppError(400, "Invalid email address");
     }
 
+    const existingCount = await Address.countDocuments({ userId });
     await Address.create({
       userId,
       firstName,
@@ -79,6 +80,7 @@ export async function addAddress(req, res, next) {
       state,
       country,
       pincode,
+      isDefault: existingCount === 0,
     });
     return res.json({ success: true });
   } catch (err) {

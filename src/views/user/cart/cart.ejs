@@ -425,15 +425,28 @@
       btn.addEventListener('click', () => removeItem(btn.dataset.id, btn.dataset.variant, btn));
     });
 
-    const checkoutBtn = document.getElementById('checkout-btn');
-    if (checkoutBtn) {
-      checkoutBtn.addEventListener('click', (e) => {
-        if (checkoutBtn.dataset.canCheckout === 'false') {
-          e.preventDefault();
-          showToast('Please fix insufficient stock items first', 'warn');
+const checkoutBtn = document.getElementById("checkout-btn");
+
+if (checkoutBtn) {
+    checkoutBtn.addEventListener("click", async (e) => {
+        e.preventDefault();
+
+        if (checkoutBtn.dataset.canCheckout === "false") {
+            showToast("Please fix insufficient stock items first", "warn");
+            return;
         }
-      });
-    }
+
+        const res = await fetch("/user/checkout/validate");
+        const data = await res.json();
+
+        if (!res.ok) {
+            showToast(data.message, "error");
+            return;
+        }
+
+        window.location.href = "/user/checkout";
+    });
+}
   </script>
   <%- include('../partials/footer') %>
 </body>

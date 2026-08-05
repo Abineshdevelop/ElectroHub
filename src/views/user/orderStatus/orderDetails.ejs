@@ -120,7 +120,7 @@
 
             <% 
               const isFailed = order.paymentStatus === 'failed';
-              const steps = ['confirmed', 'shipped', 'out_for_delivery', 'delivered'];
+              const steps = ['pending', 'confirmed', 'shipped', 'out_for_delivery', 'delivered'];
               const statusConfig = {
                 pending: { label: 'Pending', icon: 'bi-hourglass-split', color: 'gray' },
                 confirmed: { label: 'Confirmed', icon: 'bi-check-circle', color: 'blue' },
@@ -186,7 +186,7 @@
                               <div class="w-24 h-24 bg-white border rounded-xl overflow-hidden shrink-0 flex items-center justify-center p-2">
                                 <img src="<%= item.productImage %>" alt="<%= item.productName %>"
                                   class="max-w-full max-h-full w-auto h-auto object-contain"
-                                  onerror="this.style.display='none';this.parentElement.innerHTML='<i class=\'bi bi-image text-gray-300 text-2xl\'></i>'">
+                                  onerror="this.onerror=null; this.src='/images/placeholder.svg';">
                               </div>
                               <div class="flex-1">
                                 <div class="flex justify-between items-start mb-2">

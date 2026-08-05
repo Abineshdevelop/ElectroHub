@@ -7,6 +7,7 @@ import Offer from "../../model/offersModel.js";
 import Wishlist from "../../model/wishlistModel.js";
 import WishlistItem from "../../model/wishlistItemModel.js";
 import User from "../../model/usermodel.js"
+import { formatImagePath } from "../../utils/imageUtils.js";
 
 export async function loadHomePage(req, res, next) {
   try {
@@ -153,7 +154,7 @@ export async function loadHomePage(req, res, next) {
         mrp: Number(variant.mrp || variant.price) || 0,
         offerPct: offerPercentage,
         stock: variant.stock || 0,
-        image: variant.images?.[0] || "",
+        image: formatImagePath(variant.images?.[0] || product.images?.[0] || "", "product"),
         variantId: variant._id,
         avgRating: getAvgRating(product._id.toString()),
         wishlisted,
@@ -192,7 +193,7 @@ export async function loadHomePage(req, res, next) {
         mrp: Number(variant.mrp || variant.price) || 0,
         offerPct: offerPercentage,
         stock: variant.stock || 0,
-        image: variant.images?.[0] || "",
+        image: formatImagePath(variant.images?.[0] || product.images?.[0] || "", "product"),
         variantId: variant._id,
         description: product.description || "",
         wishlisted,
