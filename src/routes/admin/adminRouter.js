@@ -5,6 +5,7 @@ import { isAdminLoggedIn, isAdminLoggedOut } from "../../middlewares/adminAuth.j
 import { getCategories, createCategory, getCategoryById, updateCategory, toggleCategoryStatus, deleteCategory } from "../../controllers/admin/categoriescontroller.js";
 import { getProducts, getProductById, createProduct, updateProduct, deleteProduct, toggleProductStatus, toggleVariantStatus } from '../../controllers/admin/productsController.js';
 import { uploadCategory, uploadBanner, uploadProduct } from '../../middlewares/uploads.js';
+import { uploadToCloudinaryMiddleware } from '../../middlewares/cloudinaryUpload.js';
 import { getCoupons, getCouponById, createCoupon, editCoupon, deleteCoupon, toggleCoupon } from '../../controllers/admin/couponController.js';
 import { getOffersPage,getOfferById, searchProducts, searchCategories, createOffer, editOffer, toggleOffer, deleteOffer } from "../../controllers/admin/offersController.js";
 import { getBannersPage, getBannerById, createBanner, editBanner,  toggleBanner, deleteBanner} from "../../controllers/admin/bannerController.js";
@@ -30,16 +31,16 @@ router.patch ("/customers/:id/unblock", isAdminLoggedIn, customersController.unb
 router.delete("/customers/:id/delete",  isAdminLoggedIn, customersController.deleteUser);
 
 router.get   ("/category",            isAdminLoggedIn, getCategories);
-router.post  ("/category/create",     isAdminLoggedIn, uploadCategory.single('image'), createCategory);
+router.post  ("/category/create",     isAdminLoggedIn, uploadCategory.single('image'), uploadToCloudinaryMiddleware('categories'), createCategory);
 router.get   ("/category/:id",        isAdminLoggedIn, getCategoryById);
-router.put   ("/category/:id/edit",   isAdminLoggedIn, uploadCategory.single('image'), updateCategory);
+router.put   ("/category/:id/edit",   isAdminLoggedIn, uploadCategory.single('image'), uploadToCloudinaryMiddleware('categories'), updateCategory);
 router.patch ("/category/:id/toggle", isAdminLoggedIn, toggleCategoryStatus);
 router.delete("/category/:id/delete", isAdminLoggedIn, deleteCategory);
 
 router.get   ('/products',                          isAdminLoggedIn, getProducts);
-router.post  ('/products/create',                   isAdminLoggedIn, uploadProduct.any(), createProduct);
+router.post  ('/products/create',                   isAdminLoggedIn, uploadProduct.any(), uploadToCloudinaryMiddleware('products'), createProduct);
 router.get   ('/products/:id',                      isAdminLoggedIn, getProductById);
-router.put   ('/products/:id/edit',                 isAdminLoggedIn, uploadProduct.any(), updateProduct);
+router.put   ('/products/:id/edit',                 isAdminLoggedIn, uploadProduct.any(), uploadToCloudinaryMiddleware('products'), updateProduct);
 router.delete('/products/:id/delete',               isAdminLoggedIn, deleteProduct);
 router.patch ('/products/:id/toggle-status',        isAdminLoggedIn, toggleProductStatus);
 router.patch ('/products/:id/variants/:vid/toggle', isAdminLoggedIn, toggleVariantStatus);
@@ -61,9 +62,9 @@ router.patch ('/offers/:id/toggle',         isAdminLoggedIn, toggleOffer);
 router.delete('/offers/:id/delete',         isAdminLoggedIn, deleteOffer);
 
 router.get   ('/banners',            isAdminLoggedIn, getBannersPage);
-router.post  ('/banners/create',     isAdminLoggedIn, uploadBanner.single('image'), createBanner);
+router.post  ('/banners/create',     isAdminLoggedIn, uploadBanner.single('image'), uploadToCloudinaryMiddleware('banners'), createBanner);
 router.get   ('/banners/:id',        isAdminLoggedIn, getBannerById);
-router.put   ('/banners/:id/edit',   isAdminLoggedIn, uploadBanner.single('image'), editBanner);
+router.put   ('/banners/:id/edit',   isAdminLoggedIn, uploadBanner.single('image'), uploadToCloudinaryMiddleware('banners'), editBanner);
 router.patch ('/banners/:id/toggle', isAdminLoggedIn, toggleBanner);
 router.delete('/banners/:id/delete', isAdminLoggedIn, deleteBanner);
 

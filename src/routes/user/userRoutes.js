@@ -3,6 +3,7 @@ import * as userController from "../../controllers/user/auth.controller.js";
 import profileController from "../../controllers/user/profile.controller.js";
 import { isUserLoggedIn, isLoggedOut } from "../../middlewares/userMiddleware.js";
 import upload from "../../middlewares/uploads.js";
+import { uploadToCloudinaryMiddleware } from "../../middlewares/cloudinaryUpload.js";
 import addressController from "../../controllers/user/address.controller.js"
 import passport from "passport";
 import { getSearchSuggestions, getNavCategories, getNavCategoryProducts, getNavCounts } from "../../controllers/user/searchController.js";
@@ -89,6 +90,7 @@ router.post(
   "/profile/avatar",
   isUserLoggedIn,
   upload.single("avatar"),
+  uploadToCloudinaryMiddleware('profiles'),
   profileController.updateAvatar
 );
 
@@ -104,7 +106,7 @@ router.post("/profile/update", isUserLoggedIn, profileController.updateProfileDe
 
 router.post("/profile/password/request-otp", isUserLoggedIn, profileController.requestPasswordChangeOtp);
 router.post("/profile/password/verify-otp", isUserLoggedIn, profileController.verifyPasswordChangeOtp);
-router.post('/profile/avatar/ajax', upload.single('avatar'), isUserLoggedIn, profileController.updateAvatarAjax);
+router.post('/profile/avatar/ajax', upload.single('avatar'), uploadToCloudinaryMiddleware('profiles'), isUserLoggedIn, profileController.updateAvatarAjax);
 router.post('/profile/avatar/remove/ajax', isUserLoggedIn, profileController.removeAvatarAjax);
 
 export default router
